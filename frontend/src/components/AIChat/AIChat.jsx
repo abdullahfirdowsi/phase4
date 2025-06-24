@@ -328,6 +328,23 @@ const AIChat = () => {
         // Try to parse the string as JSON
         parsedContent = JSON.parse(content);
         console.log("Successfully parsed string content as JSON");
+        
+        // If the parsed content has a 'content' property that's a string, it might be a nested response
+        if (parsedContent.content && typeof parsedContent.content === 'string') {
+          try {
+            // Try to parse the nested content
+            const nestedContent = JSON.parse(parsedContent.content);
+            parsedContent = nestedContent;
+            console.log("Successfully parsed nested content as JSON");
+          } catch (e) {
+            console.error("Failed to parse nested content as JSON:", e);
+            // Keep the outer parsed content
+          }
+        } else if (parsedContent.content && typeof parsedContent.content === 'object') {
+          // If content is already an object, use that directly
+          parsedContent = parsedContent.content;
+          console.log("Using nested content object directly");
+        }
       } catch (e) {
         console.error("Failed to parse content as JSON:", e);
         return (
@@ -552,7 +569,7 @@ const AIChat = () => {
                     className="quick-action-btn"
                     onClick={() => {
                       setIsLearningPath(true);
-                      setInputMessage("Create a learning path for Python programming for beginners");
+                      setInputMessage("");
                     }}
                   >
                     <span className="icon">🛣️</span>
@@ -563,7 +580,7 @@ const AIChat = () => {
                     className="quick-action-btn"
                     onClick={() => {
                       setIsQuiz(true);
-                      setInputMessage("Create a quiz about basic science concepts");
+                      setInputMessage("");
                     }}
                   >
                     <span className="icon">📝</span>
@@ -664,9 +681,9 @@ const AIChat = () => {
               ref={textareaRef}
               placeholder={
                 isLearningPath 
-                  ? "Tell me what you want to learn and I'll create a personalized study plan..." 
+                  ? "Tell me what you want to learn..." 
                   : isQuiz
-                  ? "Ask me to create a quiz on any topic..."
+                  ? "Ask me to create a quiz..."
                   : "Message AI Tutor..."
               }
               className="chat-textarea"
