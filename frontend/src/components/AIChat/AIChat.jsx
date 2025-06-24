@@ -411,7 +411,7 @@ const AIChat = () => {
             <h3 className="path-title">{parsedContent.name || "Learning Path"}</h3>
             <div className="path-meta">
               <span className="duration-badge">
-                <FaBook className="me-1" />
+                <FaClock className="me-1" />
                 {parsedContent.course_duration || "N/A"}
               </span>
             </div>

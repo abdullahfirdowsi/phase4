@@ -10,15 +10,46 @@ const LearningPathDisplay = ({ content }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  // Log the content type and value for debugging
+  console.log("Learning Path Content Type:", typeof content);
+  console.log("Learning Path Content Preview:", 
+    typeof content === 'string' 
+      ? content.substring(0, 100) + '...' 
+      : JSON.stringify(content).substring(0, 100) + '...'
+  );
+
   // Handle case where content is a string (not parsed JSON)
+  let parsedContent = content;
   if (typeof content === 'string') {
     try {
-      content = JSON.parse(content);
+      // Try to parse the string as JSON
+      parsedContent = JSON.parse(content);
+      console.log("Successfully parsed string content as JSON");
+      
+      // If the parsed content has a 'content' property that's a string, it might be a nested response
+      if (parsedContent.content && typeof parsedContent.content === 'string') {
+        try {
+          // Try to parse the nested content
+          const nestedContent = JSON.parse(parsedContent.content);
+          parsedContent = nestedContent;
+          console.log("Successfully parsed nested content as JSON");
+        } catch (e) {
+          console.error("Failed to parse nested content as JSON:", e);
+          // Keep the outer parsed content
+        }
+      } else if (parsedContent.content && typeof parsedContent.content === 'object') {
+        // If content is already an object, use that directly
+        parsedContent = parsedContent.content;
+        console.log("Using nested content object directly");
+      }
     } catch (e) {
+      console.error("Failed to parse content as JSON:", e);
       return (
         <div className="learning-path-error">
           <Alert variant="warning">
             Unable to display learning path. The content is not in the expected format.
+            <br />
+            <small>Error: {e.message}</small>
           </Alert>
         </div>
       );
@@ -26,11 +57,26 @@ const LearningPathDisplay = ({ content }) => {
   }
 
   // If content is still not valid, return error
-  if (!content || !content.topics || !Array.isArray(content.topics)) {
+  if (!parsedContent || typeof parsedContent !== 'object') {
+    console.error("Content is not a valid object:", parsedContent);
+    return (
+      <div className="learning-path-error">
+        <Alert variant="warning">
+          Unable to display learning path. The content is not a valid object.
+        </Alert>
+      </div>
+    );
+  }
+
+  // Check if the required fields exist
+  if (!parsedContent.topics || !Array.isArray(parsedContent.topics)) {
+    console.error("Content is missing required 'topics' array:", parsedContent);
     return (
       <div className="learning-path-error">
         <Alert variant="warning">
           Unable to display learning path. The content is missing required data.
+          <br />
+          <small>Expected a 'topics' array but found: {Object.keys(parsedContent).join(', ')}</small>
         </Alert>
       </div>
     );
@@ -42,7 +88,9 @@ const LearningPathDisplay = ({ content }) => {
       setError(null);
       setSuccess(null);
       
-      await saveLearningPath(content, content.name);
+      // Call API to save the learning path
+      await saveLearningPath(parsedContent, parsedContent.name);
+      
       setIsSaved(true);
       setSuccess("Learning path saved successfully!");
     } catch (error) {
@@ -53,25 +101,20 @@ const LearningPathDisplay = ({ content }) => {
     }
   };
 
-  const handleRegenerate = () => {
-    // This would be handled by the parent component
-    console.log("Regenerate learning path");
-  };
-
   return (
     <div className="learning-path-container">
       <Card className="learning-path-card">
         <Card.Header className="learning-path-header">
           <div className="header-content">
-            <h3 className="path-title">{content.name || "Learning Path"}</h3>
+            <h3 className="path-title">{parsedContent.name || "Learning Path"}</h3>
             <div className="path-meta">
               <Badge bg="primary" className="duration-badge">
                 <FaClock className="me-1" />
-                {content.course_duration || "N/A"}
+                {parsedContent.course_duration || "N/A"}
               </Badge>
-              {content.tags && content.tags.length > 0 && (
+              {parsedContent.tags && parsedContent.tags.length > 0 && (
                 <div className="tags">
-                  {content.tags.slice(0, 3).map((tag, i) => (
+                  {parsedContent.tags.slice(0, 3).map((tag, i) => (
                     <Badge key={i} bg="secondary" className="tag-badge">
                       {tag}
                     </Badge>
@@ -95,17 +138,17 @@ const LearningPathDisplay = ({ content }) => {
             </Alert>
           )}
           
-          {content.description && (
+          {parsedContent.description && (
             <div className="path-description mb-4">
-              <p>{content.description}</p>
+              <p>{parsedContent.description}</p>
             </div>
           )}
           
-          {content.links && content.links.length > 0 && (
+          {parsedContent.links && parsedContent.links.length > 0 && (
             <div className="path-links mb-4">
               <h5>Recommended Resources</h5>
               <ul className="resource-list">
-                {content.links.map((link, index) => (
+                {parsedContent.links.map((link, index) => (
                   <li key={index}>
                     <a href={link} target="_blank" rel="noopener noreferrer">
                       <FaExternalLinkAlt className="me-2" />
@@ -119,7 +162,7 @@ const LearningPathDisplay = ({ content }) => {
           
           <div className="topics-container">
             <h5 className="topics-heading">Learning Topics</h5>
-            {content.topics.map((topic, index) => (
+            {parsedContent.topics.map((topic, index) => (
               <Card key={index} className="topic-card mb-3">
                 <Card.Body>
                   <div className="topic-header">
@@ -214,7 +257,6 @@ const LearningPathDisplay = ({ content }) => {
               <Button
                 variant="outline-primary"
                 className="regenerate-btn"
-                onClick={handleRegenerate}
               >
                 <FaRedo className="me-2"/>
                 Regenerate
