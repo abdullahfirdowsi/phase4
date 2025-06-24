@@ -522,22 +522,6 @@ const AIChat = () => {
                 <div className="quick-actions">
                   <button 
                     className="quick-action-btn"
-                    onClick={() => handleQuickAction("I need help understanding the concept of photosynthesis. Can you explain it in simple terms with examples?")}
-                  >
-                    <span className="icon">📚</span>
-                    <span className="text">Explain a concept</span>
-                  </button>
-                  
-                  <button 
-                    className="quick-action-btn"
-                    onClick={() => handleQuickAction("I need help with my math homework. How do I solve quadratic equations?")}
-                  >
-                    <span className="icon">🧮</span>
-                    <span className="text">Homework help</span>
-                  </button>
-                  
-                  <button 
-                    className="quick-action-btn"
                     onClick={() => {
                       setIsLearningPath(true);
                       setInputMessage("Create a learning path for Python programming for beginners");
