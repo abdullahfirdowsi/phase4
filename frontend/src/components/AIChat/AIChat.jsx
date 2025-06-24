@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaPaperPlane, FaStop, FaRedo, FaPlus, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
+import { FaPaperPlane, FaStop, FaRedo, FaPlus, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash, FaCheck } from 'react-icons/fa';
 import { fetchChatHistory, askQuestion, clearChat, saveLearningPath } from '../../api';
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
@@ -313,16 +313,29 @@ const AIChat = () => {
     const [saveError, setSaveError] = useState(null);
     const [saveSuccess, setSuccess] = useState(null);
 
+    // Log the content type and value for debugging
+    console.log("Learning Path Content Type:", typeof content);
+    console.log("Learning Path Content Preview:", 
+      typeof content === 'string' 
+        ? content.substring(0, 100) + '...' 
+        : JSON.stringify(content).substring(0, 100) + '...'
+    );
+
     // Handle case where content is a string (not parsed JSON)
     let parsedContent = content;
     if (typeof content === 'string') {
       try {
+        // Try to parse the string as JSON
         parsedContent = JSON.parse(content);
+        console.log("Successfully parsed string content as JSON");
       } catch (e) {
+        console.error("Failed to parse content as JSON:", e);
         return (
           <div className="learning-path-error">
             <Alert variant="warning">
               Unable to display learning path. The content is not in the expected format.
+              <br />
+              <small>Error: {e.message}</small>
             </Alert>
           </div>
         );
@@ -330,11 +343,26 @@ const AIChat = () => {
     }
 
     // If content is still not valid, return error
-    if (!parsedContent || !parsedContent.topics || !Array.isArray(parsedContent.topics)) {
+    if (!parsedContent || typeof parsedContent !== 'object') {
+      console.error("Content is not a valid object:", parsedContent);
+      return (
+        <div className="learning-path-error">
+          <Alert variant="warning">
+            Unable to display learning path. The content is not a valid object.
+          </Alert>
+        </div>
+      );
+    }
+
+    // Check if the required fields exist
+    if (!parsedContent.topics || !Array.isArray(parsedContent.topics)) {
+      console.error("Content is missing required 'topics' array:", parsedContent);
       return (
         <div className="learning-path-error">
           <Alert variant="warning">
             Unable to display learning path. The content is missing required data.
+            <br />
+            <small>Expected a 'topics' array but found: {Object.keys(parsedContent).join(', ')}</small>
           </Alert>
         </div>
       );
