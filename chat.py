@@ -12,6 +12,11 @@ from constants import LEARNING_PATH_PROMPT, BASIC_ENVIRONMENT_PROMPT, REGENRATE_
 from utils import extract_json
 import os
 from learning_path import process_learning_path_query
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Router for chat
 chat_router = APIRouter()
@@ -25,12 +30,12 @@ def generate_response(prompt):
         # Check if API key is configured
         api_key = os.getenv("API_KEY")
         if not api_key or api_key == "your_groq_api_key_here":
-            print("❌ API_KEY not configured properly")
+            logger.error("❌ API_KEY not configured properly")
             return "API configuration error. Please check your API_KEY in the environment variables."
         
         model_name = os.getenv("MODEL_NAME", "llama3-70b-8192")
-        print(f"🤖 Calling Groq API with model: {model_name}")
-        print(f"📝 Prompt length: {len(prompt)} characters")
+        logger.info(f"🤖 Calling Groq API with model: {model_name}")
+        logger.info(f"📝 Prompt length: {len(prompt)} characters")
         
         response = client.chat.completions.create(
             model=model_name,
@@ -41,15 +46,15 @@ def generate_response(prompt):
         
         content = response.choices[0].message.content
         if not content:
-            print("❌ Empty response from Groq API")
+            logger.error("❌ Empty response from Groq API")
             return ""
         
-        print(f"✅ Successfully generated response: {len(content)} characters")
+        logger.info(f"✅ Successfully generated response: {len(content)} characters")
         return content
         
     except Exception as e:
         error_msg = str(e)
-        print(f"❌ Error generating response: {error_msg}")
+        logger.error(f"❌ Error generating response: {error_msg}")
         
         # Provide more specific error messages
         if "api_key" in error_msg.lower() or "unauthorized" in error_msg.lower():
@@ -74,7 +79,7 @@ async def generate_chat_stream(messages):
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
     except Exception as e:
-        print(f"Error in chat stream: {e}")
+        logger.error(f"Error in chat stream: {e}")
         yield "Error in chat stream. Please try again."
 
 def store_chat_history(username, messages):
@@ -86,7 +91,7 @@ def store_chat_history(username, messages):
             upsert=True
         )
     except Exception as e:
-        print(f"Error storing chat history: {e}")
+        logger.error(f"Error storing chat history: {e}")
 
 def filter_messages(messages):
     """Filters messages to keep only role and content."""
@@ -101,7 +106,7 @@ def update_user_stats(username, stat_type, increment=1):
             upsert=True
         )
     except Exception as e:
-        print(f"Error updating user stats: {e}")
+        logger.error(f"Error updating user stats: {e}")
 
 @chat_router.post("/ask")
 async def chat(
@@ -112,7 +117,7 @@ async def chat(
 ):
     """Handles chat requests (both normal and streaming responses)"""
     try:
-        print(f"👤 User: {user_prompt} | 🆔 Username: {username}")
+        logger.info(f"👤 User: {user_prompt} | 🆔 Username: {username}")
 
         user_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
 
@@ -176,9 +181,9 @@ async def chat(
         return StreamingResponse(chat_stream(), media_type="text/plain")
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         response_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
         response_message = {
             "role": "assistant",
@@ -191,7 +196,7 @@ async def chat(
 
 @chat_router.get("/history")
 async def get_chat_history(username: str):
-    print(f"Fetching Chat History for: {username}")
+    logger.info(f"Fetching Chat History for: {username}")
 
     chat_session = chats_collection.find_one({"username": username})
     
@@ -249,10 +254,10 @@ async def save_path(request: SavePathRequest):
 
         return {"message": f"Learning path saved successfully under '{learning_goal_name}'"}
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        print(f"❌ Error type: {type(e)}")
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error type: {type(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         return JSONResponse(status_code=500, content={"detail": str(e)})
 
 @chat_router.get("/get-all-goals")
@@ -265,10 +270,10 @@ async def get_all_goals(username: str):
         
         return {"learning_goals": chat_session["learning_goals"]}
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        print(f"❌ Error type: {type(e)}")
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error type: {type(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         
         # Return default stats on error to prevent frontend crashes
         return {"learning_goals": []}
@@ -297,7 +302,7 @@ async def delete_learning_goal(username: str = Body(...), goal_name: str = Body(
 
         return {"message": f"Learning goal '{goal_name}' deleted successfully"}
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @chat_router.put("/update-goal")
@@ -329,19 +334,19 @@ async def update_learning_goal(
 
         return {"message": f"Learning goal '{goal_name}' updated successfully"}
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @chat_router.get("/user-stats")
 async def get_user_stats(username: str):
     """Retrieves user statistics."""
     try:
-        print(f"📊 Fetching user stats for: {username}")
+        logger.info(f"📊 Fetching user stats for: {username}")
         
         # Get stats from user collection
         user = users_collection.find_one({"username": username})
         if not user:
-            print(f"⚠️ User not found in users collection: {username}")
+            logger.warning(f"⚠️ User not found in users collection: {username}")
             # Create default user stats if user doesn't exist
             default_stats = {
                 "totalGoals": 0,
@@ -356,13 +361,13 @@ async def get_user_stats(username: str):
         # Get real-time data from chat collection
         chat_session = chats_collection.find_one({"username": username})
         learning_goals = chat_session.get("learning_goals", []) if chat_session else []
-        messages = chat_session.get("messages", []) if chat_session else []
-
-        # Calculate real-time stats
+        
+        # Calculate stats
         total_goals = len(learning_goals)
         completed_goals = sum(1 for goal in learning_goals if goal.get("progress", 0) >= 100)
         
         # Count quiz messages in chat history - Fixed the error here
+        messages = chat_session.get("messages", []) if chat_session else []
         quiz_messages = []
         for msg in messages:
             content = msg.get("content", "")
@@ -371,51 +376,30 @@ async def get_user_stats(username: str):
                 quiz_messages.append(msg)
         
         total_quizzes = len(quiz_messages)
-
-        # Calculate study time (estimate based on learning goals and progress)
-        total_study_time = 0
-        for goal in learning_goals:
-            study_plans = goal.get("study_plans", [])
-            if isinstance(study_plans, list):
-                for plan in study_plans:
-                    if isinstance(plan, dict) and plan.get("topics"):
-                        topics = plan.get("topics", [])
-                        if isinstance(topics, list):
-                            for topic in topics:
-                                if isinstance(topic, dict) and topic.get("completed"):
-                                    # Estimate study time based on time_required
-                                    time_str = topic.get("time_required", "0")
-                                    if isinstance(time_str, str):
-                                        try:
-                                            hours = int(''.join(filter(str.isdigit, time_str)))
-                                            total_study_time += hours
-                                        except (ValueError, TypeError):
-                                            pass
-
-        stats = {
+        
+        # Update user stats
+        updated_stats = {
             "totalGoals": total_goals,
             "completedGoals": completed_goals,
             "totalQuizzes": total_quizzes,
-            "averageScore": user.get("stats", {}).get("averageScore", 0) if isinstance(user.get("stats"), dict) else 0,
-            "streakDays": user.get("stats", {}).get("streakDays", 0) if isinstance(user.get("stats"), dict) else 0,
-            "totalStudyTime": total_study_time
+            "averageScore": user.get("stats", {}).get("averageScore", 0),
+            "streakDays": user.get("stats", {}).get("streakDays", 0),
+            "totalStudyTime": user.get("stats", {}).get("totalStudyTime", 0)
         }
-
-        # Update user stats in database
+        
         users_collection.update_one(
             {"username": username},
-            {"$set": {"stats": stats}},
-            upsert=True
+            {"$set": {"stats": updated_stats}}
         )
 
-        print(f"✅ User stats calculated successfully: {stats}")
-        return stats
+        logger.info(f"✅ User stats calculated successfully: {updated_stats}")
+        return updated_stats
         
     except Exception as e:
-        print(f"❌ Error in get_user_stats: {str(e)}")
-        print(f"❌ Error type: {type(e)}")
+        logger.error(f"❌ Error in get_user_stats: {str(e)}")
+        logger.error(f"❌ Error type: {type(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         
         # Return default stats on error to prevent frontend crashes
         default_stats = {
@@ -500,7 +484,7 @@ async def get_assessments(username: str):
 
         return {"assessments": assessments}
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
 @chat_router.delete("/clear")
@@ -517,7 +501,7 @@ async def clear_chat(username: str):
 
         return {"message": "Chat history cleared successfully."}
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # New API to store user preferences
@@ -543,7 +527,7 @@ async def save_preferences(username: str = Body(...), preferences: dict = Body(.
 
         return {"message": "Preferences saved successfully."}
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @chat_router.get("/analytics")
@@ -590,7 +574,7 @@ async def get_chat_analytics(username: str, days: int = 30):
         return {"analytics": sample_data}
         
     except Exception as e:
-        print(f"❌ Analytics error: {str(e)}")
+        logger.error(f"❌ Analytics error: {str(e)}")
         return {"analytics": []}
 
 @chat_router.get("/search")
@@ -613,5 +597,5 @@ async def search_messages(username: str, query: str):
         return {"messages": results}
         
     except Exception as e:
-        print(f"❌ Search error: {str(e)}")
+        logger.error(f"❌ Search error: {str(e)}")
         return {"messages": []}

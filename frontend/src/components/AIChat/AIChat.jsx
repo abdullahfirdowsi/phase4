@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaPaperPlane, FaStop, FaRedo, FaPlus, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash, FaCheck } from 'react-icons/fa';
+import { FaPaperPlane, FaStop, FaRedo, FaPlus, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash, FaCheck, FaClock } from 'react-icons/fa';
 import { fetchChatHistory, askQuestion, clearChat, saveLearningPath } from '../../api';
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';

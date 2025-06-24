@@ -1,13 +1,19 @@
 # learning_path.py
 import json
 import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, LEARNING_PATH_PROMPT, retry_count=0, max_retries=3):
     """Processes a learning path query, generating and validating JSON responses."""
-    print("📚 Learning Path Query Detected")
-    print(" Trying to generate Learning Path , Retry Count = " + str(retry_count))
+    logger.info("📚 Learning Path Query Detected")
+    logger.info(f"🔄 Trying to generate Learning Path, Retry Count = {retry_count}")
+    
     if retry_count < max_retries:
-        print(f"🔄 Retrying JSON generation (attempt {retry_count + 1})...")
+        logger.info(f"🔄 Retrying JSON generation (attempt {retry_count + 1})...")
 
     if retry_count > 0:
         modified_prompt = f"{user_prompt} {REGENRATE_OR_FILTER_JSON}"
@@ -18,10 +24,10 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
     response_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
     
     # Check if response is empty or None
-    if not response_content or not response_content.strip():
-        print("❌ Empty response from AI model")
+    if not response_content or not isinstance(response_content, str) or not response_content.strip():
+        logger.error("❌ Empty or invalid response from AI model")
         if retry_count < max_retries - 1:
-            print("🔄 Retrying due to empty response...")
+            logger.info("🔄 Retrying due to empty response...")
             return process_learning_path_query(
                 user_prompt, 
                 username, 
@@ -51,8 +57,8 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
                 "content": error_message
             }
 
-    print(f"📝 AI Response length: {len(response_content)} characters")
-    print(f"📝 First 200 chars: {response_content[:200]}...")
+    logger.info(f"📝 AI Response length: {len(response_content)} characters")
+    logger.info(f"📝 First 200 chars: {response_content[:200]}...")
 
     try:
         # Clean the response content first
@@ -68,7 +74,7 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
         if "topics" not in learning_path_json or not isinstance(learning_path_json["topics"], list):
             raise ValueError("Missing or invalid 'topics' field in JSON")
             
-        print("✅ Successfully parsed and validated JSON")
+        logger.info("✅ Successfully parsed and validated JSON")
         
         # Store the response
         response_message = {
@@ -89,8 +95,8 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
         return response_data
 
     except (json.JSONDecodeError, ValueError) as e:
-        print(f"❌ JSON parsing error: {str(e)}")
-        print(f"📝 Raw response content: {repr(response_content[:500])}")
+        logger.error(f"❌ JSON parsing error: {str(e)}")
+        logger.error(f"📝 Raw response content: {repr(response_content[:500])}")
         
         # Try to extract JSON from text using utility function
         parsedData = extract_json(response_content)
@@ -98,7 +104,7 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
         if parsedData and isinstance(parsedData, dict):
             # Validate extracted JSON
             if "topics" in parsedData and isinstance(parsedData["topics"], list):
-                print("✅ Successfully extracted and validated JSON from text")
+                logger.info("✅ Successfully extracted and validated JSON from text")
                 response_message = {
                     "role": "assistant",
                     "content": parsedData,
@@ -117,7 +123,7 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
                 return response_data
         
         # If we're here, JSON extraction failed or validation failed
-        print("❌ Failed to parse learning path JSON, retrying...")
+        logger.error("❌ Failed to parse learning path JSON, retrying...")
         
         if retry_count < max_retries - 1:
             # Try again with more explicit instructions
