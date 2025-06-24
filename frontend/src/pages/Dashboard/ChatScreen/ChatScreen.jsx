@@ -61,7 +61,10 @@ const ChatScreen = () => {
       await askQuestion(
         prompt,
         (partialResponse) => {
-          dispatch(setStreamChat(partialResponse));
+          // Update the streaming message with the partial response
+          const latestHistory = [...updatedHistory];
+          latestHistory[latestHistory.length - 1].content = partialResponse;
+          dispatch(setChatHistory(latestHistory));
         },
         () => {
           refreshChat(); 
