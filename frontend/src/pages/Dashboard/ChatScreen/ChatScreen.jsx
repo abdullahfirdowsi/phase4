@@ -10,8 +10,7 @@ import {
   setIsGenerating,
   setIsLearningPathQuery,
   setIsQuizQuery,
-  addTemporaryMessage,
-  setStreamChat
+  addTemporaryMessage
 } from "../../../globalSlice";
 import "./ChatScreen.scss";
 import { Book, List, X, Search, BarChart } from "react-bootstrap-icons";
@@ -31,10 +30,12 @@ const ChatScreen = () => {
 
   const handleStudyPlan = () => {
     dispatch(setIsLearningPathQuery(!isLearningPathQuery));
+    dispatch(setIsQuizQuery(false));
   };
 
   const handleSelfyQuiz = () => {
     dispatch(setIsQuizQuery(!isQuizQuery));
+    dispatch(setIsLearningPathQuery(false));
   };
 
   const handleExplainConcept = () => {
@@ -48,12 +49,14 @@ const ChatScreen = () => {
   };
 
   const handleQuickAction = async (prompt) => {
+    // Create a copy of the current chat history
     const updatedHistory = [
       ...chatHistory,
       { role: "user", content: prompt, type: "content" },
       { role: "assistant", content: "", type: "streaming" }
     ];
     
+    // Update the chat history with the user message and an empty assistant message
     dispatch(setChatHistory(updatedHistory));
     dispatch(setIsGenerating(true));
     
