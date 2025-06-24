@@ -3,7 +3,7 @@ import { Button } from "react-bootstrap";
 import { FaPaperPlane, FaStop } from "react-icons/fa";
 import { askQuestion } from "../../../api";
 import { useDispatch, useSelector } from "react-redux";
-import { setChatHistory, setIsGenerating, setIsLearningPathQuery } from "../../../globalSlice";
+import { setChatHistory, setIsGenerating, setIsLearningPathQuery, setStreamChat } from "../../../globalSlice";
 import "./ChatInput.scss";
 
 const ChatInput = ({ refreshChat }) => {
@@ -41,10 +41,7 @@ const ChatInput = ({ refreshChat }) => {
       await askQuestion(
         userMessage,
         (partialResponse) => {
-          // Update the streaming message with the partial response
-          const latestHistory = [...updatedHistory];
-          latestHistory[latestHistory.length - 1].content = partialResponse;
-          dispatch(setChatHistory(latestHistory));
+          dispatch(setStreamChat(partialResponse));
         },
         () => {
           refreshChat(); 

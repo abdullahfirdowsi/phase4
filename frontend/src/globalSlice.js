@@ -35,7 +35,13 @@ const globalSlice = createSlice({
         state.chatHistory?.length > 0 &&
         state.chatHistory[state.chatHistory.length - 1].type === "streaming"
       ) {
-        state.chatHistory[state.chatHistory.length - 1].content = message;
+        // Create a new message object instead of modifying the existing one
+        const lastIndex = state.chatHistory.length - 1;
+        const updatedMessage = {
+          ...state.chatHistory[lastIndex],
+          content: message
+        };
+        state.chatHistory[lastIndex] = updatedMessage;
       }
     },
     markTopicCompleted: (state, action) => {
@@ -62,7 +68,12 @@ const globalSlice = createSlice({
     updateLatestMessage: (state, action) => {
       const lastMessage = state.chatHistory[state.chatHistory.length - 1];
       if (lastMessage?.type === "streaming") {
-        lastMessage.content = action.payload.content;
+        // Create a new message object instead of modifying the existing one
+        const updatedMessage = {
+          ...lastMessage,
+          content: action.payload.content
+        };
+        state.chatHistory[state.chatHistory.length - 1] = updatedMessage;
       }
     },
     setIsGenerating: (state, action) => {

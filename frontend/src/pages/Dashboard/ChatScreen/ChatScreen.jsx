@@ -10,7 +10,8 @@ import {
   setIsGenerating,
   setIsLearningPathQuery,
   setIsQuizQuery,
-  addTemporaryMessage
+  addTemporaryMessage,
+  setStreamChat
 } from "../../../globalSlice";
 import "./ChatScreen.scss";
 import { Book, List, X, Search, BarChart } from "react-bootstrap-icons";
@@ -61,10 +62,7 @@ const ChatScreen = () => {
       await askQuestion(
         prompt,
         (partialResponse) => {
-          // Update the streaming message with the partial response
-          const latestHistory = [...updatedHistory];
-          latestHistory[latestHistory.length - 1].content = partialResponse;
-          dispatch(setChatHistory(latestHistory));
+          dispatch(setStreamChat(partialResponse));
         },
         () => {
           refreshChat(); 
