@@ -1,0 +1,44 @@
+{
+    "name": "ai-tutor",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "description": "AI-powered personalized learning platform with intelligent tutoring",
+    "keywords": ["ai", "tutor", "learning", "education", "personalized"],
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "lint": "eslint .",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "@react-oauth/google": "^0.12.1",
+        "@reduxjs/toolkit": "^2.6.1",
+        "bootstrap": "^5.3.3",
+        "date-fns": "^4.1.0",
+        "jwt-decode": "^4.0.0",
+        "react": "^19.0.0",
+        "react-bootstrap": "^2.10.9",
+        "react-bootstrap-icons": "^1.11.5",
+        "react-dom": "^19.0.0",
+        "react-icons": "^5.5.0",
+        "react-markdown": "^10.1.0",
+        "react-redux": "^9.2.0",
+        "react-resizable": "^3.0.5",
+        "react-router-dom": "^7.2.0",
+        "recharts": "^2.12.0",
+        "remark-gfm": "^4.0.1",
+        "sass": "^1.85.1"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.21.0",
+        "@types/react": "^19.0.10",
+        "@types/react-dom": "^19.0.4",
+        "@vitejs/plugin-react": "^4.3.4",
+        "eslint": "^9.21.0",
+        "eslint-plugin-react-hooks": "^5.1.0",
+        "eslint-plugin-react-refresh": "^0.4.19",
+        "globals": "^15.15.0",
+        "vite": "^6.2.5"
+    }
+}

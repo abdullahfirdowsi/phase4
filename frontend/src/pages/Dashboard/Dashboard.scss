@@ -1,0 +1,54 @@
+@use "../../styles/variables" as v;
+@use "../../styles/themes";
+
+.simple-dashboard {
+  display: flex;
+  height: calc(100vh - #{v.$navbar-height});
+  background: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  margin-left: 0; // No margin needed since sidebar is separate
+}
+
+.mobile-overlay {
+  position: fixed;
+  top: v.$navbar-height;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1035;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+// Responsive design
+@media (max-width: v.$breakpoint-tablet) {
+  .simple-dashboard {
+    height: calc(100vh - 70px);
+  }
+  
+  .mobile-overlay {
+    top: 70px;
+  }
+}
+
+@media (max-width: v.$breakpoint-mobile) {
+  .simple-dashboard {
+    height: calc(100vh - 60px);
+  }
+  
+  .mobile-overlay {
+    top: 60px;
+  }
+}

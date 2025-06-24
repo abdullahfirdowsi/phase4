@@ -1,0 +1,391 @@
+// Enhanced themes.scss with modern design tokens
+@use "variables" as v;
+
+// Light Theme
+[data-theme="light"] {
+  --bg-primary: #{v.$light-bg};
+  --bg-secondary: #{v.$light-surface};
+  --bg-tertiary: #{v.$secondary-100};
+  --text-primary: #{v.$light-text};
+  --text-secondary: #{v.$light-text-muted};
+  --text-tertiary: #{v.$secondary-500};
+  --border-color: #{v.$light-border};
+  --border-light: #{v.$secondary-100};
+  --shadow: #{v.$box-shadow-md};
+  --shadow-lg: #{v.$box-shadow-lg};
+  --primary-color: #{v.$primary-light};
+  --primary-hover: #{v.$primary-700};
+  --secondary-color: #{v.$secondary-light};
+  --success-color: #{v.$success-light};
+  --warning-color: #{v.$warning-light};
+  --danger-color: #{v.$danger-light};
+  
+  // Component specific
+  --navbar-bg: rgba(255, 255, 255, 0.95);
+  --sidebar-bg: #{v.$light-bg};
+  --card-bg: #{v.$light-bg};
+  --card-hover-bg: #{v.$secondary-50};
+  --modal-bg: #{v.$light-bg};
+  --input-bg: #{v.$light-bg};
+  --input-border: #{v.$secondary-300};
+  --button-bg: #{v.$primary-light};
+  --button-hover-bg: #{v.$primary-700};
+  
+  // Glass morphism
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  
+  // Status colors
+  --success-bg: #{v.$success-50};
+  --warning-bg: #{v.$warning-50};
+  --danger-bg: #{v.$danger-50};
+  --info-bg: #{v.$primary-50};
+}
+
+// Dark Theme
+[data-theme="dark"] {
+  --bg-primary: #{v.$dark-bg};
+  --bg-secondary: #{v.$dark-surface};
+  --bg-tertiary: #{v.$secondary-700};
+  --text-primary: #{v.$dark-text};
+  --text-secondary: #{v.$dark-text-muted};
+  --text-tertiary: #{v.$secondary-500};
+  --border-color: #{v.$dark-border};
+  --border-light: #{v.$secondary-600};
+  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --primary-color: #{v.$primary-dark};
+  --primary-hover: #{v.$primary-300};
+  --secondary-color: #{v.$secondary-dark};
+  --success-color: #{v.$success-dark};
+  --warning-color: #{v.$warning-dark};
+  --danger-color: #{v.$danger-dark};
+  
+  // Component specific
+  --navbar-bg: rgba(30, 41, 59, 0.95);
+  --sidebar-bg: #{v.$dark-bg};
+  --card-bg: #{v.$dark-surface};
+  --card-hover-bg: #{v.$secondary-700};
+  --modal-bg: #{v.$dark-surface};
+  --input-bg: #{v.$secondary-700};
+  --input-border: #{v.$secondary-600};
+  --button-bg: #{v.$primary-dark};
+  --button-hover-bg: #{v.$primary-300};
+  
+  // Glass morphism
+  --glass-bg: rgba(30, 41, 59, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  
+  // Status colors
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --info-bg: rgba(59, 130, 246, 0.1);
+}
+
+// Global theme application
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Enhanced utility classes
+.bg-theme-primary {
+  background-color: var(--bg-primary) !important;
+}
+
+.bg-theme-secondary {
+  background-color: var(--bg-secondary) !important;
+}
+
+.bg-theme-tertiary {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.text-theme-primary {
+  color: var(--text-primary) !important;
+}
+
+.text-theme-secondary {
+  color: var(--text-secondary) !important;
+}
+
+.text-theme-tertiary {
+  color: var(--text-tertiary) !important;
+}
+
+.border-theme {
+  border-color: var(--border-color) !important;
+}
+
+.border-theme-light {
+  border-color: var(--border-light) !important;
+}
+
+.shadow-theme {
+  box-shadow: var(--shadow) !important;
+}
+
+.shadow-theme-lg {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+// Enhanced card theming
+.card {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  box-shadow: var(--shadow);
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: var(--card-hover-bg);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--border-light);
+  }
+  
+  .card-footer {
+    background-color: transparent;
+    border-top: 1px solid var(--border-light);
+  }
+}
+
+// Enhanced modal theming
+.modal-content {
+  background-color: var(--modal-bg);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  border: none;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modal-footer {
+  border-top: 1px solid var(--border-light);
+}
+
+// Enhanced form theming
+.form-control {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-primary);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    background-color: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+  }
+  
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
+}
+
+.form-select {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-primary);
+  border-radius: 0.75rem;
+  
+  &:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+  }
+}
+
+// Enhanced button theming
+.btn {
+  border-radius: 0.75rem;
+  font-weight: 600;
+  padding: 0.875rem 2rem;
+  transition: all 0.3s ease;
+  border: none;
+  
+  &:hover {
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+  
+  &:hover, &:focus, &:active {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: white;
+  }
+}
+
+.btn-outline-primary {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background-color: transparent;
+  
+  &:hover, &:focus, &:active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+  }
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.btn-lg {
+  padding: 1rem 2.5rem;
+  font-size: 1.125rem;
+}
+
+// Enhanced navbar theming
+.navbar {
+  background-color: var(--navbar-bg) !important;
+  border-bottom: 1px solid var(--border-light);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+// Enhanced sidebar theming
+.sidebar {
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--border-color);
+}
+
+// Glass morphism utility
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+// Status colors
+.text-success {
+  color: var(--success-color) !important;
+}
+
+.text-warning {
+  color: var(--warning-color) !important;
+}
+
+.text-danger {
+  color: var(--danger-color) !important;
+}
+
+.bg-success-light {
+  background-color: var(--success-bg) !important;
+}
+
+.bg-warning-light {
+  background-color: var(--warning-bg) !important;
+}
+
+.bg-danger-light {
+  background-color: var(--danger-bg) !important;
+}
+
+.bg-info-light {
+  background-color: var(--info-bg) !important;
+}
+
+// Enhanced animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+// Smooth scrolling
+html {
+  scroll-behavior: smooth;
+}
+
+// Enhanced scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  
+  &:hover {
+    background: var(--text-tertiary);
+  }
+}
+
+// Focus styles
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}

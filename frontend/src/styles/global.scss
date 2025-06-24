@@ -1,0 +1,16 @@
+// Import global styles
+@use "./variables" as v;
+
+// Global resets and base styles
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: v.$font-family-base;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+ 

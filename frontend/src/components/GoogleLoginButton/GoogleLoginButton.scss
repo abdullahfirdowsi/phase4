@@ -1,0 +1,63 @@
+@use "../../styles/variables" as v;
+@use "../../styles/themes";
+
+.google-login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background-color: white;
+  color: #444;
+  border: 1px solid #ddd;
+  border-radius: v.$border-radius-lg;
+  font-weight: v.$font-weight-medium;
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  
+  .google-icon {
+    flex-shrink: 0;
+  }
+  
+  span {
+    font-size: 0.95rem;
+  }
+  
+  &:hover {
+    background-color: #f8f9fa;
+    border-color: #dadce0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Dark mode adjustments
+[data-theme="dark"] {
+  .google-login-button {
+    background-color: #2d333b;
+    color: #e6edf3;
+    border-color: #444c56;
+    
+    &:hover {
+      background-color: #373e47;
+      border-color: #545d68;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: v.$breakpoint-mobile) {
+  .google-login-button {
+    padding: 0.75rem 1rem;
+    
+    span {
+      font-size: 0.9rem;
+    }
+  }
+}

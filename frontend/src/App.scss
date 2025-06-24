@@ -1,0 +1,124 @@
+@use "./styles/bootstrap";
+@use "./styles/variables" as v;
+@use "./styles/themes";
+
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: v.$font-family-base;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: v.$navbar-height;
+  min-height: calc(100vh - #{v.$navbar-height});
+}
+
+// Enhanced global styling
+.btn {
+  border-radius: v.$btn-border-radius;
+  font-weight: v.$btn-font-weight;
+  transition: v.$transition-base;
+  border: none;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  border: none;
+  color: white;
+  
+  &:hover, &:focus, &:active {
+    background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
+    color: white;
+    filter: brightness(1.1);
+  }
+}
+
+.card {
+  border-radius: v.$card-border-radius;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-light);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  transition: v.$transition-base;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    background: var(--card-hover-bg);
+  }
+}
+
+.form-control {
+  border-radius: v.$input-border-radius;
+  border: 2px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  padding: v.$input-padding-y v.$input-padding-x;
+  transition: v.$transition-base;
+  
+  &:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+    background: var(--input-bg);
+    color: var(--text-primary);
+  }
+  
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
+}
+
+// Enhanced scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: v.$border-radius;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: v.$border-radius;
+  
+  &:hover {
+    background: var(--text-tertiary);
+  }
+}
+
+// Responsive utilities
+@media (max-width: v.$breakpoint-mobile) {
+  .app-container {
+    font-size: 0.9rem;
+  }
+}
+
+// Component spacing system
+.component-spacing {
+  > * + * {
+    margin-top: 1.5rem;
+  }
+}
+
+// Smooth transitions for all interactive elements
+button, .btn, .card, .form-control {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

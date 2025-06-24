@@ -1,0 +1,120 @@
+@use "../../styles/variables" as v;`r`n@use "../../styles/themes";
+
+.avatar-uploader {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: v.$border-radius-xl;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  
+  .card-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-bottom: none;
+    padding: 1rem 1.5rem;
+    
+    h5 {
+      margin: 0;
+      font-weight: v.$font-weight-semibold;
+    }
+  }
+  
+  .card-body {
+    padding: 1.5rem;
+  }
+  
+  .upload-container {
+    border: 2px dashed var(--border-color);
+    border-radius: v.$border-radius-lg;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      border-color: var(--primary-color);
+      background: var(--bg-secondary);
+    }
+    
+    .upload-placeholder {
+      cursor: pointer;
+      
+      svg {
+        color: var(--text-tertiary);
+        margin-bottom: 1rem;
+      }
+      
+      p {
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        font-weight: v.$font-weight-medium;
+      }
+      
+      small {
+        color: var(--text-tertiary);
+      }
+    }
+    
+    .preview-container {
+      position: relative;
+      
+      .image-preview {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: v.$border-radius-lg;
+        box-shadow: var(--shadow-sm);
+      }
+      
+      .preview-actions {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: center;
+      }
+    }
+  }
+  
+  .action-buttons {
+    .btn {
+      padding: 0.75rem 1.5rem;
+      font-weight: v.$font-weight-semibold;
+      
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+    }
+  }
+  
+  .progress {
+    height: 0.75rem;
+    border-radius: v.$border-radius-full;
+    
+    .progress-bar {
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: v.$breakpoint-tablet) {
+  .avatar-uploader {
+    .upload-container {
+      padding: 1.5rem;
+    }
+  }
+}
+
+@media (max-width: v.$breakpoint-mobile) {
+  .avatar-uploader {
+    .card-header {
+      padding: 1rem;
+    }
+    
+    .card-body {
+      padding: 1rem;
+    }
+    
+    .upload-container {
+      padding: 1rem;
+    }
+  }
+}
