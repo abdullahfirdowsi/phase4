@@ -1,10 +1,10 @@
 import { useState } from "react";
-import ChatScreen from './ChatScreen/ChatScreen';
 import Sidebar from './SideBar/Sidebar';
 import DashboardHome from "./DashboardHome/DashboardHome";
 import Learning from "./Learning/Learning";
 import QuizSystem from "./QuizSystem/QuizSystem";
 import AdminDashboard from "./AdminDashboard/AdminDashboard";
+import AIChat from "../../components/AIChat/AIChat";
 import './Dashboard.scss';
 
 const Dashboard = () => {
@@ -19,7 +19,7 @@ const Dashboard = () => {
       case "dashboard":
         return <DashboardHome />;
       case "chat":
-        return <ChatScreen />;
+        return <AIChat />;
       case "learning-paths":
         return <Learning />;
       case "quiz-system":

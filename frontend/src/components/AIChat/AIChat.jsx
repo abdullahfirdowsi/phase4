@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaRedo, FaPlus, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
-import { fetchChatHistory, askQuestion, clearChat } from '../../api';
+import { fetchChatHistory, askQuestion, clearChat, saveLearningPath } from '../../api';
 import './AIChat.scss';
-import AIMessage from './AIMessage';
-import UserMessage from './UserMessage';
-import LearningPathDisplay from './LearningPathDisplay';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { formatDistanceToNow } from 'date-fns';
 import SearchModal from './SearchModal';
 import AnalyticsModal from './AnalyticsModal';
 import ConfirmModal from './ConfirmModal';
@@ -226,6 +226,268 @@ const AIChat = () => {
       // Remove the temporary AI message
       setMessages(prevMessages => prevMessages.slice(0, -1));
     }
+  };
+
+  // Render user message
+  const UserMessage = ({ message }) => {
+    const { content, timestamp } = message;
+    const timeAgo = timestamp
+      ? formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+      : null;
+
+    return (
+      <div className="user-message-container">
+        <div className="user-message-bubble">
+          <div className="message-content">{content}</div>
+          {timeAgo && (
+            <div className="message-time">{timeAgo}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render AI message
+  const AIMessage = ({ message }) => {
+    const { content, timestamp } = message;
+    const timeAgo = timestamp
+      ? formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+      : null;
+
+    if (!content) {
+      return null;
+    }
+
+    return (
+      <div className="ai-message-container">
+        <div className="ai-avatar">
+          <img src="/icons/aitutor-short-no-bg.png" alt="AI" className="avatar-image" />
+        </div>
+        
+        <div className="ai-message-card">
+          <div className="ai-header">
+            <span className="ai-label">AI Tutor</span>
+            {timeAgo && (
+              <small className="message-time">{timeAgo}</small>
+            )}
+          </div>
+          
+          <div className="message-content">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                // Custom styling for markdown elements
+                h1: ({children}) => <h1 className="markdown-h1">{children}</h1>,
+                h2: ({children}) => <h2 className="markdown-h2">{children}</h2>,
+                h3: ({children}) => <h3 className="markdown-h3">{children}</h3>,
+                p: ({children}) => <p className="markdown-p">{children}</p>,
+                ul: ({children}) => <ul className="markdown-ul">{children}</ul>,
+                ol: ({children}) => <ol className="markdown-ol">{children}</ol>,
+                li: ({children}) => <li className="markdown-li">{children}</li>,
+                code: ({children, className}) => {
+                  const isInline = !className;
+                  return isInline ? 
+                    <code className="markdown-code-inline">{children}</code> :
+                    <code className="markdown-code-block">{children}</code>;
+                },
+                pre: ({children}) => <pre className="markdown-pre">{children}</pre>,
+                blockquote: ({children}) => <blockquote className="markdown-blockquote">{children}</blockquote>,
+                a: ({children, href}) => <a className="markdown-link" href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+                table: ({children}) => <table className="markdown-table">{children}</table>,
+                th: ({children}) => <th className="markdown-th">{children}</th>,
+                td: ({children}) => <td className="markdown-td">{children}</td>,
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render learning path display
+  const LearningPathDisplay = ({ content }) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
+    const [saveError, setSaveError] = useState(null);
+    const [saveSuccess, setSuccess] = useState(null);
+
+    // Handle case where content is a string (not parsed JSON)
+    let parsedContent = content;
+    if (typeof content === 'string') {
+      try {
+        parsedContent = JSON.parse(content);
+      } catch (e) {
+        return (
+          <div className="learning-path-error">
+            <Alert variant="warning">
+              Unable to display learning path. The content is not in the expected format.
+            </Alert>
+          </div>
+        );
+      }
+    }
+
+    // If content is still not valid, return error
+    if (!parsedContent || !parsedContent.topics || !Array.isArray(parsedContent.topics)) {
+      return (
+        <div className="learning-path-error">
+          <Alert variant="warning">
+            Unable to display learning path. The content is missing required data.
+          </Alert>
+        </div>
+      );
+    }
+
+    const handleSave = async () => {
+      try {
+        setIsSaving(true);
+        setSaveError(null);
+        setSuccess(null);
+        
+        // Call API to save the learning path
+        await saveLearningPath(parsedContent, parsedContent.name);
+        
+        setIsSaved(true);
+        setSuccess("Learning path saved successfully!");
+      } catch (error) {
+        console.error(error);
+        setSaveError("Failed to save learning path. Please try again.");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    return (
+      <div className="learning-path-container">
+        <div className="learning-path-card">
+          <div className="learning-path-header">
+            <h3 className="path-title">{parsedContent.name || "Learning Path"}</h3>
+            <div className="path-meta">
+              <span className="duration-badge">
+                <FaBook className="me-1" />
+                {parsedContent.course_duration || "N/A"}
+              </span>
+            </div>
+          </div>
+          
+          <div className="learning-path-body">
+            {saveError && (
+              <Alert variant="danger" dismissible onClose={() => setSaveError(null)}>
+                {saveError}
+              </Alert>
+            )}
+            
+            {saveSuccess && (
+              <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
+                {saveSuccess}
+              </Alert>
+            )}
+            
+            {parsedContent.description && (
+              <div className="path-description">
+                <p>{parsedContent.description}</p>
+              </div>
+            )}
+            
+            <div className="topics-container">
+              <h5 className="topics-heading">Learning Topics</h5>
+              {parsedContent.topics.map((topic, index) => (
+                <div key={index} className="topic-card">
+                  <div className="topic-header">
+                    <h5 className="topic-title">
+                      <span className="topic-number">{index + 1}</span>
+                      {topic.name}
+                    </h5>
+                    <span className="time-badge">
+                      <FaBook className="me-1" />
+                      {topic.time_required}
+                    </span>
+                  </div>
+                  
+                  <p className="topic-description">{topic.description}</p>
+                  
+                  <div className="topic-resources">
+                    {topic.links && topic.links.length > 0 && (
+                      <div className="resource-section">
+                        <h6>Reading Materials</h6>
+                        <ul className="resource-list">
+                          {topic.links.map((link, i) => (
+                            <li key={i}>
+                              <a href={link} target="_blank" rel="noopener noreferrer">
+                                {link.replace(/^https?:\/\//, '').split('/')[0]}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {topic.videos && topic.videos.length > 0 && (
+                      <div className="resource-section">
+                        <h6>Video Resources</h6>
+                        <ul className="resource-list">
+                          {topic.videos.map((video, i) => (
+                            <li key={i}>
+                              <a href={video} target="_blank" rel="noopener noreferrer">
+                                {video.includes('youtube') ? 'YouTube Video' : 'Video Resource'}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {topic.subtopics && topic.subtopics.length > 0 && (
+                    <div className="subtopics-section">
+                      <h6>Subtopics</h6>
+                      <ul className="subtopics-list">
+                        {topic.subtopics.map((sub, i) => (
+                          <li key={i}>
+                            <strong>{sub.name}</strong>
+                            {sub.description && <p>{sub.description}</p>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="learning-path-footer">
+            {isSaved ? (
+              <div className="saved-indicator">
+                <FaCheck className="me-2" />
+                <span>Study Plan Saved</span>
+              </div>
+            ) : (
+              <div className="action-buttons">
+                <Button
+                  variant="primary"
+                  className="save-btn"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
+                  <FaPlus className="me-2"/>
+                  {isSaving ? 'Saving...' : 'Save Study Plan'}
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  className="regenerate-btn"
+                >
+                  <FaRedo className="me-2"/>
+                  Regenerate
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
