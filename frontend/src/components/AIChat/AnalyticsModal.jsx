@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Card, Row, Col, Spinner, Alert, Badge } from 'react-bootstrap';
+import { Modal, Row, Col, Spinner, Alert, Badge } from 'react-bootstrap';
 import { BarChart, GraphUp, ChatSquare, Clock } from 'react-bootstrap-icons';
 import { getChatAnalytics } from '../../api';
 import './AnalyticsModal.scss';
