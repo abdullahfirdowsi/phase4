@@ -85,7 +85,10 @@ class DIDService:
             
             # Add webhook if provided
             if webhook_url:
-                payload["webhook"] = webhook_url
+                payload["webhook"] = {
+                    "url": webhook_url,
+                    "secret": self.webhook_secret
+                }
             
             logger.info(f"🎬 Creating D-ID avatar with source: {source_url}")
             
@@ -389,14 +392,41 @@ class DIDService:
                         "lesson_id": lesson_id
                     }
             
+            # Update lesson status to processing
+            self.collections['lessons'].update_one(
+                {"lesson_id": lesson_id},
+                {"$set": {
+                    "avatar_status": "processing",
+                    "updated_at": time.time()
+                }}
+            )
+            
+            # Create webhook URL for status updates
+            webhook_url = None
+            if self.webhook_secret:
+                # In a production environment, this would be your public-facing webhook URL
+                # For local development, you might use a service like ngrok
+                webhook_url = "https://your-server.com/lessons/webhook"
+            
             # Create talking avatar
             talk_result = await self.create_avatar_talk(
                 source_url=avatar_image_url,
                 script_text=script_text,
-                voice_id=voice_id
+                voice_id=voice_id,
+                webhook_url=webhook_url
             )
             
             if not talk_result["success"]:
+                # Update lesson status to failed
+                self.collections['lessons'].update_one(
+                    {"lesson_id": lesson_id},
+                    {"$set": {
+                        "avatar_status": "failed",
+                        "avatar_error": talk_result["error"],
+                        "updated_at": time.time()
+                    }}
+                )
+                
                 return {
                     "success": False,
                     "error": f"Avatar creation failed: {talk_result['error']}",
@@ -405,70 +435,129 @@ class DIDService:
             
             talk_id = talk_result["talk_id"]
             
-            # Poll for completion
-            max_attempts = 30  # 5 minutes (10 seconds * 30)
-            for attempt in range(max_attempts):
-                status_result = await self.get_talk_status(talk_id)
-                
-                if not status_result["success"]:
-                    logger.error(f"❌ Status check failed: {status_result['error']}")
-                    await asyncio.sleep(10)
-                    continue
-                
-                status = status_result["status"]
-                logger.info(f"🔄 D-ID status check ({attempt+1}/{max_attempts}): {status}")
-                
-                if status == "done":
-                    result_url = status_result["result_url"]
+            # Store talk ID in lesson for webhook processing
+            self.collections['lessons'].update_one(
+                {"lesson_id": lesson_id},
+                {"$set": {
+                    "did_talk_id": talk_id,
+                    "updated_at": time.time()
+                }}
+            )
+            
+            # If webhook is not configured, poll for completion
+            if not webhook_url:
+                max_attempts = 30  # 5 minutes (10 seconds * 30)
+                for attempt in range(max_attempts):
+                    status_result = await self.get_talk_status(talk_id)
                     
-                    # Download and upload to S3
-                    upload_result = await self.download_and_upload_video(result_url, lesson_id)
+                    if not status_result["success"]:
+                        logger.error(f"❌ Status check failed: {status_result['error']}")
+                        await asyncio.sleep(10)
+                        continue
                     
-                    if upload_result["success"]:
-                        # Update lesson with avatar video URL
+                    status = status_result["status"]
+                    logger.info(f"🔄 D-ID status check ({attempt+1}/{max_attempts}): {status}")
+                    
+                    if status == "done":
+                        result_url = status_result["result_url"]
+                        
+                        # Download and upload to S3
+                        upload_result = await self.download_and_upload_video(result_url, lesson_id)
+                        
+                        if upload_result["success"]:
+                            # Update lesson with avatar video URL
+                            self.collections['lessons'].update_one(
+                                {"lesson_id": lesson_id},
+                                {"$set": {
+                                    "avatar_video_url": upload_result["s3_url"],
+                                    "avatar_status": "completed",
+                                    "updated_at": time.time()
+                                }}
+                            )
+                            
+                            return {
+                                "success": True,
+                                "message": "Avatar video generated successfully",
+                                "lesson_id": lesson_id,
+                                "avatar_video_url": upload_result["s3_url"],
+                                "talk_id": talk_id
+                            }
+                        else:
+                            # Update lesson status to failed
+                            self.collections['lessons'].update_one(
+                                {"lesson_id": lesson_id},
+                                {"$set": {
+                                    "avatar_status": "failed",
+                                    "avatar_error": upload_result["error"],
+                                    "updated_at": time.time()
+                                }}
+                            )
+                            
+                            return {
+                                "success": False,
+                                "error": upload_result["error"],
+                                "lesson_id": lesson_id
+                            }
+                    
+                    elif status == "error":
+                        # Update lesson status to failed
                         self.collections['lessons'].update_one(
                             {"lesson_id": lesson_id},
                             {"$set": {
-                                "avatar_video_url": upload_result["s3_url"],
-                                "avatar_status": "completed",
+                                "avatar_status": "failed",
+                                "avatar_error": status_result.get("error", "Unknown error"),
                                 "updated_at": time.time()
                             }}
                         )
                         
                         return {
-                            "success": True,
-                            "message": "Avatar video generated successfully",
-                            "lesson_id": lesson_id,
-                            "avatar_video_url": upload_result["s3_url"],
-                            "talk_id": talk_id
-                        }
-                    else:
-                        return {
                             "success": False,
-                            "error": upload_result["error"],
+                            "error": f"D-ID processing error: {status_result.get('error', 'Unknown error')}",
                             "lesson_id": lesson_id
                         }
+                    
+                    # Wait before next check
+                    await asyncio.sleep(10)
                 
-                elif status == "error":
-                    return {
-                        "success": False,
-                        "error": f"D-ID processing error: {status_result.get('error', 'Unknown error')}",
-                        "lesson_id": lesson_id
-                    }
+                # If we get here, the process timed out
+                # Update lesson status to timeout
+                self.collections['lessons'].update_one(
+                    {"lesson_id": lesson_id},
+                    {"$set": {
+                        "avatar_status": "timeout",
+                        "updated_at": time.time()
+                    }}
+                )
                 
-                # Wait before next check
-                await asyncio.sleep(10)
+                return {
+                    "success": False,
+                    "error": "Avatar generation timed out",
+                    "lesson_id": lesson_id,
+                    "talk_id": talk_id
+                }
             
-            # If we get here, the process timed out
+            # If webhook is configured, return success immediately
+            # The webhook will handle the status updates
             return {
-                "success": False,
-                "error": "Avatar generation timed out",
+                "success": True,
+                "message": "Avatar generation started. Status will be updated via webhook.",
                 "lesson_id": lesson_id,
                 "talk_id": talk_id
             }
             
         except Exception as e:
             logger.error(f"❌ Avatar generation error: {e}")
+            
+            # Update lesson status to failed
+            self.collections['lessons'].update_one(
+                {"lesson_id": lesson_id},
+                {"$set": {
+                    "avatar_status": "failed",
+                    "avatar_error": str(e),
+                    "updated_at": time.time()
+                }}
+            )
+            
             return {
                 "success": False,
                 "error": str(e),
@@ -488,25 +577,25 @@ class DIDService:
             {
                 "id": "elon_musk",
                 "name": "Elon Musk",
-                "image_url": "https://example.com/avatars/elon_musk.jpg",
+                "image_url": "https://images.pexels.com/photos/51329/elon-musk-tesla-spacex-solar-city-51329.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
                 "description": "Tech entrepreneur and innovator"
             },
             {
                 "id": "apj_kalam",
                 "name": "APJ Abdul Kalam",
-                "image_url": "https://example.com/avatars/apj_kalam.jpg",
+                "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/6e/A._P._J._Abdul_Kalam.jpg",
                 "description": "Former President of India and scientist"
             },
             {
                 "id": "narendra_modi",
                 "name": "Narendra Modi",
-                "image_url": "https://example.com/avatars/narendra_modi.jpg",
+                "image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Official_Photograph_of_Prime_Minister_Narendra_Modi_Portrait.png",
                 "description": "Prime Minister of India"
             },
             {
                 "id": "thalapathy_vijay",
                 "name": "Thalapathy Vijay",
-                "image_url": "https://example.com/avatars/thalapathy_vijay.jpg",
+                "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Vijay_at_the_Nadigar_Sangam_Protest.jpg/800px-Vijay_at_the_Nadigar_Sangam_Protest.jpg",
                 "description": "Indian actor and filmmaker"
             }
         ]

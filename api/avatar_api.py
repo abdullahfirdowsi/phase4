@@ -1,13 +1,16 @@
 """
 Avatar API - Handles avatar video generation
 """
-from fastapi import APIRouter, HTTPException, Body, BackgroundTasks, Query, Depends
+from fastapi import APIRouter, HTTPException, Body, BackgroundTasks, Query, Depends, Header, Request
 from fastapi.responses import JSONResponse
 from services.avatar_service import avatar_service
 from services.did_service import did_service
-from models.schemas import GenerateAvatarRequest, GenerateAvatarResponse
+from models.schemas import GenerateAvatarRequest, GenerateAvatarResponse, PredefinedAvatar, VoiceModel, AvatarCreationRequest
 from typing import List, Dict, Any, Optional
 import logging
+import hmac
+import hashlib
+import time
 from auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -70,7 +73,7 @@ async def generate_avatar(
                 did_service.process_avatar_generation,
                 lesson_id=request.lesson_id,
                 avatar_image_url=request.avatar_image_url,
-                voice_id=None,  # Use default voice
+                voice_id=request.voice_id,
                 language=request.voice_language
             )
         
@@ -327,26 +330,43 @@ async def get_voice_status(
 
 @avatar_router.post("/webhook")
 async def did_webhook(
-    payload: Dict[str, Any] = Body(...),
-    signature: str = Query(None, alias="x-did-signature")
+    request: Request,
+    x_did_signature: Optional[str] = Header(None)
 ):
     """
     Webhook endpoint for D-ID status updates
     
     Args:
-        payload: Webhook payload
-        signature: D-ID signature for verification
+        request: Request object
+        x_did_signature: D-ID signature for verification
         
     Returns:
         Acknowledgement
     """
     try:
+        # Get request body
+        payload = await request.json()
+        
         # Verify webhook signature if configured
-        if did_service.webhook_secret and signature:
-            # In a real implementation, verify the signature here
-            # This would involve creating a hash of the payload with your webhook secret
-            # and comparing it to the provided signature
-            pass
+        if did_service.webhook_secret and x_did_signature:
+            # Create HMAC signature for verification
+            request_body = await request.body()
+            signature = hmac.new(
+                did_service.webhook_secret.encode(),
+                request_body,
+                hashlib.sha256
+            ).hexdigest()
+            
+            # Compare signatures
+            if not hmac.compare_digest(signature, x_did_signature):
+                logger.warning(f"❌ Invalid webhook signature")
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "success": False,
+                        "message": "Invalid signature"
+                    }
+                )
         
         # Process webhook payload
         talk_id = payload.get("id")
@@ -389,6 +409,36 @@ async def did_webhook(
                     logger.info(f"✅ Avatar video updated for lesson: {lesson_id}")
                 else:
                     logger.error(f"❌ Failed to process webhook video: {upload_result['error']}")
+                    
+                    # Update lesson with error
+                    collections['lessons'].update_one(
+                        {"lesson_id": lesson_id},
+                        {"$set": {
+                            "avatar_status": "failed",
+                            "avatar_error": upload_result["error"],
+                            "updated_at": time.time()
+                        }}
+                    )
+        elif status == "error":
+            # Find the lesson associated with this talk_id
+            collections = did_service.collections
+            lesson = collections['lessons'].find_one({"did_talk_id": talk_id})
+            
+            if lesson:
+                lesson_id = lesson.get("lesson_id")
+                error_message = payload.get("error", "Unknown error")
+                
+                # Update lesson with error
+                collections['lessons'].update_one(
+                    {"lesson_id": lesson_id},
+                    {"$set": {
+                        "avatar_status": "failed",
+                        "avatar_error": error_message,
+                        "updated_at": time.time()
+                    }}
+                )
+                
+                logger.error(f"❌ D-ID processing error for lesson {lesson_id}: {error_message}")
         
         return {
             "success": True,

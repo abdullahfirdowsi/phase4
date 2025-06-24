@@ -53,6 +53,13 @@
     }
   }
   
+  .voice-selection-tabs {
+    .nav-link {
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+    }
+  }
+  
   .upload-container {
     border: 2px dashed var(--border-color);
     border-radius: v.$border-radius-lg;
@@ -274,6 +281,91 @@
           &:last-child {
             margin-bottom: 0;
           }
+        }
+      }
+    }
+    
+    .voice-selection {
+      .language-group {
+        h6 {
+          color: var(--text-primary);
+          font-weight: v.$font-weight-semibold;
+          margin-bottom: 1rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid var(--border-light);
+        }
+      }
+      
+      .voice-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-light);
+        border-radius: v.$border-radius-lg;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-sm);
+          border-color: var(--primary-color);
+        }
+        
+        &.selected {
+          border-color: var(--primary-color);
+          background: var(--bg-secondary);
+        }
+        
+        .card-body {
+          padding: 1rem;
+        }
+        
+        .voice-icon {
+          color: var(--primary-color);
+          font-size: 1.25rem;
+        }
+        
+        .voice-name {
+          font-weight: v.$font-weight-semibold;
+          color: var(--text-primary);
+        }
+        
+        .voice-gender {
+          font-size: 0.8rem;
+          color: var(--text-tertiary);
+        }
+        
+        .check-icon {
+          color: var(--success-color);
+        }
+      }
+    }
+  }
+  
+  .avatar-summary {
+    background: var(--bg-secondary);
+    border-radius: v.$border-radius-lg;
+    padding: 1.5rem;
+    
+    h6 {
+      color: var(--text-primary);
+      font-weight: v.$font-weight-semibold;
+      margin-bottom: 1rem;
+    }
+    
+    .summary-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      
+      .summary-item {
+        display: flex;
+        
+        .label {
+          font-weight: v.$font-weight-semibold;
+          color: var(--text-primary);
+          width: 80px;
+        }
+        
+        .value {
+          color: var(--text-secondary);
         }
       }
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Tabs, Tab, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
 import { Image, Upload, Mic, VolumeUp, Check, X } from 'react-bootstrap-icons';
-import { uploadImage } from '../../api';
+import { uploadImage, uploadAudio, getPredefinedAvatars, getAvailableVoices, createVoiceClone, getVoiceStatus } from '../../api';
 import './AvatarCreator.scss';
 
 const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
@@ -26,6 +26,11 @@ const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const [voiceId, setVoiceId] = useState(null);
   
+  // Available voices
+  const [availableVoices, setAvailableVoices] = useState({});
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  
   // Media recorder
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [recordingInterval, setRecordingInterval] = useState(null);
@@ -34,26 +39,36 @@ const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
     // Fetch predefined avatars when component mounts
     const fetchPredefinedAvatars = async () => {
       try {
-        const response = await fetch('/lessons/predefined-avatars', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setPredefinedAvatars(data.avatars || []);
-        } else {
-          console.error('Failed to fetch predefined avatars');
-        }
+        setLoadingAvatars(true);
+        const data = await getPredefinedAvatars();
+        setPredefinedAvatars(data.avatars || []);
       } catch (error) {
         console.error('Error fetching predefined avatars:', error);
+        setError('Failed to load predefined avatars');
       } finally {
         setLoadingAvatars(false);
       }
     };
     
-    fetchPredefinedAvatars();
+    // Fetch available voices
+    const fetchAvailableVoices = async () => {
+      try {
+        setLoadingVoices(true);
+        const data = await getAvailableVoices();
+        if (data.success) {
+          setAvailableVoices(data.voices || {});
+        }
+      } catch (error) {
+        console.error('Error fetching available voices:', error);
+      } finally {
+        setLoadingVoices(false);
+      }
+    };
+    
+    if (show) {
+      fetchPredefinedAvatars();
+      fetchAvailableVoices();
+    }
     
     // Clean up on unmount
     return () => {
@@ -67,7 +82,7 @@ const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
         URL.revokeObjectURL(audioUrl);
       }
     };
-  }, []);
+  }, [show]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -212,36 +227,15 @@ const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
       setUploadingVoice(true);
       setError(null);
       
-      // Create form data
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'voice_sample.wav');
+      // Create file from blob
+      const file = new File([audioBlob], 'voice_sample.wav', { type: 'audio/wav' });
       
       // Upload audio to S3
-      const response = await fetch('/upload/audio', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
-      });
-      
-      const result = await response.json();
+      const result = await uploadAudio(file);
       
       if (result.success) {
         // Create voice clone
-        const cloneResponse = await fetch('/lessons/create-voice-clone', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            audio_url: result.url,
-            voice_name: voiceName
-          })
-        });
-        
-        const cloneResult = await cloneResponse.json();
+        const cloneResult = await createVoiceClone(result.url, voiceName);
         
         if (cloneResult.success) {
           setVoiceId(cloneResult.voice_id);
@@ -266,22 +260,11 @@ const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
     try {
       // Check status every 5 seconds
       const statusInterval = setInterval(async () => {
-        const response = await fetch(`/lessons/voice-status/${voiceId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
+        const data = await getVoiceStatus(voiceId);
         
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.ready) {
-            clearInterval(statusInterval);
-            setSuccess('Voice clone is ready to use');
-          }
-        } else {
+        if (data.success && data.ready) {
           clearInterval(statusInterval);
-          setError('Failed to check voice status');
+          setSuccess('Voice clone is ready to use');
         }
       }, 5000);
       
@@ -292,6 +275,16 @@ const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
     } catch (error) {
       console.error('Error polling voice status:', error);
     }
+  };
+
+  const handleSelectVoice = (provider, language, voice) => {
+    setSelectedVoice({
+      provider,
+      language,
+      ...voice
+    });
+    setVoiceId(voice.id);
+    setSuccess(`Selected voice: ${voice.name}`);
   };
 
   const handleCreateAvatar = () => {
@@ -469,115 +462,210 @@ const AvatarCreator = ({ show, onHide, onAvatarCreated }) => {
             )}
           </Tab>
           
-          <Tab eventKey="voice" title="Voice Clone (Optional)">
+          <Tab eventKey="voice" title="Voice Selection">
             <div className="voice-container">
-              <div className="voice-info mb-4">
-                <h5>Create Your Custom Voice</h5>
-                <p>Record a voice sample to create a personalized voice for your avatar. This step is optional.</p>
-              </div>
-              
-              <Form.Group className="mb-3">
-                <Form.Label>Voice Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter a name for your voice"
-                  value={voiceName}
-                  onChange={(e) => setVoiceName(e.target.value)}
-                  disabled={isRecording || uploadingVoice || voiceId}
-                />
-              </Form.Group>
-              
-              <div className="recording-section mb-4">
-                {!audioUrl ? (
-                  <div className="recording-controls">
-                    <Button
-                      variant={isRecording ? "danger" : "primary"}
-                      onClick={isRecording ? stopRecording : startRecording}
-                      disabled={uploadingVoice || voiceId}
-                      className="recording-btn"
-                    >
-                      {isRecording ? (
-                        <>
-                          <Spinner size="sm" animation="border" className="me-2" />
-                          Stop Recording ({formatTime(recordingTime)})
-                        </>
-                      ) : (
-                        <>
-                          <Mic size={16} className="me-2" />
-                          Start Recording
-                        </>
-                      )}
-                    </Button>
+              <div className="voice-tabs">
+                <Tabs defaultActiveKey="record" className="mb-4 voice-selection-tabs">
+                  <Tab eventKey="record" title="Record Your Voice">
+                    <div className="voice-info mb-4">
+                      <h5>Create Your Custom Voice</h5>
+                      <p>Record a voice sample to create a personalized voice for your avatar.</p>
+                    </div>
                     
-                    {isRecording && (
-                      <div className="recording-indicator">
-                        <div className="recording-wave">
-                          <div className="wave"></div>
-                          <div className="wave"></div>
-                          <div className="wave"></div>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Voice Name</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter a name for your voice"
+                        value={voiceName}
+                        onChange={(e) => setVoiceName(e.target.value)}
+                        disabled={isRecording || uploadingVoice || voiceId}
+                      />
+                    </Form.Group>
+                    
+                    <div className="recording-section mb-4">
+                      {!audioUrl ? (
+                        <div className="recording-controls">
+                          <Button
+                            variant={isRecording ? "danger" : "primary"}
+                            onClick={isRecording ? stopRecording : startRecording}
+                            disabled={uploadingVoice || voiceId}
+                            className="recording-btn"
+                          >
+                            {isRecording ? (
+                              <>
+                                <Spinner size="sm" animation="border" className="me-2" />
+                                Stop Recording ({formatTime(recordingTime)})
+                              </>
+                            ) : (
+                              <>
+                                <Mic size={16} className="me-2" />
+                                Start Recording
+                              </>
+                            )}
+                          </Button>
+                          
+                          {isRecording && (
+                            <div className="recording-indicator">
+                              <div className="recording-wave">
+                                <div className="wave"></div>
+                                <div className="wave"></div>
+                                <div className="wave"></div>
+                              </div>
+                              <p>Recording... Speak clearly for 15-30 seconds</p>
+                            </div>
+                          )}
                         </div>
-                        <p>Recording... Speak clearly for 15-30 seconds</p>
+                      ) : (
+                        <div className="audio-preview">
+                          <audio src={audioUrl} controls className="w-100 mb-3"></audio>
+                          <div className="d-flex justify-content-between">
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => {
+                                URL.revokeObjectURL(audioUrl);
+                                setAudioUrl(null);
+                                setAudioBlob(null);
+                              }}
+                              disabled={uploadingVoice || voiceId}
+                            >
+                              <X size={16} className="me-1" />
+                              Discard
+                            </Button>
+                            
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={uploadVoiceSample}
+                              disabled={uploadingVoice || !voiceName.trim() || voiceId}
+                            >
+                              {uploadingVoice ? (
+                                <>
+                                  <Spinner size="sm" animation="border" className="me-2" />
+                                  Processing...
+                                </>
+                              ) : voiceId ? (
+                                <>
+                                  <Check size={16} className="me-2" />
+                                  Voice Uploaded
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={16} className="me-2" />
+                                  Upload Voice
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="voice-instructions">
+                      <h6>Instructions for best results:</h6>
+                      <ul>
+                        <li>Record in a quiet environment</li>
+                        <li>Speak clearly and at a normal pace</li>
+                        <li>Record at least 15 seconds of audio</li>
+                        <li>Avoid background noise and interruptions</li>
+                      </ul>
+                    </div>
+                  </Tab>
+                  
+                  <Tab eventKey="select" title="Select Existing Voice">
+                    <div className="voice-info mb-4">
+                      <h5>Choose a Pre-made Voice</h5>
+                      <p>Select from a variety of professional voice options.</p>
+                    </div>
+                    
+                    {loadingVoices ? (
+                      <div className="text-center py-4">
+                        <Spinner animation="border" variant="primary" />
+                        <p className="mt-3">Loading available voices...</p>
+                      </div>
+                    ) : Object.keys(availableVoices).length > 0 ? (
+                      <div className="voice-selection">
+                        <Form.Group className="mb-3">
+                          <Form.Label>Voice Provider</Form.Label>
+                          <Form.Select 
+                            className="mb-3"
+                            onChange={(e) => setActiveTab(`provider-${e.target.value}`)}
+                          >
+                            <option value="">Select a provider</option>
+                            {Object.keys(availableVoices).map(provider => (
+                              <option key={provider} value={provider}>{provider}</option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                        
+                        {Object.keys(availableVoices).map(provider => (
+                          <div 
+                            key={provider} 
+                            className={`provider-voices ${activeTab === `provider-${provider}` ? 'd-block' : 'd-none'}`}
+                          >
+                            {Object.keys(availableVoices[provider]).map(language => (
+                              <div key={language} className="language-group mb-4">
+                                <h6>{language}</h6>
+                                <Row className="voice-options">
+                                  {availableVoices[provider][language].map(voice => (
+                                    <Col md={6} key={voice.id} className="mb-2">
+                                      <Card 
+                                        className={`voice-card ${selectedVoice?.id === voice.id ? 'selected' : ''}`}
+                                        onClick={() => handleSelectVoice(provider, language, voice)}
+                                      >
+                                        <Card.Body className="d-flex align-items-center">
+                                          <VolumeUp className="me-3 voice-icon" />
+                                          <div>
+                                            <div className="voice-name">{voice.name}</div>
+                                            <div className="voice-gender">{voice.gender}</div>
+                                          </div>
+                                          {selectedVoice?.id === voice.id && (
+                                            <Check className="ms-auto check-icon" />
+                                          )}
+                                        </Card.Body>
+                                      </Card>
+                                    </Col>
+                                  ))}
+                                </Row>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p>No voices available. Please try again later.</p>
                       </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="audio-preview">
-                    <audio src={audioUrl} controls className="w-100 mb-3"></audio>
-                    <div className="d-flex justify-content-between">
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => {
-                          URL.revokeObjectURL(audioUrl);
-                          setAudioUrl(null);
-                          setAudioBlob(null);
-                        }}
-                        disabled={uploadingVoice || voiceId}
-                      >
-                        <X size={16} className="me-1" />
-                        Discard
-                      </Button>
-                      
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={uploadVoiceSample}
-                        disabled={uploadingVoice || !voiceName.trim() || voiceId}
-                      >
-                        {uploadingVoice ? (
-                          <>
-                            <Spinner size="sm" animation="border" className="me-2" />
-                            Processing...
-                          </>
-                        ) : voiceId ? (
-                          <>
-                            <Check size={16} className="me-2" />
-                            Voice Uploaded
-                          </>
-                        ) : (
-                          <>
-                            <Upload size={16} className="me-2" />
-                            Upload Voice
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="voice-instructions">
-                <h6>Instructions for best results:</h6>
-                <ul>
-                  <li>Record in a quiet environment</li>
-                  <li>Speak clearly and at a normal pace</li>
-                  <li>Record at least 15 seconds of audio</li>
-                  <li>Avoid background noise and interruptions</li>
-                </ul>
+                  </Tab>
+                </Tabs>
               </div>
             </div>
           </Tab>
         </Tabs>
+        
+        <div className="avatar-summary mt-4">
+          <h6>Avatar Configuration Summary</h6>
+          <div className="summary-items">
+            <div className="summary-item">
+              <span className="label">Image:</span>
+              <span className="value">
+                {uploadedImageUrl ? (
+                  selectedPredefined ? selectedPredefined.name : 'Custom Image'
+                ) : 'Not selected'}
+              </span>
+            </div>
+            <div className="summary-item">
+              <span className="label">Voice:</span>
+              <span className="value">
+                {voiceId ? (
+                  selectedVoice ? selectedVoice.name : voiceName
+                ) : 'Default Voice'}
+              </span>
+            </div>
+          </div>
+        </div>
       </Modal.Body>
       
       <Modal.Footer>
