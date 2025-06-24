@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Form, Button, Alert, ProgressBar, Spinner } from 'react-bootstrap';
-import { Upload, Check, X } from 'react-bootstrap-icons';
+import { Upload, Check, X, Plus } from 'react-bootstrap-icons';
 import { uploadImage, generateAvatar, getAvatarStatus } from '../../api';
+import AvatarCreator from '../AvatarCreator/AvatarCreator';
 import './AvatarUploader.scss';
 
 const AvatarUploader = ({ lessonId, onComplete }) => {
@@ -15,6 +16,31 @@ const AvatarUploader = ({ lessonId, onComplete }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [avatarVideoUrl, setAvatarVideoUrl] = useState(null);
+  const [showAvatarCreator, setShowAvatarCreator] = useState(false);
+  const [selectedVoiceId, setSelectedVoiceId] = useState(null);
+
+  useEffect(() => {
+    // Check if avatar already exists for this lesson
+    const checkExistingAvatar = async () => {
+      try {
+        const status = await getAvatarStatus(lessonId);
+        
+        if (status.status === 'completed' && status.avatar_video_url) {
+          setAvatarVideoUrl(status.avatar_video_url);
+          setGenerationStatus('completed');
+          
+          // Notify parent component
+          if (onComplete) {
+            onComplete(status.avatar_video_url);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking avatar status:', error);
+      }
+    };
+    
+    checkExistingAvatar();
+  }, [lessonId, onComplete]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -87,7 +113,12 @@ const AvatarUploader = ({ lessonId, onComplete }) => {
       setSuccess(null);
       
       // Generate avatar video
-      const result = await generateAvatar(lessonId, uploadedImageUrl);
+      const result = await generateAvatar(
+        lessonId, 
+        uploadedImageUrl, 
+        'en', // Default language
+        selectedVoiceId // Voice ID (if selected)
+      );
       
       if (result.success) {
         setGenerationStatus('pending');
@@ -148,10 +179,24 @@ const AvatarUploader = ({ lessonId, onComplete }) => {
     setSuccess(null);
   };
 
+  const handleAvatarCreated = (avatarData) => {
+    console.log('Avatar created:', avatarData);
+    
+    // Set the uploaded image URL
+    setUploadedImageUrl(avatarData.imageUrl);
+    
+    // Set voice ID if provided
+    if (avatarData.voiceId) {
+      setSelectedVoiceId(avatarData.voiceId);
+    }
+    
+    setSuccess('Avatar configured successfully. Ready to generate video.');
+  };
+
   return (
     <Card className="avatar-uploader">
       <Card.Header>
-        <h5 className="mb-0">Upload Avatar Image</h5>
+        <h5 className="mb-0">Create AI Tutor Avatar</h5>
       </Card.Header>
       <Card.Body>
         {error && (
@@ -166,98 +211,81 @@ const AvatarUploader = ({ lessonId, onComplete }) => {
           </Alert>
         )}
         
-        <div className="upload-container">
-          {previewUrl ? (
-            <div className="preview-container">
-              <img 
-                src={previewUrl} 
-                alt="Preview" 
-                className="image-preview" 
-              />
-              <div className="preview-actions">
-                <Button 
-                  variant="outline-danger" 
-                  size="sm"
-                  onClick={resetUploader}
-                  disabled={uploading || generating}
-                >
-                  <X size={16} className="me-1" />
-                  Remove
-                </Button>
+        {!avatarVideoUrl ? (
+          <>
+            <div className="avatar-options mb-4">
+              <Button 
+                variant="primary" 
+                className="w-100 py-3"
+                onClick={() => setShowAvatarCreator(true)}
+              >
+                <Plus size={20} className="me-2" />
+                Create Your AI Tutor Avatar
+              </Button>
+              
+              <div className="text-center mt-3">
+                <small className="text-muted">
+                  Create a personalized avatar for your AI tutor using your own image or select from predefined options
+                </small>
               </div>
             </div>
-          ) : (
-            <div className="upload-placeholder" onClick={() => document.getElementById('avatar-file-input').click()}>
-              <Upload size={32} />
-              <p>Click to select an image</p>
-              <small>JPG, PNG (max 5MB)</small>
+            
+            {uploadedImageUrl && (
+              <div className="selected-avatar mb-4">
+                <h6>Selected Avatar</h6>
+                <div className="avatar-preview">
+                  <img 
+                    src={uploadedImageUrl} 
+                    alt="Selected Avatar" 
+                    className="avatar-image" 
+                  />
+                  {selectedVoiceId && (
+                    <div className="voice-badge">
+                      <span>Custom Voice</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="action-buttons mt-4">
+              {uploadedImageUrl && (
+                <Button 
+                  variant="success" 
+                  onClick={handleGenerateAvatar}
+                  disabled={generating}
+                  className="w-100"
+                >
+                  {generating ? (
+                    <>
+                      <Spinner size="sm" animation="border" className="me-2" />
+                      Generating Avatar...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={16} className="me-2" />
+                      Generate Avatar Video
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-          )}
-          
-          <Form.Control
-            id="avatar-file-input"
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="d-none"
-          />
-        </div>
-        
-        {uploadProgress > 0 && (
-          <div className="mt-3">
-            <ProgressBar 
-              now={uploadProgress} 
-              label={`${Math.round(uploadProgress)}%`} 
-              variant="primary" 
-              animated={uploading}
-            />
-          </div>
-        )}
-        
-        <div className="action-buttons mt-4">
-          {!uploadedImageUrl ? (
-            <Button 
-              variant="primary" 
-              onClick={handleUpload}
-              disabled={!file || uploading}
-              className="w-100"
-            >
-              {uploading ? (
-                <>
+            
+            {generationStatus === 'pending' && (
+              <div className="generation-status mt-4">
+                <div className="d-flex align-items-center mb-2">
                   <Spinner size="sm" animation="border" className="me-2" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload size={16} className="me-2" />
-                  Upload Image
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button 
-              variant="success" 
-              onClick={handleGenerateAvatar}
-              disabled={generating}
-              className="w-100"
-            >
-              {generating ? (
-                <>
-                  <Spinner size="sm" animation="border" className="me-2" />
-                  Generating Avatar...
-                </>
-              ) : (
-                <>
-                  <Check size={16} className="me-2" />
-                  Generate Avatar Video
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-        
-        {avatarVideoUrl && (
-          <div className="video-preview mt-4">
+                  <span>Generating avatar video...</span>
+                </div>
+                <ProgressBar animated now={100} className="generation-progress" />
+                <small className="text-muted d-block mt-2">
+                  This process may take several minutes. You can close this window and check back later.
+                </small>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="video-preview">
             <h6>Generated Avatar Video:</h6>
             <video 
               src={avatarVideoUrl} 
@@ -265,9 +293,22 @@ const AvatarUploader = ({ lessonId, onComplete }) => {
               className="w-100 mt-2"
               style={{ borderRadius: '8px' }}
             />
+            <div className="text-center mt-3">
+              <small className="text-success">
+                <Check size={16} className="me-1" />
+                Avatar video generated successfully
+              </small>
+            </div>
           </div>
         )}
       </Card.Body>
+      
+      {/* Avatar Creator Modal */}
+      <AvatarCreator 
+        show={showAvatarCreator}
+        onHide={() => setShowAvatarCreator(false)}
+        onAvatarCreated={handleAvatarCreated}
+      />
     </Card>
   );
 };

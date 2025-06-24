@@ -34,6 +34,13 @@ async def lifespan(app: FastAPI):
             await run_migration()
             logger.info("✅ Data migration completed")
         
+        # Initialize D-ID service
+        from services.did_service import did_service
+        if did_service.is_configured:
+            logger.info("✅ D-ID Avatar Service initialized successfully")
+        else:
+            logger.warning("⚠️ D-ID Avatar Service not configured - using fallback avatar generation")
+        
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
         # Don't raise the exception, just log it
@@ -47,7 +54,7 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app with lifespan
 app = FastAPI(
     title="AI Tutor - Enhanced Learning Management System",
-    description="Scalable AI-powered learning platform with modular MongoDB architecture",
+    description="Scalable AI-powered learning platform with modular MongoDB architecture and D-ID avatar integration",
     version="5.0.0",
     lifespan=lifespan
 )
@@ -107,7 +114,7 @@ async def root():
             "Message Archiving",
             "Role-based Access Control",
             "AWS S3 File Storage",
-            "Avatar Video Generation"
+            "D-ID Avatar Generation"
         ],
         "collections": [
             "users",
@@ -123,6 +130,10 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    # Check D-ID service status
+    from services.did_service import did_service
+    did_status = "available" if did_service.is_configured else "not configured"
+    
     return {
         "status": "healthy",
         "timestamp": "2024-01-01T00:00:00Z",
@@ -135,6 +146,7 @@ async def health_check():
             "migration_service": "ready",
             "s3_service": "active",
             "avatar_service": "active",
+            "did_service": did_status,
             "api": "running",
             "cors": "enabled"
         },
@@ -159,7 +171,7 @@ async def api_info():
             "Automated data migration",
             "Message archiving system",
             "AWS S3 file storage integration",
-            "Avatar video generation"
+            "D-ID Avatar video generation"
         ],
         "documentation": "/docs"
     }
@@ -317,6 +329,8 @@ async def not_found_handler(request, exc):
                 "/chat/ask", "/chat/history", "/chat/search",
                 "/upload/image", "/upload/audio", "/upload/video",
                 "/lessons/generate-avatar", "/lessons/status/{lesson_id}",
+                "/lessons/predefined-avatars", "/lessons/available-voices",
+                "/lessons/create-voice-clone", "/lessons/voice-status/{voice_id}",
                 "/admin/migrate", "/admin/initialize-db",
                 "/docs", "/health"
             ]
@@ -349,5 +363,5 @@ if __name__ == "__main__":
     print("🛡️ Enhanced Security & Performance")
     print("📈 Real-time Analytics & Search")
     print("🗄️ AWS S3 File Storage Integration")
-    print("🎬 Avatar Video Generation")
+    print("🎬 D-ID Avatar Video Generation")
     uvicorn.run("main_enhanced:app", host="0.0.0.0", port=8000, reload=True)

@@ -3,6 +3,7 @@ import { Card, Button, Badge, Alert, Spinner, Modal } from 'react-bootstrap';
 import { Clock, BookHalf, Award, PlayCircleFill } from 'react-bootstrap-icons';
 import { getLessonDetail, generateAvatar, getAvatarStatus } from '../../../api';
 import AvatarUploader from '../../../components/AvatarUploader/AvatarUploader';
+import AvatarCreator from '../../../components/AvatarCreator/AvatarCreator';
 import './LessonDetail.scss';
 
 const LessonDetail = ({ lessonId, onClose }) => {
@@ -12,6 +13,7 @@ const LessonDetail = ({ lessonId, onClose }) => {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [avatarVideoUrl, setAvatarVideoUrl] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [showAvatarCreator, setShowAvatarCreator] = useState(false);
 
   useEffect(() => {
     fetchLessonDetail();
@@ -60,6 +62,38 @@ const LessonDetail = ({ lessonId, onClose }) => {
     setShowAvatarModal(false);
     // Refresh lesson details to get updated data
     fetchLessonDetail();
+  };
+
+  const handleAvatarCreated = (avatarData) => {
+    console.log('Avatar created:', avatarData);
+    
+    // Start avatar generation with the selected avatar
+    startAvatarGeneration(avatarData.imageUrl, avatarData.voiceId);
+    
+    // Close the avatar creator modal
+    setShowAvatarCreator(false);
+  };
+
+  const startAvatarGeneration = async (imageUrl, voiceId = null) => {
+    try {
+      setError(null);
+      
+      // Generate avatar video
+      const result = await generateAvatar(
+        lessonId, 
+        imageUrl, 
+        'en', // Default language
+        voiceId // Voice ID (if selected)
+      );
+      
+      if (result.success) {
+        setShowAvatarModal(true);
+      } else {
+        setError(result.error || 'Failed to start avatar generation');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to start avatar generation');
+    }
   };
 
   const getDifficultyColor = (difficulty) => {
@@ -149,7 +183,7 @@ const LessonDetail = ({ lessonId, onClose }) => {
           
           {avatarVideoUrl ? (
             <div className="avatar-video-section">
-              <h5>Lesson Video</h5>
+              <h5>AI Tutor Video</h5>
               <div className="video-container">
                 <video 
                   src={avatarVideoUrl} 
@@ -161,12 +195,12 @@ const LessonDetail = ({ lessonId, onClose }) => {
           ) : (
             <div className="avatar-actions">
               <Button 
-                variant="outline-primary" 
-                onClick={() => setShowAvatarModal(true)}
+                variant="primary" 
+                onClick={() => setShowAvatarCreator(true)}
                 className="create-avatar-btn"
               >
                 <PlayCircleFill size={16} className="me-2" />
-                Create Avatar Video
+                Create AI Tutor Avatar
               </Button>
               
               {checkingStatus && (
@@ -215,6 +249,13 @@ const LessonDetail = ({ lessonId, onClose }) => {
       </Card>
       
       {/* Avatar Creation Modal */}
+      <AvatarCreator
+        show={showAvatarCreator}
+        onHide={() => setShowAvatarCreator(false)}
+        onAvatarCreated={handleAvatarCreated}
+      />
+      
+      {/* Avatar Generation Modal */}
       <Modal 
         show={showAvatarModal} 
         onHide={() => setShowAvatarModal(false)}
@@ -222,7 +263,7 @@ const LessonDetail = ({ lessonId, onClose }) => {
         size="lg"
       >
         <Modal.Header closeButton>
-          <Modal.Title>Create Avatar Video</Modal.Title>
+          <Modal.Title>AI Tutor Avatar Generation</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <AvatarUploader 

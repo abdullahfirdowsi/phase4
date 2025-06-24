@@ -1,4 +1,5 @@
-@use "../../styles/variables" as v;`r`n@use "../../styles/themes";
+@use "../../styles/variables" as v;
+@use "../../styles/themes";
 
 .avatar-uploader {
   background: var(--card-bg);
@@ -21,6 +22,56 @@
   
   .card-body {
     padding: 1.5rem;
+  }
+  
+  .avatar-options {
+    text-align: center;
+    
+    .btn {
+      font-weight: v.$font-weight-semibold;
+      border-radius: v.$border-radius-lg;
+      transition: all 0.3s ease;
+      
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+    }
+  }
+  
+  .selected-avatar {
+    h6 {
+      font-weight: v.$font-weight-semibold;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .avatar-preview {
+      position: relative;
+      border-radius: v.$border-radius-lg;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      max-width: 300px;
+      margin: 0 auto;
+      
+      .avatar-image {
+        width: 100%;
+        display: block;
+      }
+      
+      .voice-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(16, 185, 129, 0.9);
+        color: white;
+        padding: 0.5rem 0.75rem;
+        border-radius: v.$border-radius-full;
+        font-size: 0.75rem;
+        font-weight: v.$font-weight-semibold;
+        box-shadow: var(--shadow-sm);
+      }
+    }
   }
   
   .upload-container {
@@ -90,6 +141,33 @@
     
     .progress-bar {
       background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    }
+  }
+  
+  .generation-status {
+    background: var(--bg-secondary);
+    border-radius: v.$border-radius-lg;
+    padding: 1.25rem;
+    
+    .generation-progress {
+      height: 0.5rem;
+    }
+  }
+  
+  .video-preview {
+    text-align: center;
+    
+    h6 {
+      font-weight: v.$font-weight-semibold;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    
+    video {
+      border-radius: v.$border-radius-lg;
+      box-shadow: var(--shadow-md);
+      max-width: 100%;
+      max-height: 400px;
     }
   }
 }

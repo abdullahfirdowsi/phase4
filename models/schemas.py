@@ -46,6 +46,8 @@ class UserProfile(BaseModel):
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
     skill_level: DifficultyLevel = DifficultyLevel.BEGINNER
+    voice_id: Optional[str] = None
+    voice_name: Optional[str] = None
 
 class UserStats(BaseModel):
     total_goals: int = 0
@@ -188,6 +190,8 @@ class Lesson(BaseModel):
     tags: List[str] = []
     created_at: datetime
     avatar_video_url: Optional[str] = None
+    avatar_status: Optional[str] = "pending"
+    did_talk_id: Optional[str] = None
 
     class Config:
         populate_by_name = True
@@ -255,6 +259,7 @@ class GenerateAvatarRequest(BaseModel):
     avatar_image_url: str
     voice_language: str = "en"
     voice_gender: str = "female"
+    voice_id: Optional[str] = None
 
 class GenerateAvatarResponse(BaseModel):
     success: bool
@@ -262,3 +267,24 @@ class GenerateAvatarResponse(BaseModel):
     avatar_video_url: Optional[str] = None
     lesson_id: str
     error: Optional[str] = None
+
+# Avatar Models
+class PredefinedAvatar(BaseModel):
+    id: str
+    name: str
+    image_url: str
+    description: Optional[str] = None
+
+class VoiceModel(BaseModel):
+    id: str
+    name: str
+    provider: str
+    language: str
+    gender: str
+
+class AvatarCreationRequest(BaseModel):
+    image_url: str
+    voice_id: Optional[str] = None
+    is_predefined: bool = False
+    predefined_id: Optional[str] = None
+    username: str
