@@ -1,70 +1,55 @@
 """
-Server startup script - Use this to start the server properly
+Optimized Server startup script - Faster startup with minimal checks
 """
 import uvicorn
 import os
 from dotenv import load_dotenv
+import logging
 
-def check_environment():
-    """Check if environment is properly configured"""
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def check_critical_environment():
+    """Check only critical environment variables"""
     load_dotenv()
     
-    required_vars = ["MONGO_URI", "API_KEY", "JWT_SECRET"]
+    # Only check the most critical variables
+    critical_vars = ["MONGO_URI", "API_KEY"]
     missing_vars = []
     
-    for var in required_vars:
+    for var in critical_vars:
         value = os.getenv(var)
         if not value or value.startswith("your_"):
             missing_vars.append(var)
     
     if missing_vars:
-        print("❌ Missing required environment variables:")
+        logger.error("❌ Missing critical environment variables:")
         for var in missing_vars:
-            print(f"   - {var}")
-        print("\n💡 Please update your .env file with the correct values")
-        print("   Copy .env.example to .env and fill in your credentials")
+            logger.error(f"   - {var}")
         return False
-    
-    # Check optional S3 configuration
-    s3_vars = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_S3_BUCKET_NAME"]
-    s3_configured = all(
-        os.getenv(var) and not os.getenv(var).startswith("your_") 
-        for var in s3_vars
-    )
-    
-    if s3_configured:
-        print("✅ AWS S3 configured - file upload features enabled")
-    else:
-        print("ℹ️ AWS S3 not configured - file upload features disabled")
     
     return True
 
 if __name__ == "__main__":
-    print("🚀 Starting AI Tutor Enhanced Backend v5.0...")
-    print("📊 MongoDB Collections: users, chat_messages, learning_goals, quizzes, quiz_attempts, lessons, user_enrollments, user_sessions")
-    print("🔗 Server will be available at: http://localhost:8000")
-    print("📚 API Documentation: http://localhost:8000/docs")
-    print("🛡️ Enhanced Security & Performance")
-    print("📈 Real-time Analytics & Search")
-    print("🗄️ AWS S3 File Storage Integration")
-    print("🎬 Avatar Video Generation")
-    print()
+    print("🚀 Starting AI Tutor Backend...")
     
-    # Check environment configuration
-    if not check_environment():
-        print("\n❌ Server startup aborted due to missing configuration")
+    # Quick check for critical environment variables only
+    if not check_critical_environment():
+        print("\n❌ Server startup aborted due to missing critical configuration")
+        print("   Copy .env.example to .env and fill in the required values")
         exit(1)
     
-    print("✅ Environment configuration validated")
-    print()
-    
     try:
+        # Start server with minimal checks
         uvicorn.run(
             "main:app", 
             host="0.0.0.0", 
             port=8000, 
             reload=True,
-            log_level="info"
+            log_level="info",
+            reload_excludes=["*.pyc", "*.pyo", "__pycache__/*"],  # Exclude cache files from reload
+            workers=1  # Use single worker for development
         )
     except KeyboardInterrupt:
         print("\n🛑 Server stopped by user")
