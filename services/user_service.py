@@ -153,6 +153,60 @@ class UserService:
                 errors=[str(e)]
             )
     
+    async def update_password(self, username: str, current_password: str, new_password: str) -> APIResponse:
+        """Update user password"""
+        try:
+            # Get user
+            user = await self.get_user_by_username(username)
+            if not user:
+                return APIResponse(
+                    success=False,
+                    message="User not found"
+                )
+            
+            # Verify current password
+            if not bcrypt.checkpw(current_password.encode('utf-8'), user["password_hash"].encode('utf-8')):
+                return APIResponse(
+                    success=False,
+                    message="Current password is incorrect"
+                )
+            
+            # Hash new password
+            new_password_hash = bcrypt.hashpw(
+                new_password.encode('utf-8'), 
+                bcrypt.gensalt()
+            ).decode('utf-8')
+            
+            # Update password
+            result = self.users_collection.update_one(
+                {"username": username},
+                {
+                    "$set": {
+                        "password_hash": new_password_hash,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            if result.matched_count == 0:
+                return APIResponse(
+                    success=False,
+                    message="User not found"
+                )
+            
+            return APIResponse(
+                success=True,
+                message="Password updated successfully"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating password: {e}")
+            return APIResponse(
+                success=False,
+                message="Failed to update password",
+                errors=[str(e)]
+            )
+    
     async def calculate_user_stats(self, username: str) -> UserStats:
         """Calculate real-time user statistics"""
         try:
@@ -271,6 +325,51 @@ class UserService:
                 message="Failed to get users overview",
                 errors=[str(e)]
             )
+    
+    async def get_user_activity(self, username: str) -> List[Dict[str, Any]]:
+        """Get user activity history"""
+        try:
+            # Get user sessions
+            sessions = list(self.sessions_collection.find(
+                {"username": username},
+                {"_id": 0, "session_id": 1, "login_time": 1, "logout_time": 1, "activities": 1}
+            ).sort("login_time", -1).limit(10))
+            
+            # Format activity data
+            activity = []
+            for session in sessions:
+                login_time = session.get("login_time")
+                logout_time = session.get("logout_time")
+                
+                activity.append({
+                    "type": "login",
+                    "timestamp": login_time,
+                    "details": "Logged in"
+                })
+                
+                if logout_time:
+                    activity.append({
+                        "type": "logout",
+                        "timestamp": logout_time,
+                        "details": "Logged out"
+                    })
+                
+                # Add session activities
+                for act in session.get("activities", []):
+                    activity.append({
+                        "type": act.get("action"),
+                        "timestamp": act.get("timestamp"),
+                        "details": f"{act.get('action')} - {act.get('resource_id', '')}"
+                    })
+            
+            # Sort by timestamp (newest first)
+            activity.sort(key=lambda x: x.get("timestamp", datetime.min), reverse=True)
+            
+            return activity[:20]  # Return most recent 20 activities
+            
+        except Exception as e:
+            logger.error(f"Error getting user activity: {e}")
+            return []
 
 # Global service instance
 user_service = UserService()

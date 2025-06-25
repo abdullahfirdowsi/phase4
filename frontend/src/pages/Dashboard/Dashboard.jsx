@@ -5,6 +5,7 @@ import Learning from "./Learning/Learning";
 import QuizSystem from "./QuizSystem/QuizSystem";
 import AdminDashboard from "./AdminDashboard/AdminDashboard";
 import AIChat from "../../components/AIChat/AIChat";
+import UserProfile from "../../components/UserProfile/UserProfile";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import './Dashboard.scss';
 
@@ -35,6 +36,12 @@ const Dashboard = () => {
         return (
           <ErrorBoundary>
             <QuizSystem />
+          </ErrorBoundary>
+        );
+      case "profile":
+        return (
+          <ErrorBoundary>
+            <UserProfile />
           </ErrorBoundary>
         );
       case "admin":

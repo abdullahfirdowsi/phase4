@@ -1,14 +1,16 @@
-import React from "react";
-import { Navbar, Container, Button, Dropdown } from "react-bootstrap";
-import { Person, BoxArrowRight } from "react-bootstrap-icons";
+import React, { useState } from "react";
+import { Navbar, Container, Button, Dropdown, Modal } from "react-bootstrap";
+import { Person, BoxArrowRight, Gear, Globe, Bell } from "react-bootstrap-icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../api";
 import ThemeToggle from "../ThemeToggle/ThemeToggle";
+import UserProfile from "../UserProfile/UserProfile";
 import './Header.scss';
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const isAuthenticated = () => {
     const token = localStorage.getItem("token");
@@ -33,6 +35,10 @@ const Header = () => {
     if (authSection) {
       authSection.click();
     }
+  };
+
+  const handleOpenProfile = () => {
+    setShowProfileModal(true);
   };
 
   const userName = localStorage.getItem("name") || "User";
@@ -115,8 +121,21 @@ const Header = () => {
               <Dropdown.Item onClick={() => navigate('/dashboard')}>
                 Dashboard
               </Dropdown.Item>
-              <Dropdown.Item href="#settings">
+              <Dropdown.Item onClick={handleOpenProfile}>
+                <Person size={16} className="me-2" />
+                Profile
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => navigate('/dashboard')}>
+                <Gear size={16} className="me-2" />
                 Settings
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => navigate('/dashboard')}>
+                <Bell size={16} className="me-2" />
+                Notifications
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => navigate('/dashboard')}>
+                <Globe size={16} className="me-2" />
+                Language
               </Dropdown.Item>
               <Dropdown.Divider />
               <Dropdown.Item onClick={handleLogout} className="logout-item">
@@ -127,6 +146,22 @@ const Header = () => {
           </Dropdown>
         </div>
       </Container>
+      
+      {/* Profile Modal */}
+      <Modal 
+        show={showProfileModal} 
+        onHide={() => setShowProfileModal(false)}
+        size="xl"
+        centered
+        dialogClassName="profile-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>User Profile</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0">
+          <UserProfile />
+        </Modal.Body>
+      </Modal>
     </Navbar>
   );
 };

@@ -176,41 +176,20 @@ async def api_info():
         "documentation": "/docs"
     }
 
-# Database management endpoints
-@app.post("/admin/migrate")
-async def trigger_migration():
-    """Trigger data migration (admin only)"""
-    try:
-        from migration_script import run_migration
-        await run_migration()
-        return {"message": "Migration completed successfully"}
-    except Exception as e:
-        logger.error(f"Migration error: {e}")
-        raise HTTPException(status_code=500, detail="Migration failed")
-
-@app.post("/admin/initialize-db")
-async def initialize_db():
-    """Initialize database with collections and indexes (admin only)"""
-    try:
-        from database_config import initialize_database
-        initialize_database()
-        return {"message": "Database initialized successfully"}
-    except Exception as e:
-        logger.error(f"Database initialization error: {e}")
-        raise HTTPException(status_code=500, detail="Database initialization failed")
-
 # Import and include API routers
 try:
     from api.auth_api import auth_router
     from api.chat_api import chat_router
     from api.upload_api import upload_router
     from api.avatar_api import avatar_router
+    from api.profile_api import profile_router
     from ai_quiz_generator import ai_quiz_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])
     app.include_router(upload_router, prefix="/upload", tags=["File Upload"])
     app.include_router(avatar_router, prefix="/lessons", tags=["Avatar Generation"])
+    app.include_router(profile_router, prefix="/api", tags=["User Profile"])
     app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
     
     logger.info("✅ API routers loaded successfully")
@@ -313,7 +292,7 @@ if os.path.exists(FRONTEND_BUILD_DIR):
     
     logger.info(f"✅ Frontend mounted from: {FRONTEND_BUILD_DIR}")
 else:
-    logger.warning(f"⚠️  Frontend build directory not found: {FRONTEND_BUILD_DIR}")
+    logger.warning(f"⚠️ Frontend build directory not found: {FRONTEND_BUILD_DIR}")
 
 # Enhanced error handlers
 from fastapi.responses import JSONResponse
@@ -333,6 +312,8 @@ async def not_found_handler(request, exc):
                 "/lessons/generate-avatar", "/lessons/status/{lesson_id}",
                 "/lessons/predefined-avatars", "/lessons/available-voices",
                 "/lessons/create-voice-clone", "/lessons/voice-status/{voice_id}",
+                "/api/profile", "/api/profile/language", "/api/profile/password",
+                "/api/profile/upload-image", "/api/profile/activity",
                 "/admin/migrate", "/admin/initialize-db",
                 "/docs", "/health"
             ]
@@ -366,4 +347,4 @@ if __name__ == "__main__":
     print("📈 Real-time Analytics & Search")
     print("🗄️ AWS S3 File Storage Integration")
     print("🎬 D-ID Avatar Video Generation")
-    uvicorn.run("main_enhanced:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

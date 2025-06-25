@@ -470,6 +470,84 @@ export const updateUserProfile = async (profileData) => {
   }
 };
 
+// Update User Password API Call
+export const updateUserPassword = async (currentPassword, newPassword) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/auth/update-password`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ 
+        username, 
+        current_password: currentPassword,
+        new_password: newPassword
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating password:", error);
+    throw error;
+  }
+};
+
+// Update User Notification Settings API Call
+export const updateNotificationSettings = async (settings) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/auth/update-notifications`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ 
+        username, 
+        notification_settings: settings
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating notification settings:", error);
+    throw error;
+  }
+};
+
+// Get User Activity History API Call
+export const getUserActivityHistory = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/auth/activity-history?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data.activity || [];
+  } catch (error) {
+    console.error("Error fetching activity history:", error);
+    return [];
+  }
+};
+
 // Get User Statistics API Call
 export const getUserStats = async () => {
   const username = localStorage.getItem("username");

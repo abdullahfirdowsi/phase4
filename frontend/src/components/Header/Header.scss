@@ -171,14 +171,28 @@
         color: var(--text-primary);
         font-weight: v.$font-weight-medium;
         transition: v.$transition-base;
+        display: flex;
+        align-items: center;
+        
+        svg {
+          color: var(--text-secondary);
+        }
         
         &:hover {
           background: var(--bg-secondary);
           color: var(--primary-color);
+          
+          svg {
+            color: var(--primary-color);
+          }
         }
         
         &.logout-item {
           color: var(--danger-color);
+          
+          svg {
+            color: var(--danger-color);
+          }
           
           &:hover {
             background: var(--danger-bg);
@@ -190,6 +204,47 @@
       .dropdown-divider {
         margin: 0;
         border-color: var(--border-light);
+      }
+    }
+  }
+}
+
+// Profile Modal
+.profile-modal {
+  .modal-content {
+    border-radius: v.$border-radius-xl;
+    border: none;
+    overflow: hidden;
+    
+    .modal-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border-bottom: none;
+      
+      .modal-title {
+        font-weight: v.$font-weight-bold;
+      }
+      
+      .btn-close {
+        color: white;
+        opacity: 0.8;
+        
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+    
+    .modal-body {
+      padding: 0;
+      
+      .user-profile {
+        padding: 0;
+        min-height: auto;
+        
+        .profile-header {
+          display: none;
+        }
       }
     }
   }
