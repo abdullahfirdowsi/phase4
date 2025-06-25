@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaRedo, FaExternalLinkAlt, FaVideo, FaBook, FaClock } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaVideo, FaBook, FaClock } from 'react-icons/fa';
 // Removed saveLearningPath import - save functionality has been removed
 import './LearningPathDisplay.scss';
 
-const LearningPathDisplay = ({ message, onRegenerate }) => {
-  const [isRegenerating, setIsRegenerating] = useState(false);
+const LearningPathDisplay = ({ message }) => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [parsedContent, setParsedContent] = useState(null);
@@ -216,19 +215,6 @@ const LearningPathDisplay = ({ message, onRegenerate }) => {
           </div>
         </Card.Body>
         
-        <Card.Footer className="learning-path-footer">
-          <div className="action-buttons">
-            <Button
-              variant="outline-primary"
-              className="regenerate-btn"
-              onClick={onRegenerate}
-              disabled={isRegenerating}
-            >
-              <FaRedo className="me-2"/>
-              {isRegenerating ? 'Regenerating...' : 'Regenerate'}
-            </Button>
-          </div>
-        </Card.Footer>
       </Card>
     </div>
   );

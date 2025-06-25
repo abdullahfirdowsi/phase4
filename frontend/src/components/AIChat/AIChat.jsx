@@ -134,16 +134,22 @@ const AIChat = () => {
       timestamp: new Date().toISOString()
     };
     
-    // Add temporary placeholder for AI response
-    const tempAIMessage = {
-      role: 'assistant',
-      content: '',
-      type: isLearningPath ? 'learning_path' : 'content',
-      timestamp: new Date().toISOString()
-    };
-    
-    // Update messages with both user message and empty AI message
-    setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
+    // For learning paths, don't create temporary AI message as backend handles it
+    // For regular messages, add temporary placeholder for AI response
+    if (!isLearningPath) {
+      const tempAIMessage = {
+        role: 'assistant',
+        content: '',
+        type: 'content',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Update messages with both user message and empty AI message
+      setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
+    } else {
+      // For learning paths, only add user message
+      setMessages(prevMessages => [...prevMessages, newUserMessage]);
+    }
     setIsGenerating(true);
     
     try {
@@ -164,24 +170,33 @@ const AIChat = () => {
             }
             
             setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages];
-              const lastMessageIndex = updatedMessages.length - 1;
-              
-              // Create a new message object instead of modifying the existing one
-              updatedMessages[lastMessageIndex] = {
-                ...updatedMessages[lastMessageIndex],
-                content: accumulatedResponse,
-                type: isLearningPath ? 'learning_path' : 'content' // Preserve the type
-              };
-              
-              return updatedMessages;
+              if (isLearningPath) {
+                // For learning paths, don't add message locally since backend stores it
+                // We'll reload chat history after completion to get the stored message
+                return prevMessages;
+              } else {
+                // For regular messages, update the last (temp) AI message
+                const updatedMessages = [...prevMessages];
+                const lastMessageIndex = updatedMessages.length - 1;
+                
+                // Create a new message object instead of modifying the existing one
+                updatedMessages[lastMessageIndex] = {
+                  ...updatedMessages[lastMessageIndex],
+                  content: accumulatedResponse,
+                  type: 'content'
+                };
+                
+                return updatedMessages;
+              }
             });
           },
           () => {
-            // On complete - Don't refresh chat history to preserve timestamps
+            // On complete
             setIsGenerating(false);
-            // Note: Removed loadChatHistory() to prevent timestamp inconsistency
-            // The messages are already stored locally with correct timestamps
+            // For learning paths, reload chat history to get the message stored by backend
+            if (isLearningPath) {
+              loadChatHistory();
+            }
           },
           isQuiz,
           isLearningPath
@@ -421,7 +436,6 @@ const AIChat = () => {
                   (message.type === 'learning_path' || isLearningPathContent(message.content)) ? (
                     <LearningPathDisplayComponent 
                       message={message.content} 
-                      onRegenerate={() => handleRegenerate()}
                     />
                   ) : (
                     <AIMessage message={message} />

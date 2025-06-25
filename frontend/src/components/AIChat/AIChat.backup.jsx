@@ -541,13 +541,6 @@ const AIChat = () => {
                   <FaPlus className="me-2"/>
                   {isSaving ? 'Saving...' : 'Save Study Plan'}
                 </Button>
-                <Button
-                  variant="outline-primary"
-                  className="regenerate-btn"
-                >
-                  <FaRedo className="me-2"/>
-                  Regenerate
-                </Button>
               </div>
             )}
           </div>

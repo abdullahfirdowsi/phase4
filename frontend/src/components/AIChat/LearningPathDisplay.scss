@@ -269,32 +269,6 @@
       }
     }
     
-    .learning-path-footer {
-      background: var(--bg-secondary);
-      border-top: 1px solid var(--border-light);
-      padding: 1.5rem;
-      display: flex;
-      justify-content: center;
-      
-      .action-buttons {
-        display: flex;
-        gap: 1rem;
-        
-        .regenerate-btn {
-          display: flex;
-          align-items: center;
-          padding: 0.75rem 1.5rem;
-          font-weight: 600;
-          border-radius: v.$border-radius-lg;
-          transition: all 0.3s ease;
-          
-          &:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-          }
-        }
-      }
-    }
   }
 }
 
@@ -316,18 +290,6 @@
         padding: 1.5rem;
       }
       
-      .learning-path-footer {
-        padding: 1.25rem;
-        
-        .action-buttons {
-          flex-direction: column;
-          width: 100%;
-          
-          .regenerate-btn {
-            width: 100%;
-          }
-        }
-      }
     }
   }
 }
