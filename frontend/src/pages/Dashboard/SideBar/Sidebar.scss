@@ -31,35 +31,6 @@
         border-radius: 0 3px 3px 0;
       }
     }
-    
-    .sidebar-footer {
-      padding: 1rem 0.5rem;
-      
-      .footer-stats {
-        flex-direction: column;
-        gap: 0.5rem;
-        
-        .stat-divider {
-          display: none;
-        }
-        
-        .stat-item {
-          .stat-number {
-            font-size: 1.25rem;
-          }
-          
-          .stat-label {
-            font-size: 0.6rem;
-          }
-        }
-      }
-      
-      .admin-badge {
-        font-size: 0.6rem;
-        padding: 0.25rem 0.5rem;
-        text-align: center;
-      }
-    }
   }
 }
 
@@ -213,61 +184,6 @@
   }
 }
 
-// Sidebar Footer
-.sidebar-footer {
-  padding: 1.25rem;
-  border-top: 1px solid var(--border-light);
-  background: var(--bg-secondary);
-  
-  .footer-stats {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    margin-bottom: 1rem;
-    
-    .stat-item {
-      text-align: center;
-      
-      .stat-number {
-        font-size: 1.5rem;
-        font-weight: v.$font-weight-bold;
-        color: var(--primary-color);
-        line-height: 1;
-        margin-bottom: 0.25rem;
-      }
-      
-      .stat-label {
-        font-size: 0.75rem;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: v.$font-weight-medium;
-      }
-    }
-    
-    .stat-divider {
-      width: 1px;
-      height: 30px;
-      background: var(--border-light);
-    }
-  }
-  
-  .admin-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(220, 38, 38, 0.1);
-    border: 1px solid rgba(220, 38, 38, 0.2);
-    border-radius: v.$border-radius-lg;
-    padding: 0.5rem;
-    color: var(--danger-color);
-    font-size: 0.8rem;
-    font-weight: v.$font-weight-semibold;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-}
-
 // Animations
 @keyframes fadeIn {
   from {
@@ -315,18 +231,6 @@
       
       .nav-icon {
         font-size: 0.9rem;
-      }
-    }
-    
-    .sidebar-footer {
-      padding: 1rem;
-      
-      .footer-stats {
-        .stat-item {
-          .stat-number {
-            font-size: 1.25rem;
-          }
-        }
       }
     }
   }

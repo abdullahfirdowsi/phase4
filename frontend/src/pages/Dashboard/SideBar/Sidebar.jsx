@@ -92,29 +92,6 @@ const Sidebar = ({
           ))}
         </ul>
       </nav>
-
-      {/* Sidebar Footer */}
-      {!isCollapsed && (
-        <div className="sidebar-footer">
-          <div className="footer-stats">
-            <div className="stat-item">
-              <div className="stat-number">8</div>
-              <div className="stat-label">Goals</div>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <div className="stat-number">5</div>
-              <div className="stat-label">Done</div>
-            </div>
-          </div>
-          {isAdmin && (
-            <div className="admin-badge">
-              <Gear size={14} className="me-1" />
-              Admin User
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };
