@@ -1,0 +1,88 @@
+@use "../../styles/variables" as v;
+@use "../../styles/themes";
+
+.user-message-container {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  animation: slideInRight 0.4s ease-out;
+  margin-bottom: 1.5rem;
+  
+  .user-message-bubble {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-radius: 18px 18px 4px 18px;
+    padding: 14px 18px;
+    max-width: 70%;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    
+    .message-content {
+      line-height: 1.5;
+      word-wrap: break-word;
+      font-size: 1rem;
+    }
+    
+    .message-time {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      margin-top: 6px;
+      text-align: right;
+    }
+  }
+}
+
+// Enhanced animation
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// Responsive design
+@media (max-width: v.$breakpoint-tablet) {
+  .user-message-container {
+    margin-bottom: 1.25rem;
+    
+    .user-message-bubble {
+      max-width: 85%;
+      padding: 12px 16px;
+      
+      .message-content {
+        font-size: 0.95rem;
+      }
+    }
+  }
+}
+
+@media (max-width: v.$breakpoint-mobile) {
+  .user-message-container {
+    margin-bottom: 1rem;
+    
+    .user-message-bubble {
+      max-width: 90%;
+      padding: 10px 14px;
+      
+      .message-content {
+        font-size: 0.9rem;
+      }
+      
+      .message-time {
+        font-size: 0.7rem;
+      }
+    }
+  }
+}
+
+// Dark mode enhancements
+[data-theme="dark"] {
+  .user-message-container {
+    .user-message-bubble {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+  }
+}

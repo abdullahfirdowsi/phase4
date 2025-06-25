@@ -1,0 +1,89 @@
+@use "../../styles/variables" as v;
+@use "../../styles/themes";
+
+.confirm-modal {
+  .modal-content {
+    border-radius: v.$border-radius-xl;
+    border: none;
+    box-shadow: var(--shadow-xl);
+    background: var(--card-bg);
+    
+    .modal-header {
+      border-bottom: 1px solid var(--border-light);
+      padding: 1.5rem;
+      
+      .modal-title {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+    }
+    
+    .modal-body {
+      padding: 2rem;
+      
+      .confirm-message {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin: 0;
+      }
+    }
+    
+    .modal-footer {
+      border-top: 1px solid var(--border-light);
+      padding: 1.5rem;
+      
+      .btn {
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        border-radius: v.$border-radius-lg;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-sm);
+        }
+      }
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: v.$breakpoint-tablet) {
+  .confirm-modal {
+    .modal-content {
+      .modal-header,
+      .modal-body,
+      .modal-footer {
+        padding: 1.25rem;
+      }
+    }
+  }
+}
+
+@media (max-width: v.$breakpoint-mobile) {
+  .confirm-modal {
+    .modal-content {
+      .modal-header,
+      .modal-body,
+      .modal-footer {
+        padding: 1rem;
+      }
+      
+      .modal-body {
+        .confirm-message {
+          font-size: 1rem;
+        }
+      }
+    }
+  }
+}
+
+// Dark mode enhancements
+[data-theme="dark"] {
+  .confirm-modal {
+    .modal-content {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+  }
+}
