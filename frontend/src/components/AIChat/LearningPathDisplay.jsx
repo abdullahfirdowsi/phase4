@@ -21,7 +21,9 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
     const processContent = async () => {
       // If no content, keep loading state
       if (!content || (typeof content === 'string' && !content.trim())) {
-        return; // Just keep loading, no error
+        setError("Content is empty");
+        setIsLoading(false);
+        return;
       }
 
       // Handle case where content is a string (not parsed JSON)
@@ -30,6 +32,7 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
         try {
           // Try to parse the string as JSON
           processedContent = JSON.parse(content);
+          console.log("Successfully parsed string content as JSON");
           
           // If the parsed content has a 'content' property that's a string, it might be a nested response
           if (processedContent.content && typeof processedContent.content === 'string') {
@@ -38,16 +41,21 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
               if (processedContent.content.trim()) {
                 const nestedContent = JSON.parse(processedContent.content);
                 processedContent = nestedContent;
+                console.log("Successfully parsed nested content as JSON");
               }
             } catch (e) {
+              console.error("Failed to parse nested content as JSON:", e);
               // Keep the outer parsed content if nested parsing fails
             }
           } else if (processedContent.content && typeof processedContent.content === 'object') {
             // If content is already an object, use that directly
             processedContent = processedContent.content;
+            console.log("Using nested content object directly");
           }
         } catch (e) {
-          // If parsing fails, just keep loading - no error shown
+          console.error("Failed to parse content as JSON:", e);
+          setError(`Unable to display learning path. The content is not in the expected format.\nError: ${e.message}`);
+          setIsLoading(false);
           return;
         }
       }
@@ -61,8 +69,11 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
         setParsedContent(processedContent);
         setIsLoading(false);
         setError(null);
+      } else {
+        console.error("Content is missing required 'topics' array:", processedContent);
+        setError("Content is missing required 'topics' array");
+        setIsLoading(false);
       }
-      // If content is not valid, just keep loading (no error)
     };
 
     processContent();
@@ -82,7 +93,22 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
     );
   }
 
-  // If no parsed content yet, return null or keep loading
+  // If error occurred, show error message
+  if (error) {
+    return (
+      <div className="learning-path-container">
+        <Card className="learning-path-card">
+          <Card.Body className="text-center py-5">
+            <Alert variant="warning">
+              {error}
+            </Alert>
+          </Card.Body>
+        </Card>
+      </div>
+    );
+  }
+
+  // If no parsed content yet, return null
   if (!parsedContent) {
     return null;
   }
@@ -103,6 +129,16 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
       setError("Failed to save learning path. Please try again.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRegeneratePlan = () => {
+    if (onRegenerate && typeof onRegenerate === 'function') {
+      setIsRegenerating(true);
+      onRegenerate()
+        .finally(() => {
+          setIsRegenerating(false);
+        });
     }
   };
 
@@ -262,7 +298,7 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
               <Button
                 variant="outline-primary"
                 className="regenerate-btn"
-                onClick={onRegenerate}
+                onClick={handleRegeneratePlan}
                 disabled={isRegenerating}
               >
                 <FaRedo className="me-2"/>

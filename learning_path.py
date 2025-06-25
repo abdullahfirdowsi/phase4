@@ -87,7 +87,7 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             
         logger.info("✅ Successfully parsed and validated JSON")
         
-# Store the response in chat history for display purposes only
+        # Store the response in chat history for display purposes only
         # NOT saving to learning goals collection - that will only happen when user clicks "Save Study Plan"
         response_message = {
             "role": "assistant",

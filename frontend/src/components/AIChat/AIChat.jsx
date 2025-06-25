@@ -327,7 +327,7 @@ const AIChat = () => {
   };
 
   // Handle regenerating learning path
-  const handleRegenerate = async (originalQuery) => {
+  const handleRegenerate = async () => {
     if (isGenerating) return;
     
     // Find the last user message that led to this learning path
@@ -458,7 +458,7 @@ const AIChat = () => {
                     <LearningPathDisplayComponent 
                       message={message.content} 
                       onSave={handleSave}
-                      onRegenerate={() => handleRegenerate()}
+                      onRegenerate={handleRegenerate}
                     />
                   ) : (
                     <AIMessage message={message} />
