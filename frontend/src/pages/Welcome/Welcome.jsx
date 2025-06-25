@@ -160,6 +160,56 @@ const Welcome = () => {
                   Create custom study plans, get instant help, and achieve your learning goals faster than ever.
                 </p>
 
+                {/* Quick Start Input */}
+                <div className="quick-start-input">
+                  <Form.Group className="input-with-button">
+                    <Form.Control
+                      type="text"
+                      placeholder="Ask me anything... (e.g., 'Help me learn Python programming')"
+                      value={initialQuestion}
+                      onChange={(e) => setInitialQuestion(e.target.value)}
+                      className="hero-input"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && initialQuestion.trim()) {
+                          handleQuickStart(initialQuestion.trim());
+                        }
+                      }}
+                    />
+                    <Button 
+                      variant="primary"
+                      className="input-button"
+                      onClick={() => initialQuestion.trim() && handleQuickStart(initialQuestion.trim())}
+                      disabled={!initialQuestion.trim()}
+                    >
+                      <FaPlay />
+                    </Button>
+                  </Form.Group>
+                  <div className="quick-examples">
+                    <span className="examples-label">Try asking:</span>
+                    <button 
+                      type="button" 
+                      className="example-chip"
+                      onClick={() => setInitialQuestion("Create a learning path for Python programming")}
+                    >
+                      Python programming
+                    </button>
+                    <button 
+                      type="button" 
+                      className="example-chip"
+                      onClick={() => setInitialQuestion("Help me with math calculus")}
+                    >
+                      Math calculus
+                    </button>
+                    <button 
+                      type="button" 
+                      className="example-chip"
+                      onClick={() => setInitialQuestion("Explain machine learning basics")}
+                    >
+                      Machine learning
+                    </button>
+                  </div>
+                </div>
+
                 <div className="benefits-list">
                   {benefits.slice(0, 3).map((benefit, index) => (
                     <div key={index} className="benefit-item">

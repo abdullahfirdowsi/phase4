@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from './SideBar/Sidebar';
 import DashboardHome from "./DashboardHome/DashboardHome";
 import Learning from "./Learning/Learning";
@@ -12,9 +13,28 @@ import './Dashboard.scss';
 const Dashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeScreen, setActiveScreen] = useState("dashboard");
+  const location = useLocation();
 
   // Check if user is admin
   const isAdmin = localStorage.getItem("isAdmin") === "true";
+  
+  // Handle URL-based routing
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/chat')) {
+      setActiveScreen('chat');
+    } else if (path.includes('/learning-paths')) {
+      setActiveScreen('learning-paths');
+    } else if (path.includes('/quiz-system')) {
+      setActiveScreen('quiz-system');
+    } else if (path.includes('/profile')) {
+      setActiveScreen('profile');
+    } else if (path.includes('/admin') && isAdmin) {
+      setActiveScreen('admin');
+    } else {
+      setActiveScreen('dashboard');
+    }
+  }, [location.pathname, isAdmin]);
 
   const renderMainContent = () => {
     switch (activeScreen) {
