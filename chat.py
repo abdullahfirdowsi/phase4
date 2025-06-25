@@ -120,7 +120,7 @@ async def chat(
     try:
         logger.info(f"👤 User: {user_prompt} | 🆔 Username: {username}")
 
-        user_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        user_timestamp = datetime.datetime.utcnow()
 
         chat_session = chats_collection.find_one({"username": username}) or {}
         prev_5_messages = chat_session.get("messages", [])[-10:] if "messages" in chat_session else []
@@ -171,7 +171,7 @@ async def chat(
                     response_content += token
                     yield token
 
-            response_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+            response_timestamp = datetime.datetime.utcnow()
             response_message = {
                 "role": "assistant",
                 "content": response_content,
@@ -186,7 +186,7 @@ async def chat(
         logger.error(f"❌ Error: {str(e)}")
         import traceback
         logger.error(f"❌ Traceback: {traceback.format_exc()}")
-        response_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        response_timestamp = datetime.datetime.utcnow()
         response_message = {
             "role": "assistant",
             "content": "There seems to be some error on our side, Please try again later.",
@@ -241,7 +241,7 @@ async def save_path(request: SavePathRequest):
                 "duration": duration,
                 "study_plans": [path],
                 "progress": 0,
-                "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+                "created_at": datetime.datetime.utcnow()
             }
             learning_goals.append(new_goal)
             
@@ -327,7 +327,7 @@ async def update_learning_goal(
 
         # Update the goal while preserving the original structure
         learning_goals[goal_index].update(updated_goal)
-        learning_goals[goal_index]["updated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+        learning_goals[goal_index]["updated_at"] = datetime.datetime.utcnow()
 
         chats_collection.update_one(
             {"username": username},
@@ -469,7 +469,7 @@ async def get_assessments(username: str):
                     "id": "sample_1",
                     "type": "Python Basics Quiz",
                     "subject": "Python Programming",
-                    "date": datetime.datetime.utcnow().isoformat() + "Z",
+                    "date": datetime.datetime.utcnow(),
                     "score": "0/10",
                     "status": "pending"
                 },
@@ -477,7 +477,7 @@ async def get_assessments(username: str):
                     "id": "sample_2",
                     "type": "Mathematics Quiz",
                     "subject": "Mathematics",
-                    "date": datetime.datetime.utcnow().isoformat() + "Z",
+                    "date": datetime.datetime.utcnow(),
                     "score": "0/10",
                     "status": "pending"
                 }

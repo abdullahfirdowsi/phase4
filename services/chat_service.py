@@ -197,7 +197,23 @@ class ChatService:
                             "role": "$role"
                         },
                         "count": {"$sum": 1},
-                        "avg_length": {"$avg": {"$strLenCP": "$content"}}
+                        "avg_length": {
+                            "$avg": {
+                                "$cond": {
+                                    "if": {"$eq": [{"$type": "$content"}, "string"]},
+                                    "then": {"$strLenCP": "$content"},
+                                    "else": {
+                                        "$strLenCP": {
+                                            "$convert": {
+                                                "input": "$content",
+                                                "to": "string",
+                                                "onError": "[Complex Object]"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 {

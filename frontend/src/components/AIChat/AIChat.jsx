@@ -22,6 +22,8 @@ const AIChat = () => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const hasFetched = useRef(false);
@@ -282,12 +284,161 @@ const AIChat = () => {
     }
   };
 
+  // Handle saving learning path
+  const handleSave = async (content) => {
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    
+    try {
+      // Parse the content to get the learning path name
+      let parsedContent = content;
+      if (typeof content === 'string') {
+        try {
+          parsedContent = JSON.parse(content);
+        } catch (e) {
+          console.error('Failed to parse content for saving:', e);
+          setError('Failed to save study plan. Invalid content format.');
+          setIsSaving(false);
+          return;
+        }
+      }
+      
+      const learningGoalName = parsedContent.name || 'Unnamed Study Plan';
+      
+      await saveLearningPath(parsedContent, learningGoalName);
+      setIsSaved(true);
+      
+      // Auto-hide the saved indicator after 3 seconds
+      setTimeout(() => {
+        setIsSaved(false);
+      }, 3000);
+      
+    } catch (err) {
+      console.error('Error saving learning path:', err);
+      setError('Failed to save study plan. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle regenerating learning path
+  const handleRegenerate = async (originalQuery) => {
+    if (isGenerating) return;
+    
+    // Find the last user message that led to this learning path
+    const lastUserMessage = messages
+      .slice()
+      .reverse()
+      .find(msg => msg.role === 'user');
+      
+    if (!lastUserMessage) {
+      setError('Cannot regenerate: No previous query found.');
+      return;
+    }
+    
+    const regeneratePrompt = `${lastUserMessage.content} (Please generate a new learning path)`;
+    
+    // Add user message to chat
+    const newUserMessage = {
+      role: 'user',
+      content: regeneratePrompt,
+      type: 'content',
+      timestamp: new Date().toISOString()
+    };
+    
+    // Add temporary placeholder for AI response
+    const tempAIMessage = {
+      role: 'assistant',
+      content: '',
+      type: 'learning_path',
+      timestamp: new Date().toISOString()
+    };
+    
+    // Update messages with both user message and empty AI message
+    setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
+    setIsGenerating(true);
+    setIsSaved(false); // Reset saved state
+    
+    try {
+      let accumulatedResponse = '';
+      
+      await askQuestion(
+        regeneratePrompt,
+        (partialResponse) => {
+          // For learning paths, the partialResponse will be the full API response object
+          if (typeof partialResponse === 'object' && partialResponse.content) {
+            accumulatedResponse = partialResponse.content;
+          } else {
+            accumulatedResponse = partialResponse;
+          }
+          
+          setMessages(prevMessages => {
+            const updatedMessages = [...prevMessages];
+            const lastMessageIndex = updatedMessages.length - 1;
+            
+            updatedMessages[lastMessageIndex] = {
+              ...updatedMessages[lastMessageIndex],
+              content: accumulatedResponse,
+              type: 'learning_path'
+            };
+            
+            return updatedMessages;
+          });
+        },
+        () => {
+          setIsGenerating(false);
+          loadChatHistory();
+        },
+        false,
+        true // isLearningPath = true
+      );
+    } catch (err) {
+      console.error('Error regenerating learning path:', err);
+      setError('Failed to regenerate study plan. Please try again.');
+      setIsGenerating(false);
+      setMessages(prevMessages => prevMessages.slice(0, -1));
+    }
+  };
+
   // Render user message
   const UserMessage = ({ message }) => {
     const { content, timestamp } = message;
-    const timeAgo = timestamp
-      ? formatDistanceToNow(new Date(timestamp), { addSuffix: true })
-      : null;
+    
+    // Handle timezone properly - ensure consistent UTC handling
+    let timeAgo = null;
+    if (timestamp) {
+      try {
+        let messageDate;
+        
+        // Handle different timestamp formats from backend
+        if (typeof timestamp === 'string') {
+          // If timestamp is ISO string from old system or frontend
+          messageDate = new Date(timestamp);
+        } else if (timestamp instanceof Date) {
+          // If timestamp is Date object from new system
+          messageDate = new Date(timestamp);
+        } else if (timestamp.$date) {
+          // If timestamp is MongoDB Date format
+          messageDate = new Date(timestamp.$date);
+        } else {
+          // Fallback
+          messageDate = new Date(timestamp);
+        }
+        
+        // Check if the date is valid
+        if (!isNaN(messageDate.getTime())) {
+          // Convert to UTC time for consistent calculation
+          const utcTime = messageDate.getTime();
+          const localTime = utcTime;
+          const adjustedDate = new Date(localTime);
+          
+          timeAgo = formatDistanceToNow(adjustedDate, { addSuffix: true });
+        }
+      } catch (e) {
+        console.error('Error parsing timestamp:', timestamp, e);
+      }
+    }
 
     return (
       <div className="user-message-container">
@@ -304,9 +455,41 @@ const AIChat = () => {
   // Render AI message
   const AIMessage = ({ message }) => {
     const { content, timestamp } = message;
-    const timeAgo = timestamp
-      ? formatDistanceToNow(new Date(timestamp), { addSuffix: true })
-      : null;
+    
+    // Handle timezone properly - ensure consistent UTC handling
+    let timeAgo = null;
+    if (timestamp) {
+      try {
+        let messageDate;
+        
+        // Handle different timestamp formats from backend
+        if (typeof timestamp === 'string') {
+          // If timestamp is ISO string from old system or frontend
+          messageDate = new Date(timestamp);
+        } else if (timestamp instanceof Date) {
+          // If timestamp is Date object from new system
+          messageDate = new Date(timestamp);
+        } else if (timestamp.$date) {
+          // If timestamp is MongoDB Date format
+          messageDate = new Date(timestamp.$date);
+        } else {
+          // Fallback
+          messageDate = new Date(timestamp);
+        }
+        
+        // Check if the date is valid
+        if (!isNaN(messageDate.getTime())) {
+          // Convert to UTC time for consistent calculation
+          const utcTime = messageDate.getTime();
+          const localTime = utcTime;
+          const adjustedDate = new Date(localTime);
+          
+          timeAgo = formatDistanceToNow(adjustedDate, { addSuffix: true });
+        }
+      } catch (e) {
+        console.error('Error parsing timestamp:', timestamp, e);
+      }
+    }
 
     if (!content) {
       return null;
@@ -451,24 +634,7 @@ const AIChat = () => {
       );
     }
 
-    const handleSave = async () => {
-      try {
-        setIsSaving(true);
-        setSaveError(null);
-        setSuccess(null);
-        
-        // Call API to save the learning path
-        await saveLearningPath(parsedContent, parsedContent.name);
-        
-        setIsSaved(true);
-        setSuccess("Learning path saved successfully!");
-      } catch (error) {
-        console.error(error);
-        setSaveError("Failed to save learning path. Please try again.");
-      } finally {
-        setIsSaving(false);
-      }
-    };
+    // Use the main component's handleSave function
 
     return (
       <div className="learning-path-container">
@@ -580,7 +746,7 @@ const AIChat = () => {
                 <Button
                   variant="primary"
                   className="save-btn"
-                  onClick={handleSave}
+                  onClick={() => handleSave(content)}
                   disabled={isSaving}
                 >
                   <FaPlus className="me-2"/>
@@ -589,9 +755,11 @@ const AIChat = () => {
                 <Button
                   variant="outline-primary"
                   className="regenerate-btn"
+                  onClick={() => handleRegenerate()}
+                  disabled={isGenerating}
                 >
                   <FaRedo className="me-2"/>
-                  Regenerate
+                  {isGenerating ? 'Regenerating...' : 'Regenerate'}
                 </Button>
               </div>
             )}
