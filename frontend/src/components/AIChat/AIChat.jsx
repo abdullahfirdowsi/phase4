@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Container, Button, Alert, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
 import { fetchChatHistory, askQuestion, clearChat } from '../../api';
-// Removed saveLearningPath import - save functionality has been removed
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -26,7 +25,6 @@ const AIChat = () => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  // Removed save-related state variables
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const hasFetched = useRef(false);
@@ -78,6 +76,20 @@ const AIChat = () => {
     }
   }, []);
 
+  // Check for initial question from home page
+  useEffect(() => {
+    const initialQuestion = sessionStorage.getItem("initialQuestion");
+    if (initialQuestion) {
+      setInputMessage(initialQuestion);
+      // Clear it from session storage to prevent reuse
+      sessionStorage.removeItem("initialQuestion");
+      // Submit the question automatically after a short delay
+      setTimeout(() => {
+        handleSendMessage(initialQuestion);
+      }, 300);
+    }
+  }, []);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
@@ -115,10 +127,11 @@ const AIChat = () => {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isGenerating) return;
+  const handleSendMessage = async (overrideMessage = null) => {
+    const messageToSend = overrideMessage || inputMessage;
+    
+    if (!messageToSend.trim() || isGenerating) return;
 
-    const userMessage = inputMessage.trim();
     setInputMessage('');
     
     // Reset textarea height
@@ -129,7 +142,7 @@ const AIChat = () => {
     // Add user message to chat
     const newUserMessage = {
       role: 'user',
-      content: userMessage,
+      content: messageToSend.trim(),
       type: 'content',
       timestamp: new Date().toISOString()
     };
@@ -156,7 +169,7 @@ const AIChat = () => {
       let accumulatedResponse = '';
       
         await askQuestion(
-          userMessage,
+          messageToSend.trim(),
           (partialResponse) => {
             // Update the AI message with the accumulated response
             // For learning paths, the partialResponse will be the full API response object
@@ -303,89 +316,6 @@ const AIChat = () => {
     }
   };
 
-  // Save functionality has been completely removed
-
-  // Handle regenerating learning path
-  const handleRegenerate = async (originalQuery) => {
-    if (isGenerating) return;
-    
-    // Find the last user message that led to this learning path
-    const lastUserMessage = messages
-      .slice()
-      .reverse()
-      .find(msg => msg.role === 'user');
-      
-    if (!lastUserMessage) {
-      setError('Cannot regenerate: No previous query found.');
-      return;
-    }
-    
-    const regeneratePrompt = `${lastUserMessage.content} (Please generate a new learning path)`;
-    
-    // Add user message to chat
-    const newUserMessage = {
-      role: 'user',
-      content: regeneratePrompt,
-      type: 'content',
-      timestamp: new Date().toISOString()
-    };
-    
-    // Add temporary placeholder for AI response
-    const tempAIMessage = {
-      role: 'assistant',
-      content: '',
-      type: 'learning_path',
-      timestamp: new Date().toISOString()
-    };
-    
-    // Update messages with both user message and empty AI message
-    setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
-    setIsGenerating(true);
-    // Removed saved state reset
-    
-    try {
-      let accumulatedResponse = '';
-      
-      await askQuestion(
-        regeneratePrompt,
-        (partialResponse) => {
-          // For learning paths, the partialResponse will be the full API response object
-          if (typeof partialResponse === 'object' && partialResponse.content) {
-            accumulatedResponse = partialResponse.content;
-          } else {
-            accumulatedResponse = partialResponse;
-          }
-          
-          setMessages(prevMessages => {
-            const updatedMessages = [...prevMessages];
-            const lastMessageIndex = updatedMessages.length - 1;
-            
-            updatedMessages[lastMessageIndex] = {
-              ...updatedMessages[lastMessageIndex],
-              content: accumulatedResponse,
-              type: 'learning_path'
-            };
-            
-            return updatedMessages;
-          });
-        },
-        () => {
-          // On complete - Don't refresh chat history to preserve timestamps
-          setIsGenerating(false);
-          // Note: Removed loadChatHistory() to prevent timestamp inconsistency
-        },
-        false,
-        true // isLearningPath = true
-      );
-    } catch (err) {
-      console.error('Error regenerating learning path:', err);
-      setError('Failed to regenerate study plan. Please try again.');
-      setIsGenerating(false);
-      setMessages(prevMessages => prevMessages.slice(0, -1));
-    }
-  };
-
-
   // Memoize the learning path content check
   const memoizedIsLearningPathContent = useCallback((content) => {
     if (!content) return false;
@@ -419,7 +349,6 @@ const AIChat = () => {
 
   // Memoize the messages to prevent unnecessary re-renders
   const memoizedMessages = useMemo(() => messages, [messages]);
-
 
   return (
     <div className="ai-chat">
@@ -458,7 +387,7 @@ const AIChat = () => {
                     className="quick-action-btn"
                     onClick={() => {
                       setIsLearningPath(true);
-                      setInputMessage("");
+                      setInputMessage("Create a learning path for Python programming");
                     }}
                   >
                     <span className="icon">🛣️</span>
@@ -469,7 +398,7 @@ const AIChat = () => {
                     className="quick-action-btn"
                     onClick={() => {
                       setIsQuiz(true);
-                      setInputMessage("");
+                      setInputMessage("Generate a quiz about world history");
                     }}
                   >
                     <span className="icon">📝</span>
@@ -596,7 +525,7 @@ const AIChat = () => {
                 <Button 
                   variant="primary" 
                   className={`send-btn ${!inputMessage.trim() ? 'disabled' : ''}`}
-                  onClick={handleSendMessage}
+                  onClick={() => handleSendMessage()}
                   disabled={!inputMessage.trim()}
                 >
                   <FaPaperPlane />
