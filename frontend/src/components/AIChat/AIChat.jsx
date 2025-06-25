@@ -80,7 +80,7 @@ const AIChat = () => {
   useEffect(() => {
     const initialQuestion = sessionStorage.getItem("initialQuestion");
     if (initialQuestion) {
-      setInputMessage(initialQuestion);
+      console.log("Found initial question:", initialQuestion);
       // Clear it from session storage to prevent reuse
       sessionStorage.removeItem("initialQuestion");
       // Submit the question automatically after a short delay
@@ -349,6 +349,7 @@ const AIChat = () => {
 
   // Memoize the messages to prevent unnecessary re-renders
   const memoizedMessages = useMemo(() => messages, [messages]);
+
 
   return (
     <div className="ai-chat">

@@ -30,7 +30,8 @@ const DashboardHome = () => {
     
     // Navigate to chat page after a brief delay to show loading state
     setTimeout(() => {
-      navigate("/dashboard/chat");
+      // Use navigate with replace to ensure we can't go back to the input page
+      navigate("/dashboard/chat", { replace: true });
     }, 500);
   };
 
@@ -53,6 +54,7 @@ const DashboardHome = () => {
                   onChange={handleInputChange}
                   className="search-input"
                   disabled={isLoading}
+                  autoFocus
                 />
                 <Button 
                   type="submit" 

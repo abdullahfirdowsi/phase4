@@ -14,6 +14,7 @@ const Welcome = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [initialQuestion, setInitialQuestion] = useState("");
   const navigate = useNavigate();
 
   const clearForm = () => {
@@ -32,7 +33,14 @@ const Welcome = () => {
     try {
       const data = await login(email, password);
       localStorage.setItem("username", email);
-      navigate("/dashboard");
+      
+      // If there's an initial question, store it in sessionStorage
+      if (initialQuestion.trim()) {
+        sessionStorage.setItem("initialQuestion", initialQuestion.trim());
+        navigate("/dashboard/chat");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
@@ -63,7 +71,13 @@ const Welcome = () => {
   };
 
   const handleGoogleLoginSuccess = (data) => {
-    navigate('/dashboard');
+    // If there's an initial question, store it in sessionStorage
+    if (initialQuestion.trim()) {
+      sessionStorage.setItem("initialQuestion", initialQuestion.trim());
+      navigate("/dashboard/chat");
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   const handleGoogleLoginError = (errorMessage) => {
@@ -73,6 +87,11 @@ const Welcome = () => {
   const handleAuthModalOpen = () => {
     setShowModal(true);
     clearForm();
+  };
+
+  const handleQuickStart = (question) => {
+    setInitialQuestion(question);
+    handleAuthModalOpen();
   };
 
   useEffect(() => {
@@ -155,7 +174,7 @@ const Welcome = () => {
                     variant="primary" 
                     size="lg" 
                     className="cta-button"
-                    onClick={() => setShowModal(true)}
+                    onClick={() => handleQuickStart("Create a learning path for Python programming")}
                   >
                     <FaPlay className="me-2" />
                     Start Learning Today
@@ -270,7 +289,7 @@ const Welcome = () => {
                   variant="primary" 
                   size="lg" 
                   className="final-cta-button"
-                  onClick={() => setShowModal(true)}
+                  onClick={() => handleQuickStart("What can you help me learn?")}
                 >
                   <FaPlay className="me-2" />
                   Get Started for Free
@@ -299,6 +318,12 @@ const Welcome = () => {
           {error && (
             <Alert variant={error.includes("successfully") ? "success" : "danger"} className="mb-3">
               {error}
+            </Alert>
+          )}
+          
+          {initialQuestion && (
+            <Alert variant="info" className="mb-3">
+              <strong>Ready to get started with:</strong> "{initialQuestion}"
             </Alert>
           )}
           
