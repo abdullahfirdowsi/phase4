@@ -318,32 +318,7 @@ export const askQuestion = async (
   }
 };
 
-// Save Learning Path API Call
-export const saveLearningPath = async (learningPath, learningGoalName) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/chat/save-path`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        username: username,
-        path: learningPath,
-        learning_goal_name: learningGoalName,
-      }),
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Error saving learning path:", error);
-    throw error;
-  }
-};
+// Save Learning Path functionality has been completely removed
 
 // Get All Learning Goals API Call
 export const getAllLearningGoals = async () => {

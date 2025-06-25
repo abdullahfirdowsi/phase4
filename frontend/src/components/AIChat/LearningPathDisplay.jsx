@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaPlus, FaRedo, FaCheck, FaExternalLinkAlt, FaVideo, FaBook, FaClock } from 'react-icons/fa';
-import { saveLearningPath } from '../../api';
+import { FaRedo, FaExternalLinkAlt, FaVideo, FaBook, FaClock } from 'react-icons/fa';
+// Removed saveLearningPath import - save functionality has been removed
 import './LearningPathDisplay.scss';
 
-const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+const LearningPathDisplay = ({ message, onRegenerate }) => {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [parsedContent, setParsedContent] = useState(null);
 
@@ -87,24 +84,7 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
     return null;
   }
 
-  const handleSave = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-      setSuccess(null);
-      
-      // Call API to save the learning path
-      await saveLearningPath(parsedContent, parsedContent.name);
-      
-      setIsSaved(true);
-      setSuccess("Learning path saved successfully!");
-    } catch (error) {
-      console.error(error);
-      setError("Failed to save learning path. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // Save functionality has been completely removed
 
   return (
     <div className="learning-path-container">
@@ -134,12 +114,6 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
           {error && (
             <Alert variant="danger" dismissible onClose={() => setError(null)}>
               {error}
-            </Alert>
-          )}
-          
-          {success && (
-            <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-              {success}
             </Alert>
           )}
           
@@ -243,33 +217,17 @@ const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
         </Card.Body>
         
         <Card.Footer className="learning-path-footer">
-          {isSaved ? (
-            <div className="saved-indicator">
-              <FaCheck className="me-2" />
-              <span>Study Plan Saved</span>
-            </div>
-          ) : (
-            <div className="action-buttons">
-              <Button
-                variant="primary"
-                className="save-btn"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                <FaPlus className="me-2"/>
-                {isSaving ? 'Saving...' : 'Save Study Plan'}
-              </Button>
-              <Button
-                variant="outline-primary"
-                className="regenerate-btn"
-                onClick={onRegenerate}
-                disabled={isRegenerating}
-              >
-                <FaRedo className="me-2"/>
-                {isRegenerating ? 'Regenerating...' : 'Regenerate'}
-              </Button>
-            </div>
-          )}
+          <div className="action-buttons">
+            <Button
+              variant="outline-primary"
+              className="regenerate-btn"
+              onClick={onRegenerate}
+              disabled={isRegenerating}
+            >
+              <FaRedo className="me-2"/>
+              {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+            </Button>
+          </div>
         </Card.Footer>
       </Card>
     </div>

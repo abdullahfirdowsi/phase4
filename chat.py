@@ -216,59 +216,7 @@ async def get_chat_history(username: str):
     messages = chat_session.get("messages", [])
     return {"history": messages}
 
-class SavePathRequest(BaseModel):
-    username: str
-    path: dict
-    learning_goal_name: Optional[str] = None
-
-@chat_router.post("/save-path")
-async def save_path(request: SavePathRequest):
-    username = request.username
-    path = request.path
-    learning_goal_name = request.learning_goal_name
-    """Saves learning path as part of a learning goal."""
-    try:
-        if not isinstance(path, dict):
-            return JSONResponse(status_code=400, content={"detail": "Path must be a valid JSON object"})
-
-        chat_session = chats_collection.find_one({"username": username}) or {}
-        learning_goals = chat_session.get("learning_goals", [])
-
-        if not learning_goal_name:
-            learning_goal_name = f"Unnamed Learning Goal {len(learning_goals) + 1}"
-
-        duration = path.get("course_duration", "Unknown")
-
-        existing_goal = next((goal for goal in learning_goals if goal["name"] == learning_goal_name), None)
-
-        if existing_goal:
-            existing_goal["study_plans"].append(path)
-        else:
-            new_goal = {
-                "name": learning_goal_name,
-                "duration": duration,
-                "study_plans": [path],
-                "progress": 0,
-                "created_at": datetime.datetime.utcnow()
-            }
-            learning_goals.append(new_goal)
-            
-            # Update user stats
-            update_user_stats(username, "totalGoals")
-
-        chats_collection.update_one(
-            {"username": username},
-            {"$set": {"learning_goals": learning_goals}},
-            upsert=True
-        )
-
-        return {"message": f"Learning path saved successfully under '{learning_goal_name}'"}
-    except Exception as e:
-        logger.error(f"❌ Error: {str(e)}")
-        logger.error(f"❌ Error type: {type(e)}")
-        import traceback
-        logger.error(f"❌ Traceback: {traceback.format_exc()}")
-        return JSONResponse(status_code=500, content={"detail": str(e)})
+# Save path functionality has been completely removed
 
 @chat_router.get("/get-all-goals")
 async def get_all_goals(username: str):

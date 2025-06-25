@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
-import { fetchChatHistory, askQuestion, clearChat, saveLearningPath } from '../../api';
+import { fetchChatHistory, askQuestion, clearChat } from '../../api';
+// Removed saveLearningPath import - save functionality has been removed
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -25,8 +26,7 @@ const AIChat = () => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  // Removed save-related state variables
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const hasFetched = useRef(false);
@@ -288,43 +288,7 @@ const AIChat = () => {
     }
   };
 
-  // Handle saving learning path
-  const handleSave = async (content) => {
-    if (isSaving) return;
-    
-    setIsSaving(true);
-    
-    try {
-      // Parse the content to get the learning path name
-      let parsedContent = content;
-      if (typeof content === 'string') {
-        try {
-          parsedContent = JSON.parse(content);
-        } catch (e) {
-          console.error('Failed to parse content for saving:', e);
-          setError('Failed to save study plan. Invalid content format.');
-          setIsSaving(false);
-          return;
-        }
-      }
-      
-      const learningGoalName = parsedContent.name || 'Unnamed Study Plan';
-      
-      await saveLearningPath(parsedContent, learningGoalName);
-      setIsSaved(true);
-      
-      // Auto-hide the saved indicator after 3 seconds
-      setTimeout(() => {
-        setIsSaved(false);
-      }, 3000);
-      
-    } catch (err) {
-      console.error('Error saving learning path:', err);
-      setError('Failed to save study plan. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // Save functionality has been completely removed
 
   // Handle regenerating learning path
   const handleRegenerate = async (originalQuery) => {
@@ -362,7 +326,7 @@ const AIChat = () => {
     // Update messages with both user message and empty AI message
     setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
     setIsGenerating(true);
-    setIsSaved(false); // Reset saved state
+    // Removed saved state reset
     
     try {
       let accumulatedResponse = '';
@@ -457,7 +421,6 @@ const AIChat = () => {
                   (message.type === 'learning_path' || isLearningPathContent(message.content)) ? (
                     <LearningPathDisplayComponent 
                       message={message.content} 
-                      onSave={handleSave}
                       onRegenerate={() => handleRegenerate()}
                     />
                   ) : (
