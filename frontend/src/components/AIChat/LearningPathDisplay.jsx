@@ -1,94 +1,90 @@
-import React, { useState } from 'react';
-import { Card, Badge, Button, Alert } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Card, Badge, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPlus, FaRedo, FaCheck, FaExternalLinkAlt, FaVideo, FaBook, FaClock } from 'react-icons/fa';
 import { saveLearningPath } from '../../api';
 import './LearningPathDisplay.scss';
 
-const LearningPathDisplay = ({ content }) => {
+const LearningPathDisplay = ({ message, onSave, onRegenerate }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [parsedContent, setParsedContent] = useState(null);
 
-  // Log the content type and value for debugging
-  console.log("Learning Path Content Type:", typeof content);
-  console.log("Learning Path Content Preview:", 
-    typeof content === 'string' 
-      ? content.substring(0, 100) + '...' 
-      : JSON.stringify(content).substring(0, 100) + '...'
-  );
+  // Extract content from the message
+  const content = message?.content || message;
 
-  // Handle case where content is a string (not parsed JSON)
-  let parsedContent = content;
-  if (typeof content === 'string') {
-    try {
-      // Check if the string is empty or just whitespace
-      if (!content.trim()) {
-        throw new Error("Content is empty");
+  // Process content with useEffect to handle async parsing and loading states
+  useEffect(() => {
+    const processContent = async () => {
+      // If no content, keep loading state
+      if (!content || (typeof content === 'string' && !content.trim())) {
+        return; // Just keep loading, no error
       }
-      
-      // Try to parse the string as JSON
-      parsedContent = JSON.parse(content);
-      console.log("Successfully parsed string content as JSON");
-      
-      // If the parsed content has a 'content' property that's a string, it might be a nested response
-      if (parsedContent.content && typeof parsedContent.content === 'string') {
+
+      // Handle case where content is a string (not parsed JSON)
+      let processedContent = content;
+      if (typeof content === 'string') {
         try {
-          // Check if nested content is not empty
-          if (parsedContent.content.trim()) {
-            const nestedContent = JSON.parse(parsedContent.content);
-            parsedContent = nestedContent;
-            console.log("Successfully parsed nested content as JSON");
+          // Try to parse the string as JSON
+          processedContent = JSON.parse(content);
+          
+          // If the parsed content has a 'content' property that's a string, it might be a nested response
+          if (processedContent.content && typeof processedContent.content === 'string') {
+            try {
+              // Check if nested content is not empty
+              if (processedContent.content.trim()) {
+                const nestedContent = JSON.parse(processedContent.content);
+                processedContent = nestedContent;
+              }
+            } catch (e) {
+              // Keep the outer parsed content if nested parsing fails
+            }
+          } else if (processedContent.content && typeof processedContent.content === 'object') {
+            // If content is already an object, use that directly
+            processedContent = processedContent.content;
           }
         } catch (e) {
-          console.error("Failed to parse nested content as JSON:", e);
-          // Keep the outer parsed content
+          // If parsing fails, just keep loading - no error shown
+          return;
         }
-      } else if (parsedContent.content && typeof parsedContent.content === 'object') {
-        // If content is already an object, use that directly
-        parsedContent = parsedContent.content;
-        console.log("Using nested content object directly");
       }
-    } catch (e) {
-      console.error("Failed to parse content as JSON:", e);
-      return (
-        <div className="learning-path-error">
-          <Alert variant="warning">
-            Unable to display learning path. The content is not in the expected format.
-            <br />
-            <small>Error: {e.message}</small>
-            <br />
-            <small>Content preview: {typeof content === 'string' ? content.substring(0, 100) : 'Not a string'}</small>
-          </Alert>
-        </div>
-      );
-    }
-  }
 
-  // If content is still not valid, return error
-  if (!parsedContent || typeof parsedContent !== 'object') {
-    console.error("Content is not a valid object:", parsedContent);
+      // Only proceed if we have valid content with topics
+      if (processedContent && 
+          typeof processedContent === 'object' && 
+          processedContent.topics && 
+          Array.isArray(processedContent.topics)) {
+        // Content is valid, set it and stop loading
+        setParsedContent(processedContent);
+        setIsLoading(false);
+        setError(null);
+      }
+      // If content is not valid, just keep loading (no error)
+    };
+
+    processContent();
+  }, [content]);
+
+  // Show loading spinner while processing content
+  if (isLoading) {
     return (
-      <div className="learning-path-error">
-        <Alert variant="warning">
-          Unable to display learning path. The content is not a valid object.
-        </Alert>
+      <div className="learning-path-container">
+        <Card className="learning-path-card">
+          <Card.Body className="text-center py-5">
+            <Spinner animation="border" variant="primary" className="mb-3" />
+            <p>Processing learning path...</p>
+          </Card.Body>
+        </Card>
       </div>
     );
   }
 
-  // Check if the required fields exist
-  if (!parsedContent.topics || !Array.isArray(parsedContent.topics)) {
-    console.error("Content is missing required 'topics' array:", parsedContent);
-    return (
-      <div className="learning-path-error">
-        <Alert variant="warning">
-          Unable to display learning path. The content is missing required data.
-          <br />
-          <small>Expected a 'topics' array but found: {Object.keys(parsedContent).join(', ')}</small>
-        </Alert>
-      </div>
-    );
+  // If no parsed content yet, return null or keep loading
+  if (!parsedContent) {
+    return null;
   }
 
   const handleSave = async () => {
@@ -266,9 +262,11 @@ const LearningPathDisplay = ({ content }) => {
               <Button
                 variant="outline-primary"
                 className="regenerate-btn"
+                onClick={onRegenerate}
+                disabled={isRegenerating}
               >
                 <FaRedo className="me-2"/>
-                Regenerate
+                {isRegenerating ? 'Regenerating...' : 'Regenerate'}
               </Button>
             </div>
           )}

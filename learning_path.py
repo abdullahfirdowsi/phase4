@@ -87,7 +87,8 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             
         logger.info("✅ Successfully parsed and validated JSON")
         
-        # Store the response - serialize JSON to string for consistent storage
+# Store the response in chat history for display purposes only
+        # NOT saving to learning goals collection - that will only happen when user clicks "Save Study Plan"
         response_message = {
             "role": "assistant",
             "content": json.dumps(learning_path_json) if isinstance(learning_path_json, dict) else learning_path_json,

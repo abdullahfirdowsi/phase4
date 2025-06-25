@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaPaperPlane, FaStop, FaRedo, FaPlus, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash, FaCheck, FaClock } from 'react-icons/fa';
+import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
 import { fetchChatHistory, askQuestion, clearChat, saveLearningPath } from '../../api';
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
@@ -11,6 +11,7 @@ import AnalyticsModal from './AnalyticsModal';
 import ConfirmModal from './ConfirmModal';
 import UserMessage from './UserMessage';
 import AIMessage from './AIMessage';
+import LearningPathDisplayComponent from './LearningPathDisplay';
 
 const AIChat = () => {
   console.log('🚀 AIChat component is rendering...');
@@ -440,209 +441,6 @@ const AIChat = () => {
   // Memoize the messages to prevent unnecessary re-renders
   const memoizedMessages = useMemo(() => messages, [messages]);
 
-  // Render learning path display
-  const LearningPathDisplay = useCallback(({ content }) => {
-    // Log the content type and value for debugging
-    console.log("Learning Path Content Type:", typeof content);
-    console.log("Learning Path Content Preview:", 
-      typeof content === 'string' 
-        ? content.substring(0, 100) + '...' 
-        : JSON.stringify(content).substring(0, 100) + '...'
-    );
-
-    // Handle case where content is a string (not parsed JSON)
-    let parsedContent = content;
-    if (typeof content === 'string') {
-      try {
-        // Check if the string is empty or just whitespace
-        if (!content.trim()) {
-          throw new Error("Content is empty");
-        }
-        
-        // Try to parse the string as JSON
-        parsedContent = JSON.parse(content);
-        console.log("Successfully parsed string content as JSON");
-        
-        // If the parsed content has a 'content' property that's a string, it might be a nested response
-        if (parsedContent.content && typeof parsedContent.content === 'string') {
-          try {
-            // Check if nested content is not empty
-            if (parsedContent.content.trim()) {
-              const nestedContent = JSON.parse(parsedContent.content);
-              parsedContent = nestedContent;
-              console.log("Successfully parsed nested content as JSON");
-            }
-          } catch (e) {
-            console.error("Failed to parse nested content as JSON:", e);
-            // Keep the outer parsed content
-          }
-        } else if (parsedContent.content && typeof parsedContent.content === 'object') {
-          // If content is already an object, use that directly
-          parsedContent = parsedContent.content;
-          console.log("Using nested content object directly");
-        }
-      } catch (e) {
-        console.error("Failed to parse content as JSON:", e);
-        return (
-          <div className="learning-path-error">
-            <Alert variant="warning">
-              Unable to display learning path. The content is not in the expected format.
-              <br />
-              <small>Error: {e.message}</small>
-              <br />
-              <small>Content preview: {typeof content === 'string' ? content.substring(0, 100) : 'Not a string'}</small>
-            </Alert>
-          </div>
-        );
-      }
-    }
-
-    // If content is still not valid, return error
-    if (!parsedContent || typeof parsedContent !== 'object') {
-      console.error("Content is not a valid object:", parsedContent);
-      return (
-        <div className="learning-path-error">
-          <Alert variant="warning">
-            Unable to display learning path. The content is not a valid object.
-          </Alert>
-        </div>
-      );
-    }
-
-    // Check if the required fields exist
-    if (!parsedContent.topics || !Array.isArray(parsedContent.topics)) {
-      console.error("Content is missing required 'topics' array:", parsedContent);
-      return (
-        <div className="learning-path-error">
-          <Alert variant="warning">
-            Unable to display learning path. The content is missing required data.
-            <br />
-            <small>Expected a 'topics' array but found: {Object.keys(parsedContent).join(', ')}</small>
-          </Alert>
-        </div>
-      );
-    }
-
-    return (
-      <div className="learning-path-container">
-        <div className="learning-path-card">
-          <div className="learning-path-header">
-            <h3 className="path-title">{parsedContent.name || "Learning Path"}</h3>
-            <div className="path-meta">
-              <span className="duration-badge">
-                <FaClock className="me-1" />
-                {parsedContent.course_duration || "N/A"}
-              </span>
-            </div>
-          </div>
-          
-          <div className="learning-path-body">
-            {parsedContent.description && (
-              <div className="path-description">
-                <p>{parsedContent.description}</p>
-              </div>
-            )}
-            
-            <div className="topics-container">
-              <h5 className="topics-heading">Learning Topics</h5>
-              {parsedContent.topics.map((topic, index) => (
-                <div key={index} className="topic-card">
-                  <div className="topic-header">
-                    <h5 className="topic-title">
-                      <span className="topic-number">{index + 1}</span>
-                      {topic.name}
-                    </h5>
-                    <span className="time-badge">
-                      <FaBook className="me-1" />
-                      {topic.time_required}
-                    </span>
-                  </div>
-                  
-                  <p className="topic-description">{topic.description}</p>
-                  
-                  <div className="topic-resources">
-                    {topic.links && topic.links.length > 0 && (
-                      <div className="resource-section">
-                        <h6>Reading Materials</h6>
-                        <ul className="resource-list">
-                          {topic.links.map((link, i) => (
-                            <li key={i}>
-                              <a href={link} target="_blank" rel="noopener noreferrer">
-                                {link.replace(/^https?:\/\//, '').split('/')[0]}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {topic.videos && topic.videos.length > 0 && (
-                      <div className="resource-section">
-                        <h6>Video Resources</h6>
-                        <ul className="resource-list">
-                          {topic.videos.map((video, i) => (
-                            <li key={i}>
-                              <a href={video} target="_blank" rel="noopener noreferrer">
-                                {video.includes('youtube') ? 'YouTube Video' : 'Video Resource'}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {topic.subtopics && topic.subtopics.length > 0 && (
-                    <div className="subtopics-section">
-                      <h6>Subtopics</h6>
-                      <ul className="subtopics-list">
-                        {topic.subtopics.map((sub, i) => (
-                          <li key={i}>
-                            <strong>{sub.name}</strong>
-                            {sub.description && <p>{sub.description}</p>}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="learning-path-footer">
-            {isSaved ? (
-              <div className="saved-indicator">
-                <FaCheck className="me-2" />
-                <span>Study Plan Saved</span>
-              </div>
-            ) : (
-              <div className="action-buttons">
-                <Button
-                  variant="primary"
-                  className="save-btn"
-                  onClick={() => handleSave(content)}
-                  disabled={isSaving}
-                >
-                  <FaPlus className="me-2"/>
-                  {isSaving ? 'Saving...' : 'Save Study Plan'}
-                </Button>
-                <Button
-                  variant="outline-primary"
-                  className="regenerate-btn"
-                  onClick={() => handleRegenerate()}
-                  disabled={isGenerating}
-                >
-                  <FaRedo className="me-2"/>
-                  {isGenerating ? 'Regenerating...' : 'Regenerate'}
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }, [handleSave, handleRegenerate, isSaved, isSaving, isGenerating]);
 
   return (
     <div className="ai-chat">
@@ -657,7 +455,11 @@ const AIChat = () => {
                 ) : (
                   // Check if it's a learning path by type or by content structure
                   (message.type === 'learning_path' || isLearningPathContent(message.content)) ? (
-                    <LearningPathDisplay content={message.content} />
+                    <LearningPathDisplayComponent 
+                      message={message.content} 
+                      onSave={handleSave}
+                      onRegenerate={() => handleRegenerate()}
+                    />
                   ) : (
                     <AIMessage message={message} />
                   )

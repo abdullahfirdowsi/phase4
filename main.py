@@ -205,11 +205,13 @@ try:
     from api.chat_api import chat_router
     from api.upload_api import upload_router
     from api.avatar_api import avatar_router
+    from ai_quiz_generator import ai_quiz_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])
     app.include_router(upload_router, prefix="/upload", tags=["File Upload"])
     app.include_router(avatar_router, prefix="/lessons", tags=["Avatar Generation"])
+    app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
     
     logger.info("✅ API routers loaded successfully")
 except Exception as e:
