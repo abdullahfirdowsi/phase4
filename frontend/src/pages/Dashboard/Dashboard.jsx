@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Routes, Route } from "react-router-dom";
 import Sidebar from './SideBar/Sidebar';
 import DashboardHome from "./DashboardHome/DashboardHome";
 import Learning from "./Learning/Learning";
 import QuizSystem from "./QuizSystem/QuizSystem";
+import LearningPathQuiz from "./LearningPathQuiz/LearningPathQuiz";
 import AdminDashboard from "./AdminDashboard/AdminDashboard";
 import AIChat from "../../components/AIChat/AIChat";
 import UserProfile from "../../components/UserProfile/UserProfile";
@@ -27,6 +28,8 @@ const Dashboard = () => {
       setActiveScreen('learning-paths');
     } else if (path.includes('/quiz-system')) {
       setActiveScreen('quiz-system');
+    } else if (path.includes('/learning-path-quiz')) {
+      setActiveScreen('learning-path-quiz');
     } else if (path.includes('/profile')) {
       setActiveScreen('profile');
     } else if (path.includes('/admin') && isAdmin) {
@@ -35,47 +38,6 @@ const Dashboard = () => {
       setActiveScreen('dashboard');
     }
   }, [location.pathname, isAdmin]);
-
-  const renderMainContent = () => {
-    switch (activeScreen) {
-      case "dashboard":
-        return <DashboardHome />;
-      case "chat":
-        return (
-          <ErrorBoundary>
-            <AIChat />
-          </ErrorBoundary>
-        );
-      case "learning-paths":
-        return (
-          <ErrorBoundary>
-            <Learning />
-          </ErrorBoundary>
-        );
-      case "quiz-system":
-        return (
-          <ErrorBoundary>
-            <QuizSystem />
-          </ErrorBoundary>
-        );
-      case "profile":
-        return (
-          <ErrorBoundary>
-            <UserProfile />
-          </ErrorBoundary>
-        );
-      case "admin":
-        return isAdmin ? (
-          <ErrorBoundary>
-            <AdminDashboard />
-          </ErrorBoundary>
-        ) : (
-          <DashboardHome />
-        );
-      default:
-        return <DashboardHome />;
-    }
-  };
 
   return (
     <div className="dashboard-container">
@@ -90,7 +52,41 @@ const Dashboard = () => {
 
       {/* Main Content Area */}
       <div className={`dashboard-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        {renderMainContent()}
+        <Routes>
+          <Route path="/" element={<DashboardHome />} />
+          <Route path="/chat" element={
+            <ErrorBoundary>
+              <AIChat />
+            </ErrorBoundary>
+          } />
+          <Route path="/learning-paths" element={
+            <ErrorBoundary>
+              <Learning />
+            </ErrorBoundary>
+          } />
+          <Route path="/quiz-system" element={
+            <ErrorBoundary>
+              <QuizSystem />
+            </ErrorBoundary>
+          } />
+          <Route path="/learning-path-quiz" element={
+            <ErrorBoundary>
+              <LearningPathQuiz />
+            </ErrorBoundary>
+          } />
+          <Route path="/profile" element={
+            <ErrorBoundary>
+              <UserProfile />
+            </ErrorBoundary>
+          } />
+          {isAdmin && (
+            <Route path="/admin" element={
+              <ErrorBoundary>
+                <AdminDashboard />
+              </ErrorBoundary>
+            } />
+          )}
+        </Routes>
       </div>
 
       {/* Mobile Overlay */}

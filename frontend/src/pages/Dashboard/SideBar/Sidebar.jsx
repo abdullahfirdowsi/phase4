@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "./Sidebar.scss";
 import { 
   House, 
@@ -7,7 +8,9 @@ import {
   ClipboardCheck, 
   Gear,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Book,
+  Trophy
 } from "react-bootstrap-icons";
 
 const Sidebar = ({
@@ -17,6 +20,7 @@ const Sidebar = ({
   activeScreen,
   isAdmin = false
 }) => {
+  const navigate = useNavigate();
 
   const menuItems = [
     {
@@ -24,25 +28,36 @@ const Sidebar = ({
       text: "Home",
       icon: <House size={20} />,
       screen: "dashboard",
+      path: "/dashboard"
     },
     {
       id: "chat",
       text: "AI Chat",
       icon: <ChatDots size={20} />,
       screen: "chat",
+      path: "/dashboard/chat"
     },
     {
-      id: "learning",
+      id: "learning-paths",
       text: "Learning Paths",
       icon: <Signpost size={20} />,
       screen: "learning-paths",
+      path: "/dashboard/learning-paths"
     },
     {
       id: "quiz-system",
       text: "Quiz",
       icon: <ClipboardCheck size={20} />,
       screen: "quiz-system",
+      path: "/dashboard/quiz-system"
     },
+    {
+      id: "learning-path-quiz",
+      text: "Learning & Quiz",
+      icon: <Book size={20} />,
+      screen: "learning-path-quiz",
+      path: "/dashboard/learning-path-quiz"
+    }
   ];
 
   // Add admin menu item if user is admin
@@ -52,12 +67,14 @@ const Sidebar = ({
       text: "Admin Panel",
       icon: <Gear size={20} />,
       screen: "admin",
+      path: "/dashboard/admin",
       isAdmin: true
     });
   }
 
   const handleItemClick = (item) => {
     setActiveScreen(item.screen);
+    navigate(item.path);
   };
 
   return (
