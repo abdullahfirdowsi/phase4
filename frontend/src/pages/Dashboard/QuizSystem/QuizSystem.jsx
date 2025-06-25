@@ -12,6 +12,7 @@ import {
   Award,
   Bullseye
 } from "react-bootstrap-icons";
+import { formatLocalDate } from "../../../utils/dateUtils";
 import "./QuizSystem.scss";
 
 const QuizSystem = () => {
@@ -435,7 +436,7 @@ const QuizSystem = () => {
 
                         <div className="result-date">
                           <small className="text-muted">
-                            {new Date(result.submitted_at).toLocaleDateString()}
+                            {formatLocalDate(result.submitted_at)}
                           </small>
                         </div>
                       </Card.Body>

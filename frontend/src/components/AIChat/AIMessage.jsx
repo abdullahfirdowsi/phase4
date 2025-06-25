@@ -1,15 +1,13 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { formatDistanceToNow } from 'date-fns';
 import { Robot, StarFill } from 'react-bootstrap-icons';
+import { formatRelativeTime } from '../../utils/dateUtils';
 import './AIMessage.scss';
 
 const AIMessage = ({ message }) => {
   const { content, timestamp } = message;
-  const timeAgo = timestamp
-    ? formatDistanceToNow(new Date(timestamp), { addSuffix: true })
-    : null;
+  const timeAgo = formatRelativeTime(timestamp);
 
   if (!content) {
     return null;

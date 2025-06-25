@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Row, Col, Spinner, Alert, Badge } from 'react-bootstrap';
 import { BarChart, GraphUp, ChatSquare, Clock } from 'react-bootstrap-icons';
 import { getChatAnalytics } from '../../api';
+import { formatShortDate } from '../../utils/dateUtils';
 import './AnalyticsModal.scss';
 
 const AnalyticsModal = ({ show, onHide }) => {

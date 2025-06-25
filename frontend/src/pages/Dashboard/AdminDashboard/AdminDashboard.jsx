@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Table, Modal, Form, Alert, Badge, Spinner } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, Alert, Spinner, ProgressBar } from "react-bootstrap";
 import { 
-  Shield, 
-  People, 
+  PeopleFill, 
   BookHalf, 
+  ClipboardData, 
   Plus, 
-  Trash, 
   Eye,
-  BarChart,
-  Award,
-  Clock,
-  GraphUp
+  PencilSquare,
+  Trash,
+  ArrowUp,
+  ArrowDown
 } from "react-bootstrap-icons";
+import { formatLocalDate } from "../../../utils/dateUtils";
+import "./AdminDashboard.scss";
 import "./AdminDashboard.scss";
 
 const AdminDashboard = () => {
@@ -525,7 +526,7 @@ const AdminDashboard = () => {
                         {user.is_admin ? "Admin" : "User"}
                       </Badge>
                     </td>
-                    <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                    <td>{formatLocalDate(user.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

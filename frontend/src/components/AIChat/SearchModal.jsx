@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Button, ListGroup, Spinner, Alert } from 'react-bootstrap';
 import { Search, X } from 'react-bootstrap-icons';
 import { searchMessages } from '../../api';
+import { formatLocalDateTime } from '../../utils/dateUtils';
 import './SearchModal.scss';
 
 const SearchModal = ({ show, onHide }) => {
@@ -99,7 +100,7 @@ const SearchModal = ({ show, onHide }) => {
                     {message.content.length > 200 && '...'}
                   </div>
                   <div className="result-timestamp">
-                    {new Date(message.timestamp).toLocaleString()}
+                    {formatLocalDateTime(message.timestamp)}
                   </div>
                 </ListGroup.Item>
               ))}

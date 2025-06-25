@@ -12,6 +12,7 @@ import {
   Award,
   GraphUp
 } from "react-bootstrap-icons";
+import { formatLocalDate } from "../../../utils/dateUtils";
 import "./LearningPaths.scss";
 
 const LearningPaths = () => {
@@ -332,7 +333,7 @@ const LearningPaths = () => {
                         <Card.Body>
                           <div className="info-item">
                             <strong>Created:</strong>
-                            <span>{new Date(selectedPath.created_at).toLocaleDateString()}</span>
+                            <span>{formatLocalDate(selectedPath.created_at)}</span>
                           </div>
                           <div className="info-item">
                             <strong>Prerequisites:</strong>
