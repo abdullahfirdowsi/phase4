@@ -85,8 +85,8 @@ const DashboardHome = () => {
   };
 
   return (
-    <div className="enhanced-dashboard-home">
-      <Container className="dashboard-container">
+    <div className="dashboard-home">
+      <Container>
         {/* Hero Section with AI Input */}
         <section className="hero-section">
           <div className="hero-content">
@@ -110,7 +110,7 @@ const DashboardHome = () => {
                 />
                 <Button 
                   type="submit" 
-                  className={`submit-button ${!inputValue.trim() ? 'disabled' : ''}`}
+                  className="submit-button"
                   disabled={isLoading || !inputValue.trim()}
                 >
                   {isLoading ? (
@@ -159,15 +159,15 @@ const DashboardHome = () => {
 
         {/* Quick Access Cards */}
         <section className="quick-access-section">
-          <Row className="g-4">
-            <Col lg={4} md={6}>
+          <Row>
+            <Col lg={4} md={6} className="mb-4">
               <Card className="quick-access-card chat-card" onClick={() => handleNavigate('/dashboard/chat')}>
                 <Card.Body>
                   <div className="card-icon">
                     <ChatDots size={24} />
                   </div>
                   <div className="card-content">
-                    <h3>AI Chat</h3>
+                    <h2>AI Chat</h2>
                     <p>Ask questions, get explanations, and receive personalized help</p>
                     <Button variant="link" className="card-action">
                       Start chatting <ArrowRight size={16} />
@@ -177,14 +177,14 @@ const DashboardHome = () => {
               </Card>
             </Col>
             
-            <Col lg={4} md={6}>
+            <Col lg={4} md={6} className="mb-4">
               <Card className="quick-access-card learning-card" onClick={() => handleNavigate('/dashboard/learning-paths')}>
                 <Card.Body>
                   <div className="card-icon">
                     <Book size={24} />
                   </div>
                   <div className="card-content">
-                    <h3>Learning Paths</h3>
+                    <h2>Learning Paths</h2>
                     <p>Follow structured learning paths tailored to your goals</p>
                     <Button variant="link" className="card-action">
                       View paths <ArrowRight size={16} />
@@ -194,14 +194,14 @@ const DashboardHome = () => {
               </Card>
             </Col>
             
-            <Col lg={4} md={6}>
+            <Col lg={4} md={6} className="mb-4">
               <Card className="quick-access-card quiz-card" onClick={() => handleNavigate('/dashboard/quiz-system')}>
                 <Card.Body>
                   <div className="card-icon">
                     <ClipboardCheck size={24} />
                   </div>
                   <div className="card-content">
-                    <h3>Quiz System</h3>
+                    <h2>Quiz System</h2>
                     <p>Test your knowledge with interactive quizzes and assessments</p>
                     <Button variant="link" className="card-action">
                       Take a quiz <ArrowRight size={16} />
@@ -215,14 +215,14 @@ const DashboardHome = () => {
 
         {/* Learning Progress & Stats */}
         <section className="progress-section">
-          <Row className="g-4">
-            <Col lg={8}>
+          <Row>
+            <Col lg={8} className="mb-4">
               <Card className="progress-card">
                 <Card.Header>
-                  <h3>
+                  <h2>
                     <Book className="me-2" />
                     Your Learning Progress
-                  </h3>
+                  </h2>
                 </Card.Header>
                 <Card.Body>
                   {statsLoading ? (
@@ -237,7 +237,7 @@ const DashboardHome = () => {
                       {learningGoals.slice(0, 3).map((goal, index) => (
                         <div key={index} className="learning-goal-item">
                           <div className="goal-info">
-                            <h4>{goal.name}</h4>
+                            <h3>{goal.name}</h3>
                             <div className="goal-meta">
                               <span className="goal-duration">
                                 <Clock size={14} className="me-1" />
@@ -272,7 +272,7 @@ const DashboardHome = () => {
                       ))}
                       
                       {learningGoals.length > 3 && (
-                        <div className="text-center mt-3">
+                        <div className="text-center mt-4">
                           <Button 
                             variant="link" 
                             onClick={() => handleNavigate('/dashboard/learning-paths')}
@@ -285,7 +285,7 @@ const DashboardHome = () => {
                   ) : (
                     <div className="empty-state">
                       <Lightbulb size={48} className="mb-3" />
-                      <h4>No Learning Paths Yet</h4>
+                      <h3>No Learning Paths Yet</h3>
                       <p>Start by asking AI Tutor to create a personalized learning path for you.</p>
                       <Button 
                         variant="primary"
@@ -299,13 +299,13 @@ const DashboardHome = () => {
               </Card>
             </Col>
             
-            <Col lg={4}>
-              <Card className="stats-card">
+            <Col lg={4} className="mb-4">
+              <Card className="stats-card mb-4">
                 <Card.Header>
-                  <h3>
+                  <h2>
                     <Trophy className="me-2" />
                     Your Stats
-                  </h3>
+                  </h2>
                 </Card.Header>
                 <Card.Body>
                   {statsLoading ? (
@@ -361,12 +361,12 @@ const DashboardHome = () => {
               </Card>
               
               {/* Recent Assessments */}
-              <Card className="assessments-card mt-4">
+              <Card className="assessments-card">
                 <Card.Header>
-                  <h3>
+                  <h2>
                     <ClipboardCheck className="me-2" />
                     Recent Assessments
-                  </h3>
+                  </h2>
                 </Card.Header>
                 <Card.Body>
                   {statsLoading ? (
@@ -392,7 +392,7 @@ const DashboardHome = () => {
                       ))}
                       
                       {assessments.length > 3 && (
-                        <div className="text-center mt-3">
+                        <div className="text-center mt-4">
                           <Button 
                             variant="link" 
                             onClick={() => handleNavigate('/dashboard/quiz-system')}
@@ -405,7 +405,7 @@ const DashboardHome = () => {
                   ) : (
                     <div className="empty-state">
                       <ClipboardCheck size={32} className="mb-2" />
-                      <p className="mb-2">No assessments yet</p>
+                      <p className="mb-3">No assessments yet</p>
                       <Button 
                         variant="outline-primary" 
                         size="sm"
@@ -422,18 +422,18 @@ const DashboardHome = () => {
         </section>
 
         {/* Quick Tips Section */}
-        <section className="tips-section">
+        <section className="tips-section mb-4">
           <Card className="tips-card">
             <Card.Body>
-              <h3>
+              <h2>
                 <Lightbulb className="me-2" />
                 Quick Tips
-              </h3>
+              </h2>
               <div className="tips-grid">
                 <div className="tip-item">
                   <div className="tip-number">1</div>
                   <div className="tip-content">
-                    <h4>Ask Specific Questions</h4>
+                    <h3>Ask Specific Questions</h3>
                     <p>The more specific your questions, the better the AI can help you learn.</p>
                   </div>
                 </div>
@@ -441,7 +441,7 @@ const DashboardHome = () => {
                 <div className="tip-item">
                   <div className="tip-number">2</div>
                   <div className="tip-content">
-                    <h4>Create Learning Paths</h4>
+                    <h3>Create Learning Paths</h3>
                     <p>Ask AI to create a learning path for any topic you want to master.</p>
                   </div>
                 </div>
@@ -449,7 +449,7 @@ const DashboardHome = () => {
                 <div className="tip-item">
                   <div className="tip-number">3</div>
                   <div className="tip-content">
-                    <h4>Test Your Knowledge</h4>
+                    <h3>Test Your Knowledge</h3>
                     <p>Generate quizzes to test what you've learned and identify knowledge gaps.</p>
                   </div>
                 </div>
@@ -457,7 +457,7 @@ const DashboardHome = () => {
                 <div className="tip-item">
                   <div className="tip-number">4</div>
                   <div className="tip-content">
-                    <h4>Track Your Progress</h4>
+                    <h3>Track Your Progress</h3>
                     <p>Monitor your learning journey through the stats and progress indicators.</p>
                   </div>
                 </div>

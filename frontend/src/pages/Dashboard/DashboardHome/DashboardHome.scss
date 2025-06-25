@@ -1,21 +1,19 @@
 @use "../../../styles/variables" as v;
 @use "../../../styles/themes";
 
-.enhanced-dashboard-home {
+.dashboard-home {
   background: var(--bg-primary);
   min-height: calc(100vh - #{v.$navbar-height});
   overflow-y: auto;
-  padding: 2rem 0;
+  padding: 48px 0;
   
-  .dashboard-container {
+  .container {
     max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
   }
   
   // Hero Section
   .hero-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: 48px;
     
     .hero-content {
       max-width: 700px;
@@ -24,10 +22,10 @@
     }
     
     .welcome-title {
-      font-size: 2.25rem;
+      font-size: 32px;
       font-weight: v.$font-weight-bold;
       color: var(--text-primary);
-      margin-bottom: 1rem;
+      margin-bottom: 16px;
       background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -35,13 +33,14 @@
     }
     
     .welcome-subtitle {
-      font-size: 1.25rem;
+      font-size: 20px;
       color: var(--text-secondary);
-      margin-bottom: 2rem;
+      margin-bottom: 32px;
+      line-height: 1.5;
     }
     
     .search-form {
-      margin-bottom: 1.5rem;
+      margin-bottom: 24px;
       
       .input-wrapper {
         display: flex;
@@ -61,8 +60,8 @@
         border-radius: v.$border-radius-xl 0 0 v.$border-radius-xl;
         border: 1px solid var(--border-light);
         border-right: none;
-        padding: 0 1.5rem;
-        font-size: 1.1rem;
+        padding: 0 24px;
+        font-size: 18px;
         background: var(--card-bg);
         color: var(--text-primary);
         
@@ -74,7 +73,7 @@
         
         &::placeholder {
           color: var(--text-tertiary);
-          font-size: 1rem;
+          font-size: 16px;
         }
       }
       
@@ -82,17 +81,12 @@
         border-radius: 0 v.$border-radius-xl v.$border-radius-xl 0;
         background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         border: none;
-        padding: 0 1.5rem;
+        padding: 0 24px;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 8px;
         font-weight: v.$font-weight-semibold;
         transition: all 0.3s ease;
-        
-        &.disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
         
         &:hover:not(:disabled) {
           filter: brightness(1.1);
@@ -113,8 +107,8 @@
     
     .error-message {
       color: var(--danger-color);
-      margin-top: 0.75rem;
-      font-size: 0.9rem;
+      margin-top: 12px;
+      font-size: 14px;
       animation: fadeIn 0.3s ease-out;
     }
     
@@ -122,16 +116,17 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 0.75rem;
+      gap: 12px;
       
       .suggestion-chip {
         border-radius: v.$border-radius-full;
-        padding: 0.5rem 1.25rem;
-        font-size: 0.9rem;
+        padding: 8px 20px;
+        font-size: 14px;
         border: 1px solid var(--primary-color);
         color: var(--primary-color);
         background: transparent;
         transition: all 0.3s ease;
+        min-height: 44px;
         
         &:hover {
           background: var(--primary-color);
@@ -144,7 +139,7 @@
   
   // Quick Access Cards
   .quick-access-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: 48px;
     
     .quick-access-card {
       background: var(--card-bg);
@@ -189,14 +184,14 @@
       }
       
       .card-body {
-        padding: 2rem;
+        padding: 32px;
         display: flex;
-        gap: 1.5rem;
+        gap: 24px;
       }
       
       .card-icon {
-        width: 50px;
-        height: 50px;
+        width: 56px;
+        height: 56px;
         border-radius: 12px;
         display: flex;
         align-items: center;
@@ -222,17 +217,18 @@
       .card-content {
         flex: 1;
         
-        h3 {
-          font-size: 1.25rem;
+        h2 {
+          font-size: 20px;
           font-weight: v.$font-weight-bold;
           color: var(--text-primary);
-          margin-bottom: 0.75rem;
+          margin-bottom: 12px;
         }
         
         p {
           color: var(--text-secondary);
-          margin-bottom: 1.25rem;
-          font-size: 0.95rem;
+          margin-bottom: 20px;
+          font-size: 16px;
+          line-height: 1.5;
         }
         
         .card-action {
@@ -240,9 +236,10 @@
           font-weight: v.$font-weight-medium;
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 8px;
           padding: 0;
           transition: all 0.3s ease;
+          font-size: 16px;
           
           &:hover {
             text-decoration: none;
@@ -254,7 +251,7 @@
   
   // Progress Section
   .progress-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: 48px;
     
     .progress-card, .stats-card, .assessments-card {
       background: var(--card-bg);
@@ -270,11 +267,11 @@
       .card-header {
         background: var(--bg-secondary);
         border-bottom: 1px solid var(--border-light);
-        padding: 1.25rem 1.5rem;
+        padding: 20px 24px;
         
-        h3 {
+        h2 {
           margin: 0;
-          font-size: 1.25rem;
+          font-size: 20px;
           font-weight: v.$font-weight-semibold;
           color: var(--text-primary);
           display: flex;
@@ -287,28 +284,30 @@
       }
       
       .card-body {
-        padding: 1.5rem;
+        padding: 24px;
       }
       
       .empty-state {
         text-align: center;
-        padding: 2rem 1rem;
+        padding: 32px 16px;
         
         svg {
           color: var(--text-tertiary);
           opacity: 0.7;
         }
         
-        h4 {
-          font-size: 1.25rem;
+        h3 {
+          font-size: 20px;
           font-weight: v.$font-weight-semibold;
           color: var(--text-primary);
-          margin: 1rem 0 0.5rem;
+          margin: 16px 0 8px;
         }
         
         p {
           color: var(--text-secondary);
-          margin-bottom: 1.5rem;
+          margin-bottom: 24px;
+          font-size: 16px;
+          line-height: 1.5;
         }
       }
     }
@@ -317,15 +316,15 @@
     .learning-goals-list {
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 20px;
       
       .learning-goal-item {
         background: var(--bg-secondary);
         border-radius: v.$border-radius-lg;
-        padding: 1.25rem;
+        padding: 20px;
         display: flex;
         align-items: center;
-        gap: 1.25rem;
+        gap: 20px;
         transition: all 0.3s ease;
         
         &:hover {
@@ -337,11 +336,11 @@
           flex: 1;
           min-width: 0;
           
-          h4 {
-            font-size: 1.1rem;
+          h3 {
+            font-size: 18px;
             font-weight: v.$font-weight-semibold;
             color: var(--text-primary);
-            margin: 0 0 0.5rem;
+            margin: 0 0 8px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -350,26 +349,26 @@
           .goal-meta {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 16px;
             flex-wrap: wrap;
             
             .goal-duration {
               color: var(--text-tertiary);
-              font-size: 0.85rem;
+              font-size: 14px;
               display: flex;
               align-items: center;
             }
             
             .progress-badge {
-              font-size: 0.75rem;
+              font-size: 12px;
               font-weight: v.$font-weight-medium;
-              padding: 0.35rem 0.65rem;
+              padding: 6px 10px;
             }
           }
         }
         
         .goal-progress {
-          width: 100px;
+          width: 120px;
           flex-shrink: 0;
           
           .progress {
@@ -381,8 +380,13 @@
         
         .continue-btn {
           flex-shrink: 0;
-          font-size: 0.85rem;
-          padding: 0.35rem 0.75rem;
+          font-size: 14px;
+          padding: 6px 12px;
+          min-height: 44px;
+          min-width: 100px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
       }
     }
@@ -391,15 +395,15 @@
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 1.25rem;
+      gap: 20px;
       
       .stat-item {
         background: var(--bg-secondary);
         border-radius: v.$border-radius-lg;
-        padding: 1.25rem;
+        padding: 20px;
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 16px;
         transition: all 0.3s ease;
         
         &:hover {
@@ -408,9 +412,9 @@
         }
         
         .stat-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
           background: rgba(59, 130, 246, 0.1);
           color: var(--primary-color);
           display: flex;
@@ -421,14 +425,14 @@
         
         .stat-content {
           .stat-value {
-            font-size: 1.5rem;
+            font-size: 24px;
             font-weight: v.$font-weight-bold;
             color: var(--text-primary);
             line-height: 1.2;
           }
           
           .stat-label {
-            font-size: 0.85rem;
+            font-size: 14px;
             color: var(--text-tertiary);
           }
         }
@@ -439,12 +443,12 @@
     .assessments-list {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 12px;
       
       .assessment-item {
         background: var(--bg-secondary);
         border-radius: v.$border-radius-lg;
-        padding: 1rem;
+        padding: 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -457,10 +461,10 @@
         
         .assessment-info {
           .assessment-title {
-            font-size: 0.95rem;
+            font-size: 16px;
             font-weight: v.$font-weight-medium;
             color: var(--text-primary);
-            margin-bottom: 0.25rem;
+            margin-bottom: 4px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -468,15 +472,17 @@
           }
           
           .assessment-date {
-            font-size: 0.8rem;
+            font-size: 14px;
             color: var(--text-tertiary);
           }
         }
         
         .assessment-score {
           .badge {
-            font-size: 0.8rem;
-            padding: 0.35rem 0.65rem;
+            font-size: 14px;
+            padding: 6px 10px;
+            min-width: 60px;
+            text-align: center;
           }
         }
       }
@@ -496,13 +502,13 @@
       }
       
       .card-body {
-        padding: 2rem;
+        padding: 32px;
         
-        h3 {
-          font-size: 1.5rem;
+        h2 {
+          font-size: 24px;
           font-weight: v.$font-weight-semibold;
           color: var(--text-primary);
-          margin-bottom: 1.5rem;
+          margin-bottom: 24px;
           display: flex;
           align-items: center;
           
@@ -515,15 +521,15 @@
       .tips-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 2rem;
+        gap: 32px;
         
         .tip-item {
           display: flex;
-          gap: 1rem;
+          gap: 16px;
           
           .tip-number {
-            width: 36px;
-            height: 36px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
@@ -532,20 +538,22 @@
             justify-content: center;
             font-weight: v.$font-weight-bold;
             flex-shrink: 0;
+            font-size: 18px;
           }
           
           .tip-content {
-            h4 {
-              font-size: 1.1rem;
+            h3 {
+              font-size: 18px;
               font-weight: v.$font-weight-semibold;
               color: var(--text-primary);
-              margin-bottom: 0.5rem;
+              margin-bottom: 8px;
             }
             
             p {
               color: var(--text-secondary);
-              font-size: 0.95rem;
+              font-size: 16px;
               margin: 0;
+              line-height: 1.5;
             }
           }
         }
@@ -568,26 +576,24 @@
 
 // Responsive design
 @media (max-width: v.$breakpoint-tablet) {
-  .enhanced-dashboard-home {
-    padding: 1.5rem 0;
-    
-    .dashboard-container {
-      padding: 0 1rem;
-    }
+  .dashboard-home {
+    padding: 32px 0;
     
     .hero-section {
+      margin-bottom: 32px;
+      
       .welcome-title {
-        font-size: 2rem;
+        font-size: 28px;
       }
       
       .welcome-subtitle {
-        font-size: 1.1rem;
+        font-size: 18px;
       }
       
       .search-form {
         .search-input {
-          height: 55px;
-          font-size: 1rem;
+          height: 56px;
+          font-size: 16px;
         }
       }
     }
@@ -595,7 +601,7 @@
     .quick-access-section {
       .quick-access-card {
         .card-body {
-          padding: 1.5rem;
+          padding: 24px;
         }
       }
     }
@@ -603,44 +609,37 @@
     .progress-section {
       .progress-card, .stats-card, .assessments-card {
         .card-header {
-          padding: 1rem 1.25rem;
+          padding: 16px 20px;
         }
         
         .card-body {
-          padding: 1.25rem;
+          padding: 20px;
         }
       }
       
       .learning-goals-list {
         .learning-goal-item {
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 1rem;
-          
-          .goal-progress {
-            width: 100%;
-          }
-          
-          .continue-btn {
-            align-self: flex-end;
-          }
+          padding: 16px;
         }
       }
       
       .stats-grid {
-        grid-template-columns: 1fr;
+        gap: 16px;
+        
+        .stat-item {
+          padding: 16px;
+        }
       }
     }
     
     .tips-section {
       .tips-card {
         .card-body {
-          padding: 1.5rem;
+          padding: 24px;
         }
         
         .tips-grid {
-          grid-template-columns: 1fr;
-          gap: 1.5rem;
+          gap: 24px;
         }
       }
     }
@@ -648,20 +647,19 @@
 }
 
 @media (max-width: v.$breakpoint-mobile) {
-  .enhanced-dashboard-home {
-    padding: 1rem 0;
-    
-    .dashboard-container {
-      padding: 0 0.75rem;
-    }
+  .dashboard-home {
+    padding: 24px 0;
     
     .hero-section {
+      margin-bottom: 32px;
+      
       .welcome-title {
-        font-size: 1.75rem;
+        font-size: 24px;
       }
       
       .welcome-subtitle {
-        font-size: 1rem;
+        font-size: 16px;
+        margin-bottom: 24px;
       }
       
       .search-form {
@@ -674,7 +672,8 @@
           height: 50px;
           border-radius: v.$border-radius-lg;
           border: 1px solid var(--border-light);
-          margin-bottom: 0.75rem;
+          margin-bottom: 12px;
+          font-size: 16px;
         }
         
         .submit-button {
@@ -697,10 +696,10 @@
     .quick-access-section {
       .quick-access-card {
         .card-body {
-          padding: 1.25rem;
+          padding: 20px;
           flex-direction: column;
           text-align: center;
-          gap: 1rem;
+          gap: 16px;
           
           .card-icon {
             margin: 0 auto;
@@ -716,19 +715,44 @@
     .progress-section {
       .progress-card, .stats-card, .assessments-card {
         .card-header {
-          padding: 1rem;
+          padding: 16px;
         }
         
         .card-body {
-          padding: 1rem;
+          padding: 16px;
         }
+      }
+      
+      .learning-goals-list {
+        .learning-goal-item {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 16px;
+          
+          .goal-progress {
+            width: 100%;
+          }
+          
+          .continue-btn {
+            align-self: flex-end;
+          }
+        }
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
       }
     }
     
     .tips-section {
       .tips-card {
         .card-body {
-          padding: 1.25rem;
+          padding: 20px;
+        }
+        
+        .tips-grid {
+          grid-template-columns: 1fr;
+          gap: 24px;
         }
       }
     }
@@ -737,7 +761,7 @@
 
 // Dark mode enhancements
 [data-theme="dark"] {
-  .enhanced-dashboard-home {
+  .dashboard-home {
     .search-form {
       .input-wrapper {
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
