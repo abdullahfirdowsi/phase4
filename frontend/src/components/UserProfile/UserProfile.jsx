@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Tabs, Tab, Badge } from 'react-bootstrap';
-import { Person, Globe, Bell, Shield, Clock, Upload, Check, X } from 'react-bootstrap-icons';
+import { Modal, Row, Col, Card, Form, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap';
+import { Person } from 'react-bootstrap-icons';
 import { getUserProfile, updateUserProfile } from '../../api';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import './UserProfile.scss';
 
-const UserProfile = () => {
+const UserProfile = ({ show, onHide }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,18 +23,14 @@ const UserProfile = () => {
     newPassword: '',
     confirmPassword: ''
   });
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    chatUpdates: true,
-    learningReminders: true,
-    quizResults: true
-  });
   const [previewImage, setPreviewImage] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
   useEffect(() => {
-    fetchUserProfile();
-  }, []);
+    if (show) {
+      fetchUserProfile();
+    }
+  }, [show]);
 
   const fetchUserProfile = async () => {
     try {
@@ -69,14 +65,6 @@ const UserProfile = () => {
     setPasswordData(prev => ({
       ...prev,
       [name]: value
-    }));
-  };
-
-  const handleNotificationChange = (e) => {
-    const { name, checked } = e.target;
-    setNotificationSettings(prev => ({
-      ...prev,
-      [name]: checked
     }));
   };
 
@@ -198,413 +186,234 @@ const UserProfile = () => {
     }
   };
 
-  const handleSaveNotifications = async () => {
-    try {
-      setSaving(true);
-      setError(null);
-      setSuccess(null);
-
-      // In a real implementation, you would call an API to update notification settings
-      // For now, we'll simulate a successful update
-      console.log('Would update notification settings:', notificationSettings);
-
-      setSuccess('Notification settings updated successfully!');
-    } catch (error) {
-      console.error('Error updating notification settings:', error);
-      setError('Failed to update notification settings. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="user-profile-loading">
-        <Spinner animation="border" variant="primary" />
-        <p>Loading profile...</p>
-      </div>
+      <Modal show={show} onHide={onHide} size="xl" centered className="profile-modal">
+        <Modal.Header closeButton>
+          <Modal.Title>User Profile</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center p-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-3">Loading profile...</p>
+        </Modal.Body>
+      </Modal>
     );
   }
 
   return (
-    <div className="user-profile">
-      <Container fluid>
-        <div className="profile-header">
-          <h1>
-            <Person className="me-3" />
-            User Profile
-          </h1>
-          <p>Manage your account settings and preferences</p>
-        </div>
-
-        {error && (
-          <Alert variant="danger" dismissible onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        {success && (
-          <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-            <Check className="me-2" />
-            {success}
-          </Alert>
-        )}
-
-        <Row>
-          <Col lg={3} md={4}>
-            <Card className="profile-sidebar">
-              <Card.Body>
-                <div className="profile-avatar">
-                  {previewImage ? (
-                    <img src={previewImage} alt={formData.name} className="avatar-image" />
-                  ) : (
-                    <div className="avatar-placeholder">
-                      <Person size={40} />
+    <Modal show={show} onHide={onHide} size="xl" centered className="profile-modal">
+      <Modal.Header closeButton>
+        <Modal.Title>User Profile</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-0">
+        <div className="user-profile">
+          <Row className="m-0">
+            <Col lg={3} md={4} className="p-0">
+              <Card className="profile-sidebar h-100 border-0 rounded-0">
+                <Card.Body>
+                  <div className="profile-avatar">
+                    {previewImage ? (
+                      <img src={previewImage} alt={formData.name} className="avatar-image" />
+                    ) : (
+                      <div className="avatar-placeholder">
+                        <Person size={40} />
+                      </div>
+                    )}
+                    <div className="avatar-overlay">
+                      <label htmlFor="avatar-upload" className="avatar-upload-label">
+                        Change
+                      </label>
+                      <input
+                        type="file"
+                        id="avatar-upload"
+                        className="avatar-upload-input"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                      />
+                    </div>
+                  </div>
+                  <h5 className="profile-name">{profile?.name || 'User'}</h5>
+                  <p className="profile-email">{profile?.email || profile?.username}</p>
+                  
+                  {profile?.isAdmin && (
+                    <div className="admin-badge">
+                      Admin
                     </div>
                   )}
-                  <div className="avatar-overlay">
-                    <label htmlFor="avatar-upload" className="avatar-upload-label">
-                      <Upload size={20} />
-                      <span>Change</span>
-                    </label>
-                    <input
-                      type="file"
-                      id="avatar-upload"
-                      className="avatar-upload-input"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                    />
-                  </div>
-                </div>
-                <h5 className="profile-name">{profile?.name || 'User'}</h5>
-                <p className="profile-email">{profile?.email || profile?.username}</p>
+                </Card.Body>
+              </Card>
+            </Col>
+            
+            <Col lg={9} md={8} className="p-0">
+              <Card className="profile-content h-100 border-0 rounded-0">
+                <Card.Header className="border-bottom-0">
+                  <Tabs
+                    activeKey={activeTab}
+                    onSelect={(k) => setActiveTab(k)}
+                    className="profile-tabs"
+                  >
+                    <Tab eventKey="personal" title="Personal Information" />
+                    <Tab eventKey="language" title="Language" />
+                    <Tab eventKey="security" title="Security" />
+                  </Tabs>
+                </Card.Header>
                 
-                {profile?.isAdmin && (
-                  <Badge bg="danger" className="admin-badge">
-                    <Shield size={12} className="me-1" />
-                    Admin
-                  </Badge>
-                )}
+                <Card.Body>
+                  {error && (
+                    <Alert variant="danger" dismissible onClose={() => setError(null)}>
+                      {error}
+                    </Alert>
+                  )}
+
+                  {success && (
+                    <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
+                      {success}
+                    </Alert>
+                  )}
                 
-                <div className="profile-stats">
-                  <div className="stat-item">
-                    <div className="stat-value">{profile?.stats?.totalGoals || 0}</div>
-                    <div className="stat-label">Goals</div>
-                  </div>
-                  <div className="stat-item">
-                    <div className="stat-value">{profile?.stats?.completedGoals || 0}</div>
-                    <div className="stat-label">Completed</div>
-                  </div>
-                  <div className="stat-item">
-                    <div className="stat-value">{profile?.stats?.totalQuizzes || 0}</div>
-                    <div className="stat-label">Quizzes</div>
-                  </div>
-                </div>
-                
-                <div className="profile-meta">
-                  <div className="meta-item">
-                    <Clock size={14} className="me-2" />
-                    <span>Joined: {new Date(profile?.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-          
-          <Col lg={9} md={8}>
-            <Card className="profile-content">
-              <Card.Header>
-                <Tabs
-                  activeKey={activeTab}
-                  onSelect={(k) => setActiveTab(k)}
-                  className="profile-tabs"
-                >
-                  <Tab eventKey="personal" title="Personal Information">
-                    <div className="tab-icon">
-                      <Person size={16} />
+                  {activeTab === 'personal' && (
+                    <div className="personal-info-tab">
+                      <h5 className="section-title">Personal Information</h5>
+                      <p className="section-description">
+                        Update your personal details and profile information
+                      </p>
+                      
+                      <Form>
+                        <Row>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Full Name</Form.Label>
+                              <Form.Control
+                                type="text"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleInputChange}
+                                placeholder="Enter your full name"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Email Address</Form.Label>
+                              <Form.Control
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                placeholder="Enter your email"
+                                disabled
+                              />
+                              <Form.Text className="text-muted">
+                                Email address cannot be changed
+                              </Form.Text>
+                            </Form.Group>
+                          </Col>
+                        </Row>
+                        
+                        <Form.Group className="mb-4">
+                          <Form.Label>Bio</Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            name="bio"
+                            value={formData.bio}
+                            onChange={handleInputChange}
+                            placeholder="Tell us a bit about yourself"
+                            rows={4}
+                          />
+                        </Form.Group>
+                        
+                        <Button
+                          variant="primary"
+                          onClick={handleSaveProfile}
+                          disabled={saving}
+                        >
+                          {saving ? (
+                            <>
+                              <Spinner size="sm" animation="border" className="me-2" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save Changes'
+                          )}
+                        </Button>
+                      </Form>
                     </div>
-                  </Tab>
-                  <Tab eventKey="language" title="Language">
-                    <div className="tab-icon">
-                      <Globe size={16} />
+                  )}
+                  
+                  {activeTab === 'language' && (
+                    <div className="language-tab">
+                      <LanguageSettings />
                     </div>
-                  </Tab>
-                  <Tab eventKey="notifications" title="Notifications">
-                    <div className="tab-icon">
-                      <Bell size={16} />
+                  )}
+                  
+                  {activeTab === 'security' && (
+                    <div className="security-tab">
+                      <h5 className="section-title">Security Settings</h5>
+                      <p className="section-description">
+                        Manage your password and account security
+                      </p>
+                      
+                      <Form>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Current Password</Form.Label>
+                          <Form.Control
+                            type="password"
+                            name="currentPassword"
+                            value={passwordData.currentPassword}
+                            onChange={handlePasswordChange}
+                            placeholder="Enter your current password"
+                          />
+                        </Form.Group>
+                        
+                        <Form.Group className="mb-3">
+                          <Form.Label>New Password</Form.Label>
+                          <Form.Control
+                            type="password"
+                            name="newPassword"
+                            value={passwordData.newPassword}
+                            onChange={handlePasswordChange}
+                            placeholder="Enter new password"
+                          />
+                          <Form.Text className="text-muted">
+                            Password must be at least 8 characters long
+                          </Form.Text>
+                        </Form.Group>
+                        
+                        <Form.Group className="mb-4">
+                          <Form.Label>Confirm New Password</Form.Label>
+                          <Form.Control
+                            type="password"
+                            name="confirmPassword"
+                            value={passwordData.confirmPassword}
+                            onChange={handlePasswordChange}
+                            placeholder="Confirm new password"
+                          />
+                        </Form.Group>
+                        
+                        <Button
+                          variant="primary"
+                          onClick={handleSavePassword}
+                          disabled={saving}
+                        >
+                          {saving ? (
+                            <>
+                              <Spinner size="sm" animation="border" className="me-2" />
+                              Updating...
+                            </>
+                          ) : (
+                            'Update Password'
+                          )}
+                        </Button>
+                      </Form>
                     </div>
-                  </Tab>
-                  <Tab eventKey="security" title="Security">
-                    <div className="tab-icon">
-                      <Shield size={16} />
-                    </div>
-                  </Tab>
-                </Tabs>
-              </Card.Header>
-              
-              <Card.Body>
-                {activeTab === 'personal' && (
-                  <div className="personal-info-tab">
-                    <h5 className="section-title">Personal Information</h5>
-                    <p className="section-description">
-                      Update your personal details and profile information
-                    </p>
-                    
-                    <Form>
-                      <Row>
-                        <Col md={6}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Full Name</Form.Label>
-                            <Form.Control
-                              type="text"
-                              name="name"
-                              value={formData.name}
-                              onChange={handleInputChange}
-                              placeholder="Enter your full name"
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={6}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Email Address</Form.Label>
-                            <Form.Control
-                              type="email"
-                              name="email"
-                              value={formData.email}
-                              onChange={handleInputChange}
-                              placeholder="Enter your email"
-                              disabled
-                            />
-                            <Form.Text className="text-muted">
-                              Email address cannot be changed
-                            </Form.Text>
-                          </Form.Group>
-                        </Col>
-                      </Row>
-                      
-                      <Form.Group className="mb-4">
-                        <Form.Label>Bio</Form.Label>
-                        <Form.Control
-                          as="textarea"
-                          name="bio"
-                          value={formData.bio}
-                          onChange={handleInputChange}
-                          placeholder="Tell us a bit about yourself"
-                          rows={4}
-                        />
-                      </Form.Group>
-                      
-                      <Button
-                        variant="primary"
-                        onClick={handleSaveProfile}
-                        disabled={saving}
-                      >
-                        {saving ? (
-                          <>
-                            <Spinner size="sm" animation="border" className="me-2" />
-                            Saving...
-                          </>
-                        ) : (
-                          'Save Changes'
-                        )}
-                      </Button>
-                    </Form>
-                  </div>
-                )}
-                
-                {activeTab === 'language' && (
-                  <div className="language-tab">
-                    <LanguageSettings />
-                  </div>
-                )}
-                
-                {activeTab === 'notifications' && (
-                  <div className="notifications-tab">
-                    <h5 className="section-title">Notification Preferences</h5>
-                    <p className="section-description">
-                      Manage how and when you receive notifications
-                    </p>
-                    
-                    <Form>
-                      <div className="notification-options">
-                        <Form.Check
-                          type="switch"
-                          id="email-notifications"
-                          label="Email Notifications"
-                          name="emailNotifications"
-                          checked={notificationSettings.emailNotifications}
-                          onChange={handleNotificationChange}
-                          className="notification-switch"
-                        />
-                        <div className="notification-description">
-                          Receive important updates and announcements via email
-                        </div>
-                      </div>
-                      
-                      <div className="notification-options">
-                        <Form.Check
-                          type="switch"
-                          id="chat-updates"
-                          label="Chat Updates"
-                          name="chatUpdates"
-                          checked={notificationSettings.chatUpdates}
-                          onChange={handleNotificationChange}
-                          className="notification-switch"
-                        />
-                        <div className="notification-description">
-                          Get notified about new messages and chat activity
-                        </div>
-                      </div>
-                      
-                      <div className="notification-options">
-                        <Form.Check
-                          type="switch"
-                          id="learning-reminders"
-                          label="Learning Reminders"
-                          name="learningReminders"
-                          checked={notificationSettings.learningReminders}
-                          onChange={handleNotificationChange}
-                          className="notification-switch"
-                        />
-                        <div className="notification-description">
-                          Receive reminders about your learning goals and progress
-                        </div>
-                      </div>
-                      
-                      <div className="notification-options">
-                        <Form.Check
-                          type="switch"
-                          id="quiz-results"
-                          label="Quiz Results"
-                          name="quizResults"
-                          checked={notificationSettings.quizResults}
-                          onChange={handleNotificationChange}
-                          className="notification-switch"
-                        />
-                        <div className="notification-description">
-                          Get notified when your quiz results are available
-                        </div>
-                      </div>
-                      
-                      <Button
-                        variant="primary"
-                        onClick={handleSaveNotifications}
-                        disabled={saving}
-                        className="mt-3"
-                      >
-                        {saving ? (
-                          <>
-                            <Spinner size="sm" animation="border" className="me-2" />
-                            Saving...
-                          </>
-                        ) : (
-                          'Save Preferences'
-                        )}
-                      </Button>
-                    </Form>
-                  </div>
-                )}
-                
-                {activeTab === 'security' && (
-                  <div className="security-tab">
-                    <h5 className="section-title">Security Settings</h5>
-                    <p className="section-description">
-                      Manage your password and account security
-                    </p>
-                    
-                    <Form>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Current Password</Form.Label>
-                        <Form.Control
-                          type="password"
-                          name="currentPassword"
-                          value={passwordData.currentPassword}
-                          onChange={handlePasswordChange}
-                          placeholder="Enter your current password"
-                        />
-                      </Form.Group>
-                      
-                      <Form.Group className="mb-3">
-                        <Form.Label>New Password</Form.Label>
-                        <Form.Control
-                          type="password"
-                          name="newPassword"
-                          value={passwordData.newPassword}
-                          onChange={handlePasswordChange}
-                          placeholder="Enter new password"
-                        />
-                        <Form.Text className="text-muted">
-                          Password must be at least 8 characters long
-                        </Form.Text>
-                      </Form.Group>
-                      
-                      <Form.Group className="mb-4">
-                        <Form.Label>Confirm New Password</Form.Label>
-                        <Form.Control
-                          type="password"
-                          name="confirmPassword"
-                          value={passwordData.confirmPassword}
-                          onChange={handlePasswordChange}
-                          placeholder="Confirm new password"
-                        />
-                      </Form.Group>
-                      
-                      <Button
-                        variant="primary"
-                        onClick={handleSavePassword}
-                        disabled={saving}
-                      >
-                        {saving ? (
-                          <>
-                            <Spinner size="sm" animation="border" className="me-2" />
-                            Updating...
-                          </>
-                        ) : (
-                          'Update Password'
-                        )}
-                      </Button>
-                    </Form>
-                    
-                    <div className="account-activity mt-5">
-                      <h6>Recent Account Activity</h6>
-                      <div className="activity-list">
-                        <div className="activity-item">
-                          <div className="activity-icon">
-                            <Person size={14} />
-                          </div>
-                          <div className="activity-details">
-                            <div className="activity-text">Password changed</div>
-                            <div className="activity-time">2 days ago</div>
-                          </div>
-                        </div>
-                        <div className="activity-item">
-                          <div className="activity-icon">
-                            <Person size={14} />
-                          </div>
-                          <div className="activity-details">
-                            <div className="activity-text">Login from new device</div>
-                            <div className="activity-time">5 days ago</div>
-                          </div>
-                        </div>
-                        <div className="activity-item">
-                          <div className="activity-icon">
-                            <Person size={14} />
-                          </div>
-                          <div className="activity-details">
-                            <div className="activity-text">Profile updated</div>
-                            <div className="activity-time">1 week ago</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
-    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+      </Modal.Body>
+    </Modal>
   );
 };
 

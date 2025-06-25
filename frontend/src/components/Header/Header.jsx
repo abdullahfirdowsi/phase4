@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Navbar, Container, Button, Dropdown, Modal } from "react-bootstrap";
-import { Person, BoxArrowRight, Gear, Globe, Bell } from "react-bootstrap-icons";
+import { Navbar, Container, Button, Dropdown } from "react-bootstrap";
+import { Person, BoxArrowRight } from "react-bootstrap-icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../api";
 import ThemeToggle from "../ThemeToggle/ThemeToggle";
@@ -125,18 +125,6 @@ const Header = () => {
                 <Person size={16} className="me-2" />
                 Profile
               </Dropdown.Item>
-              <Dropdown.Item onClick={() => navigate('/dashboard')}>
-                <Gear size={16} className="me-2" />
-                Settings
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => navigate('/dashboard')}>
-                <Bell size={16} className="me-2" />
-                Notifications
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => navigate('/dashboard')}>
-                <Globe size={16} className="me-2" />
-                Language
-              </Dropdown.Item>
               <Dropdown.Divider />
               <Dropdown.Item onClick={handleLogout} className="logout-item">
                 <BoxArrowRight size={16} className="me-2" />
@@ -148,20 +136,10 @@ const Header = () => {
       </Container>
       
       {/* Profile Modal */}
-      <Modal 
+      <UserProfile 
         show={showProfileModal} 
-        onHide={() => setShowProfileModal(false)}
-        size="xl"
-        centered
-        dialogClassName="profile-modal"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>User Profile</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="p-0">
-          <UserProfile />
-        </Modal.Body>
-      </Modal>
+        onHide={() => setShowProfileModal(false)} 
+      />
     </Navbar>
   );
 };
