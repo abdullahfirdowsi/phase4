@@ -96,6 +96,11 @@
       font-weight: v.$font-weight-semibold;
       transition: all 0.3s ease;
       
+      &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
       &:hover:not(:disabled) {
         filter: brightness(1.1);
         transform: translateX(2px);
@@ -103,11 +108,6 @@
       
       &:active:not(:disabled) {
         transform: translateX(0);
-      }
-      
-      &.disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
       }
       
       &:disabled {

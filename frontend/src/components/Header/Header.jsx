@@ -41,6 +41,10 @@ const Header = () => {
     setShowProfileModal(true);
   };
 
+  const handleNavigateToChat = () => {
+    navigate('/dashboard/chat');
+  };
+
   const userName = localStorage.getItem("name") || "User";
   const userAvatarUrl = localStorage.getItem("avatarUrl");
 
@@ -77,7 +81,7 @@ const Header = () => {
   return (
     <Navbar className="clean-navbar dashboard" fixed="top">
       <Container fluid className="navbar-container">
-        <Navbar.Brand className="brand-section" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
+        <Navbar.Brand className="brand-section" onClick={handleNavigateToChat} style={{ cursor: 'pointer' }}>
           <img
             src="/icons/aitutor-short-no-bg.png"
             alt="AI Tutor"
@@ -118,7 +122,7 @@ const Header = () => {
                 </div>
               </div>
               <Dropdown.Divider />
-              <Dropdown.Item onClick={() => navigate('/dashboard')}>
+              <Dropdown.Item onClick={handleNavigateToChat}>
                 Dashboard
               </Dropdown.Item>
               <Dropdown.Item onClick={handleOpenProfile}>
