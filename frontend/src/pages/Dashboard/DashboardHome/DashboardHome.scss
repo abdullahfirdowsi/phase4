@@ -5,11 +5,12 @@
   background: var(--bg-primary);
   min-height: calc(100vh - #{v.$navbar-height});
   overflow-y: auto;
-  padding: 2rem;
+  padding: 2rem 0;
   
   .dashboard-container {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0 auto;
+    padding: 0 1.5rem;
   }
   
   // Hero Section
@@ -17,7 +18,7 @@
     margin-bottom: 2.5rem;
     
     .hero-content {
-      max-width: 800px;
+      max-width: 700px;
       margin: 0 auto;
       text-align: center;
     }
@@ -568,7 +569,11 @@
 // Responsive design
 @media (max-width: v.$breakpoint-tablet) {
   .enhanced-dashboard-home {
-    padding: 1.5rem;
+    padding: 1.5rem 0;
+    
+    .dashboard-container {
+      padding: 0 1rem;
+    }
     
     .hero-section {
       .welcome-title {
@@ -644,7 +649,11 @@
 
 @media (max-width: v.$breakpoint-mobile) {
   .enhanced-dashboard-home {
-    padding: 1rem;
+    padding: 1rem 0;
+    
+    .dashboard-container {
+      padding: 0 0.75rem;
+    }
     
     .hero-section {
       .welcome-title {

@@ -86,7 +86,7 @@ const DashboardHome = () => {
 
   return (
     <div className="enhanced-dashboard-home">
-      <Container fluid className="dashboard-container">
+      <Container className="dashboard-container">
         {/* Hero Section with AI Input */}
         <section className="hero-section">
           <div className="hero-content">
