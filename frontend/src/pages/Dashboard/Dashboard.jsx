@@ -5,6 +5,7 @@ import Learning from "./Learning/Learning";
 import QuizSystem from "./QuizSystem/QuizSystem";
 import AdminDashboard from "./AdminDashboard/AdminDashboard";
 import AIChat from "../../components/AIChat/AIChat";
+import ErrorBoundary from "../../components/ErrorBoundary";
 import './Dashboard.scss';
 
 const Dashboard = () => {
@@ -19,13 +20,31 @@ const Dashboard = () => {
       case "dashboard":
         return <DashboardHome />;
       case "chat":
-        return <AIChat />;
+        return (
+          <ErrorBoundary>
+            <AIChat />
+          </ErrorBoundary>
+        );
       case "learning-paths":
-        return <Learning />;
+        return (
+          <ErrorBoundary>
+            <Learning />
+          </ErrorBoundary>
+        );
       case "quiz-system":
-        return <QuizSystem />;
+        return (
+          <ErrorBoundary>
+            <QuizSystem />
+          </ErrorBoundary>
+        );
       case "admin":
-        return isAdmin ? <AdminDashboard /> : <DashboardHome />;
+        return isAdmin ? (
+          <ErrorBoundary>
+            <AdminDashboard />
+          </ErrorBoundary>
+        ) : (
+          <DashboardHome />
+        );
       default:
         return <DashboardHome />;
     }

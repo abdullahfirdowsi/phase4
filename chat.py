@@ -90,8 +90,9 @@ def store_chat_history(username, messages):
             {"$push": {"messages": messages}},
             upsert=True
         )
+        logger.debug(f"✅ Successfully stored chat history for {username}")
     except Exception as e:
-        logger.error(f"Error storing chat history: {e}")
+        logger.error(f"❌ Error storing chat history: {e}")
 
 def filter_messages(messages):
     """Filters messages to keep only role and content."""
@@ -157,7 +158,8 @@ async def chat(
                 "timestamp": user_timestamp
             }
             store_chat_history(username, user_message)
-            return process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, prompt_with_preference)
+            result = process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, prompt_with_preference)
+            return JSONResponse(content=result)
 
         # Case 2 : Stream prompt
         user_prompt = f"{user_prompt} {BASIC_ENVIRONMENT_PROMPT}"

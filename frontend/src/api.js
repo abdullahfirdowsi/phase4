@@ -293,8 +293,23 @@ export const askQuestion = async (
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      const responseText = await response.text();
-      onMessageReceived(responseText);
+      // For learning path requests, we expect JSON response
+      const contentType = response.headers.get("content-type");
+      let responseData;
+      
+      if (contentType && contentType.includes("application/json")) {
+        responseData = await response.json();
+        console.log("📊 Learning Path API Response:", responseData);
+        
+        // Pass the entire response object to the message handler
+        onMessageReceived(responseData);
+      } else {
+        // Fallback to text if not JSON
+        responseData = await response.text();
+        console.log("📊 Learning Path Text Response:", responseData);
+        onMessageReceived(responseData);
+      }
+      
       onComplete();
     }
   } catch (error) {

@@ -1,131 +1,230 @@
-from fastapi import FastAPI, HTTPException, Request
+"""
+Enhanced Main Application with Modular Architecture
+"""
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
-from auth import auth_router
-from chat import chat_router
-from learning_paths import learning_paths_router
-from quiz_system import quiz_router
-from lessons import lessons_router
+from contextlib import asynccontextmanager
 import os
+import logging
 
-# Initialize FastAPI app
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    logger.info("🚀 Starting AI Tutor Enhanced Backend...")
+    
+    try:
+        # Initialize database
+        from database_config import initialize_database
+        initialize_database()
+        logger.info("✅ Database initialized successfully")
+        
+        # Run migration if needed
+        if os.getenv("RUN_MIGRATION", "false").lower() == "true":
+            logger.info("🔄 Running data migration...")
+            from migration_script import run_migration
+            await run_migration()
+            logger.info("✅ Data migration completed")
+        
+        # Initialize D-ID service
+        from services.did_service import did_service
+        if did_service.is_configured:
+            logger.info("✅ D-ID Avatar Service initialized successfully")
+        else:
+            logger.warning("⚠️ D-ID Avatar Service not configured - using fallback avatar generation")
+        
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {e}")
+        # Don't raise the exception, just log it
+        # This allows the server to start even if some services fail
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Shutting down AI Tutor Enhanced Backend...")
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
-    title="AI Tutor - Comprehensive Learning Management System",
-    description="Advanced AI-powered learning platform with personalized paths, quiz system, lesson management, and admin dashboard",
-    version="4.0.0"
+    title="AI Tutor - Enhanced Learning Management System",
+    description="Scalable AI-powered learning platform with modular MongoDB architecture and D-ID avatar integration",
+    version="5.0.0",
+    lifespan=lifespan
 )
 
-# Enhanced CORS configuration for development and production
+# Enhanced CORS configuration
 origins = [
-    "http://localhost:5173",  # Vite Frontend
-    "http://127.0.0.1:5173",  # Alternative local Vite
-    "http://localhost:3000",  # React Dev Server
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:8000",  # Local backend
+    "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://eduverse-ai.vercel.app",  # Deployed frontend on Vercel
-    "http://localhost:5174",  # Alternative Vite port
+    "https://eduverse-ai.vercel.app",
+    "http://localhost:5174",
     "http://127.0.0.1:5174",
 ]
 
-# Enable CORS with comprehensive settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=False,  # Set to False when using "*" for origins
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+    ],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
-# Exception handler for HTTPException
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
-
-# Health check endpoint
-@app.get("/")
+# Health check endpoints
+@app.get("/api/status")
 async def root():
     return {
-        "message": "AI Tutor - Comprehensive Learning Management System",
-        "version": "4.0.0",
+        "message": "AI Tutor - Enhanced Learning Management System",
+        "version": "5.0.0",
         "status": "healthy",
-        "server": "running",
-        "cors_enabled": True,
+        "architecture": "modular",
+        "database": "MongoDB with optimized schema",
         "features": [
-            "User Authentication & Profiles",
-            "AI-Powered Chat & Learning Paths", 
-            "Comprehensive Learning Path Management",
-            "Advanced Quiz System with Auto-Grading",
-            "Admin Dashboard & Lesson Management",
-            "Personalized User Lessons",
-            "Progress Tracking & Analytics",
-            "Real-time Updates & Notifications"
+            "Modular Database Architecture",
+            "Optimized MongoDB Collections",
+            "Enhanced User Management",
+            "Advanced Chat System with Sessions",
+            "Scalable Learning Goals Management",
+            "Comprehensive Quiz System",
+            "Real-time Analytics",
+            "Data Migration Support",
+            "Full-text Search",
+            "Message Archiving",
+            "Role-based Access Control",
+            "AWS S3 File Storage",
+            "D-ID Avatar Generation"
         ],
-        "endpoints": {
-            "authentication": "/auth",
-            "chat": "/chat",
-            "learning_paths": "/api/learning-paths",
-            "quiz_system": "/api/quiz",
-            "lesson_management": "/lessons",
-            "dashboard": "/api/dashboard",
-            "docs": "/docs",
-            "health": "/health"
-        }
+        "collections": [
+            "users",
+            "chat_messages", 
+            "learning_goals",
+            "quizzes",
+            "quiz_attempts",
+            "lessons",
+            "user_enrollments",
+            "user_sessions"
+        ]
     }
 
 @app.get("/health")
 async def health_check():
+    # Check D-ID service status
+    from services.did_service import did_service
+    did_status = "available" if did_service.is_configured else "not configured"
+    
     return {
         "status": "healthy",
         "timestamp": "2024-01-01T00:00:00Z",
         "services": {
             "database": "connected",
             "ai_model": "available",
-            "learning_paths": "active",
-            "quiz_system": "active",
-            "lesson_management": "active",
-            "admin_dashboard": "active",
+            "user_service": "active",
+            "chat_service": "active",
+            "learning_service": "active",
+            "migration_service": "ready",
+            "s3_service": "active",
+            "avatar_service": "active",
+            "did_service": did_status,
             "api": "running",
             "cors": "enabled"
         },
-        "version": "4.0.0"
+        "version": "5.0.0",
+        "architecture": "modular_mongodb"
     }
 
 @app.get("/api")
 async def api_info():
     return {
-        "message": "Welcome to AI Tutor Comprehensive LMS API v4.0",
+        "message": "Welcome to AI Tutor Enhanced API v5.0",
+        "architecture": "Modular MongoDB with optimized collections",
         "cors_status": "enabled",
-        "allowed_origins": "all",
+        "allowed_origins": origins,
         "new_features": [
-            "Dynamic Dashboard with Real-time Data",
-            "Enhanced Study Plan Integration",
-            "Improved Quiz System with Auto-save",
-            "Clean UI without Admin Exposure",
-            "Optimized Chat Interface"
+            "Separated collections for better performance",
+            "Optimized database indexes",
+            "Enhanced user management",
+            "Session-based chat tracking",
+            "Real-time analytics",
+            "Full-text search capabilities",
+            "Automated data migration",
+            "Message archiving system",
+            "AWS S3 file storage integration",
+            "D-ID Avatar video generation"
         ],
         "documentation": "/docs"
     }
 
-# Dashboard API endpoints
-@app.get("/api/dashboard/stats")
-async def get_dashboard_stats():
-    """Get dashboard statistics"""
+# Database management endpoints
+@app.post("/admin/migrate")
+async def trigger_migration():
+    """Trigger data migration (admin only)"""
     try:
-        # This would typically fetch from database
-        return {
-            "totalGoals": 8,
-            "completedGoals": 5,
-            "totalQuizzes": 12,
-            "averageScore": 85,
-            "streakDays": 7,
-            "totalStudyTime": 24
-        }
+        from migration_script import run_migration
+        await run_migration()
+        return {"message": "Migration completed successfully"}
     except Exception as e:
+        logger.error(f"Migration error: {e}")
+        raise HTTPException(status_code=500, detail="Migration failed")
+
+@app.post("/admin/initialize-db")
+async def initialize_db():
+    """Initialize database with collections and indexes (admin only)"""
+    try:
+        from database_config import initialize_database
+        initialize_database()
+        return {"message": "Database initialized successfully"}
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
+        raise HTTPException(status_code=500, detail="Database initialization failed")
+
+# Import and include API routers
+try:
+    from api.auth_api import auth_router
+    from api.chat_api import chat_router
+    from api.upload_api import upload_router
+    from api.avatar_api import avatar_router
+    
+    app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+    app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])
+    app.include_router(upload_router, prefix="/upload", tags=["File Upload"])
+    app.include_router(avatar_router, prefix="/lessons", tags=["Avatar Generation"])
+    
+    logger.info("✅ API routers loaded successfully")
+except Exception as e:
+    logger.error(f"❌ Error loading API routers: {e}")
+
+# Legacy endpoints for backward compatibility
+@app.get("/chat/user-stats")
+async def get_user_stats_legacy(username: str):
+    """Legacy endpoint for user stats"""
+    try:
+        from services.user_service import user_service
+        stats = await user_service.calculate_user_stats(username)
+        return stats.dict()
+    except Exception as e:
+        logger.error(f"User stats error: {e}")
         return {
             "totalGoals": 0,
             "completedGoals": 0,
@@ -135,95 +234,134 @@ async def get_dashboard_stats():
             "totalStudyTime": 0
         }
 
-@app.get("/api/dashboard/recent-activity")
-async def get_recent_activity():
-    """Get recent user activity"""
-    return {
-        "activities": [
-            {
-                "id": 1,
-                "type": "quiz_completed",
-                "title": "Python Basics Quiz",
-                "score": 90,
-                "timestamp": "2024-01-15T10:30:00Z"
-            },
-            {
-                "id": 2,
-                "type": "study_plan_created",
-                "title": "Web Development Path",
-                "timestamp": "2024-01-14T15:45:00Z"
-            },
-            {
-                "id": 3,
-                "type": "goal_completed",
-                "title": "JavaScript Fundamentals",
-                "timestamp": "2024-01-13T09:20:00Z"
-            }
-        ]
-    }
+@app.get("/chat/get-all-goals")
+async def get_all_goals_legacy(username: str):
+    """Legacy endpoint for learning goals"""
+    try:
+        from services.learning_service import learning_service
+        result = await learning_service.get_user_goals(username)
+        if result.success:
+            return {"learning_goals": result.data["goals"]}
+        return {"learning_goals": []}
+    except Exception as e:
+        logger.error(f"Learning goals error: {e}")
+        return {"learning_goals": []}
 
-@app.get("/api/dashboard/progress")
-async def get_progress_data():
-    """Get detailed progress information"""
-    return {
-        "weekly_progress": [
-            {"day": "Mon", "hours": 2.5},
-            {"day": "Tue", "hours": 3.0},
-            {"day": "Wed", "hours": 1.5},
-            {"day": "Thu", "hours": 4.0},
-            {"day": "Fri", "hours": 2.0},
-            {"day": "Sat", "hours": 3.5},
-            {"day": "Sun", "hours": 2.5}
-        ],
-        "subject_progress": [
-            {"subject": "Python", "progress": 75},
-            {"subject": "JavaScript", "progress": 60},
-            {"subject": "React", "progress": 45},
-            {"subject": "Data Science", "progress": 30}
-        ]
-    }
-
-# Study Plan API endpoints
-@app.post("/api/learning-path/add-study-plan")
-async def add_study_plan():
-    """Add study plan to user's learning path"""
-    return {"message": "Study plan added successfully"}
-
-# Quiz API endpoints
-@app.post("/api/user/quizzes/save")
-async def save_user_quiz():
-    """Save quiz to user's quiz section"""
-    return {"message": "Quiz saved successfully"}
-
-# Include all routers with proper error handling
-app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-app.include_router(chat_router, prefix="/chat", tags=["Chat & Learning"])
-app.include_router(learning_paths_router, prefix="/api/learning-paths", tags=["Learning Path Management"])
-app.include_router(quiz_router, prefix="/api/quiz", tags=["Quiz System"])
-app.include_router(lessons_router, prefix="/lessons", tags=["Lesson Management"])
-
-# Mount frontend build directory
+# Mount frontend build directory (after API routes)
 FRONTEND_BUILD_DIR = os.path.join(os.getcwd(), "frontend", "dist")
 
 if os.path.exists(FRONTEND_BUILD_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_BUILD_DIR, html=True), name="frontend")
-    print(f"✅ Frontend mounted from: {FRONTEND_BUILD_DIR}")
+    # Mount frontend at the end to avoid conflicts with API routes
+    app.mount("/static", StaticFiles(directory=FRONTEND_BUILD_DIR), name="static")
+    
+    # Handle favicon.ico specifically
+    @app.get("/favicon.ico")
+    async def favicon():
+        """Serve favicon.ico"""
+        favicon_path = os.path.join(FRONTEND_BUILD_DIR, "favicon.ico")
+        if os.path.exists(favicon_path):
+            from fastapi.responses import FileResponse
+            return FileResponse(favicon_path)
+        else:
+            # Return a 204 No Content instead of 404 for favicon
+            from fastapi.responses import Response
+            return Response(status_code=204)
+    
+    # Serve static assets
+    @app.get("/assets/{path:path}")
+    async def serve_assets(path: str):
+        """Serve static assets"""
+        asset_path = os.path.join(FRONTEND_BUILD_DIR, "assets", path)
+        if os.path.exists(asset_path):
+            from fastapi.responses import FileResponse
+            return FileResponse(asset_path)
+        else:
+            raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Serve frontend SPA - catch-all route for all paths
+    @app.get("/{path:path}")
+    async def serve_frontend(path: str = ""):
+        """Serve frontend SPA for all routes"""
+        from fastapi.responses import FileResponse
+        
+        # Skip API routes and static assets
+        if path.startswith(("api/", "auth/", "chat/", "upload/", "lessons/", "admin/", "docs", "health", "openapi.json", "static/")):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        
+        # Handle root path or empty path
+        if not path or path == "":
+            index_path = os.path.join(FRONTEND_BUILD_DIR, "index.html")
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+            else:
+                raise HTTPException(status_code=404, detail="Frontend not found")
+        
+        # Check if it's a static file first
+        file_path = os.path.join(FRONTEND_BUILD_DIR, path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        
+        # Otherwise serve index.html for SPA routing
+        index_path = os.path.join(FRONTEND_BUILD_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        else:
+            raise HTTPException(status_code=404, detail="Frontend not found")
+    
+    
+    logger.info(f"✅ Frontend mounted from: {FRONTEND_BUILD_DIR}")
 else:
-    print(f"⚠️  Frontend build directory not found: {FRONTEND_BUILD_DIR}")
-    print("   Run 'npm run build' in the frontend directory to create the build.")
+    logger.warning(f"⚠️  Frontend build directory not found: {FRONTEND_BUILD_DIR}")
 
-# Add OPTIONS handler for preflight requests
+# Enhanced error handlers
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(404)
+async def not_found_handler(request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "Endpoint not found",
+            "message": "The requested endpoint does not exist",
+            "status_code": 404,
+            "available_endpoints": [
+                "/auth/login", "/auth/signup", "/auth/profile",
+                "/chat/ask", "/chat/history", "/chat/search",
+                "/upload/image", "/upload/audio", "/upload/video",
+                "/lessons/generate-avatar", "/lessons/status/{lesson_id}",
+                "/lessons/predefined-avatars", "/lessons/available-voices",
+                "/lessons/create-voice-clone", "/lessons/voice-status/{voice_id}",
+                "/admin/migrate", "/admin/initialize-db",
+                "/docs", "/health"
+            ]
+        }
+    )
+
+@app.exception_handler(500)
+async def internal_error_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "message": "An unexpected error occurred. Please try again later.",
+            "status_code": 500,
+            "support": "Contact support if the issue persists",
+            "version": "5.0.0"
+        }
+    )
+
 @app.options("/{full_path:path}")
 async def options_handler(request):
     return {"message": "OK"}
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Starting AI Tutor Backend Server v4.0...")
-    print("📡 CORS enabled for all origins")
+    print("🚀 Starting AI Tutor Enhanced Backend v5.0...")
+    print("📊 MongoDB Collections: users, chat_messages, learning_goals, quizzes, quiz_attempts, lessons, user_enrollments, user_sessions")
     print("🔗 Server will be available at: http://localhost:8000")
     print("📚 API Documentation: http://localhost:8000/docs")
-    print("🛡️ Admin Dashboard: Enabled")
-    print("📖 Lesson Management: Active")
-    print("📊 Dynamic Dashboard: Active")
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    print("🛡️ Enhanced Security & Performance")
+    print("📈 Real-time Analytics & Search")
+    print("🗄️ AWS S3 File Storage Integration")
+    print("🎬 D-ID Avatar Video Generation")
+    uvicorn.run("main_enhanced:app", host="0.0.0.0", port=8000, reload=True)

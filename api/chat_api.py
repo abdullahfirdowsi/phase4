@@ -151,7 +151,7 @@ async def process_learning_path_request(username: str, session_id: str, user_pro
             )
         
         # Process learning path query
-        result = process_learning_path_query(
+        result = await process_learning_path_query(
             user_prompt, username, generate_response, extract_json,
             store_chat_history, REGENRATE_OR_FILTER_JSON, prompt_with_preference
         )

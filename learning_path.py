@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, LEARNING_PATH_PROMPT, retry_count=0, max_retries=3):
+async def process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, LEARNING_PATH_PROMPT, retry_count=0, max_retries=3):
     """Processes a learning path query, generating and validating JSON responses."""
     logger.info("📚 Learning Path Query Detected")
     logger.info(f"🔄 Trying to generate Learning Path, Retry Count = {retry_count}")
@@ -16,7 +16,8 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
         logger.info(f"🔄 Retrying JSON generation (attempt {retry_count + 1})...")
 
     if retry_count > 0:
-        modified_prompt = f"{user_prompt} {REGENRATE_OR_FILTER_JSON}"
+        # More specific instructions for retry attempts
+        modified_prompt = f"{user_prompt} {REGENRATE_OR_FILTER_JSON}. IMPORTANT: Return ONLY valid JSON with 'topics' field containing an array of topic objects. Do not include any text before or after the JSON."
     else:
         modified_prompt = f"{user_prompt} {LEARNING_PATH_PROMPT}"
 
@@ -28,7 +29,7 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
         logger.error("❌ Empty or invalid response from AI model")
         if retry_count < max_retries - 1:
             logger.info("🔄 Retrying due to empty response...")
-            return process_learning_path_query(
+            return await process_learning_path_query(
                 user_prompt, 
                 username, 
                 generate_response, 
@@ -49,13 +50,16 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
                 "timestamp": response_timestamp
             }
             
-            store_chat_history(username, error_response)
-            return {
-                "response": "ERROR",
-                "type": "content",
-                "timestamp": response_timestamp,
-                "content": error_message
-            }
+        try:
+            await store_chat_history(username, error_response)
+        except Exception as store_error:
+            logger.error(f"❌ Error storing chat history: {store_error}")
+        return {
+            "response": "ERROR",
+            "type": "content",
+            "timestamp": response_timestamp,
+            "content": error_message
+        }
 
     logger.info(f"📝 AI Response length: {len(response_content)} characters")
     logger.info(f"📝 First 200 chars: {response_content[:200]}...")
@@ -64,8 +68,15 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
         # Clean the response content first
         cleaned_content = response_content.strip()
         
-        # Try to parse the JSON directly
-        learning_path_json = json.loads(cleaned_content)
+        # Try to extract JSON using utility function first (handles markdown, extra text, etc.)
+        learning_path_json = extract_json(cleaned_content)
+        
+        # If extract_json failed, try direct parsing as fallback
+        if not learning_path_json:
+            try:
+                learning_path_json = json.loads(cleaned_content)
+            except json.JSONDecodeError:
+                raise ValueError("Could not parse JSON from response")
         
         # Validate the JSON structure
         if not isinstance(learning_path_json, dict):
@@ -91,7 +102,10 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
             "content": learning_path_json
         }
         
-        store_chat_history(username, response_message)
+        try:
+            await store_chat_history(username, response_message)
+        except Exception as store_error:
+            logger.error(f"❌ Error storing chat history: {store_error}")
         return response_data
 
     except (json.JSONDecodeError, ValueError) as e:
@@ -119,7 +133,10 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
                     "content": parsedData
                 }
                 
-                store_chat_history(username, response_message)
+                try:
+                    await store_chat_history(username, response_message)
+                except Exception as store_error:
+                    logger.error(f"❌ Error storing chat history: {store_error}")
                 return response_data
         
         # If we're here, JSON extraction failed or validation failed
@@ -127,7 +144,7 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
         
         if retry_count < max_retries - 1:
             # Try again with more explicit instructions
-            return process_learning_path_query(
+            return await process_learning_path_query(
                 user_prompt,  # Use original prompt, not the response
                 username, 
                 generate_response, 
@@ -148,7 +165,10 @@ def process_learning_path_query(user_prompt, username, generate_response, extrac
                 "timestamp": response_timestamp
             }
             
-            store_chat_history(username, error_response)
+            try:
+                await store_chat_history(username, error_response)
+            except Exception as store_error:
+                logger.error(f"❌ Error storing chat history: {store_error}")
             return {
                 "response": "ERROR",
                 "type": "content",

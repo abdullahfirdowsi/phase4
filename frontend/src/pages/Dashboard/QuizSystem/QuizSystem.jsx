@@ -47,16 +47,37 @@ const QuizSystem = () => {
     try {
       const username = localStorage.getItem("username");
       const response = await fetch(`/api/quiz/list?username=${username}`);
-      const data = await response.json();
       
-      if (response.ok) {
-        setQuizzes(data.quizzes || []);
-      } else {
-        setError(data.detail || "Failed to fetch quizzes");
+      // Check if response is OK and content type is JSON
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn('Quiz API endpoint not found, using empty quiz list');
+          setQuizzes([]);
+          setLoading(false);
+          return;
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('Quiz API returned non-JSON response, using empty quiz list');
+        setQuizzes([]);
+        setLoading(false);
+        return;
+      }
+      
+      const data = await response.json();
+      setQuizzes(data.quizzes || []);
     } catch (error) {
       console.error("Error fetching quizzes:", error);
-      setError("Failed to fetch quizzes");
+      // Don't show error for missing endpoints, just use empty data
+      if (error.message.includes('404') || error.message.includes('Failed to fetch')) {
+        console.warn('Quiz service not available, using empty quiz list');
+        setQuizzes([]);
+      } else {
+        setError("Failed to fetch quizzes");
+      }
     } finally {
       setLoading(false);
     }
@@ -66,13 +87,33 @@ const QuizSystem = () => {
     try {
       const username = localStorage.getItem("username");
       const response = await fetch(`/api/quiz/results?username=${username}`);
-      const data = await response.json();
       
-      if (response.ok) {
-        setQuizResults(data.results || []);
+      // Check if response is OK and content type is JSON
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn('Quiz results API endpoint not found, using empty results list');
+          setQuizResults([]);
+          return;
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('Quiz results API returned non-JSON response, using empty results list');
+        setQuizResults([]);
+        return;
+      }
+      
+      const data = await response.json();
+      setQuizResults(data.results || []);
     } catch (error) {
       console.error("Error fetching quiz results:", error);
+      // Don't show error for missing endpoints, just use empty data
+      if (error.message.includes('404') || error.message.includes('Failed to fetch')) {
+        console.warn('Quiz results service not available, using empty results list');
+        setQuizResults([]);
+      }
     }
   };
 

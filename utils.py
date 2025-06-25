@@ -32,22 +32,41 @@ def extract_json(text):
                 logger.error(f"❌ Failed to parse code block {i+1}: {str(e)}")
                 continue
     
-    # Try to find JSON with curly braces - improved pattern
-    json_pattern = r'({[^{}]*(?:{[^{}]*}[^{}]*)*})'
-    json_matches = re.findall(json_pattern, text)
-    
-    if json_matches:
-        logger.info(f"🔍 Found {len(json_matches)} potential JSON object(s)")
-        for i, match in enumerate(json_matches):
-            try:
-                cleaned_match = match.strip()
-                if cleaned_match and cleaned_match.startswith('{') and cleaned_match.endswith('}'):
-                    result = json.loads(cleaned_match)
-                    logger.info(f"✅ Successfully parsed JSON object {i+1}")
-                    return result
-            except json.JSONDecodeError as e:
-                logger.error(f"❌ Failed to parse JSON object {i+1}: {str(e)}")
-                continue
+    # Try to find JSON with curly braces - use more comprehensive brace matching
+    start_idx = text.find('{')
+    if start_idx != -1:
+        brace_count = 0
+        potential_jsons = []
+        
+        for i, char in enumerate(text[start_idx:], start_idx):
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    potential_json = text[start_idx:i+1]
+                    potential_jsons.append(potential_json)
+                    # Look for more JSON objects after this one
+                    remaining_text = text[i+1:]
+                    next_start = remaining_text.find('{')
+                    if next_start != -1:
+                        start_idx = i + 1 + next_start
+                        brace_count = 0
+                    else:
+                        break
+        
+        if potential_jsons:
+            logger.info(f"🔍 Found {len(potential_jsons)} potential JSON object(s) using brace matching")
+            for i, potential_json in enumerate(potential_jsons):
+                try:
+                    cleaned_match = potential_json.strip()
+                    if cleaned_match and cleaned_match.startswith('{') and cleaned_match.endswith('}'):
+                        result = json.loads(cleaned_match)
+                        logger.info(f"✅ Successfully parsed JSON object {i+1} using brace matching")
+                        return result
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ Failed to parse JSON object {i+1}: {str(e)}")
+                    continue
     
     # Try to extract the entire text as JSON
     try:
@@ -75,23 +94,23 @@ def extract_json(text):
             logger.error(f"❌ Failed to parse cleaned JSON: {str(e)}")
             pass
     
-    # Last resort: try to find the largest valid JSON object
-    start_idx = text.find('{')
-    if start_idx != -1:
-        brace_count = 0
-        for i, char in enumerate(text[start_idx:], start_idx):
-            if char == '{':
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    potential_json = text[start_idx:i+1]
-                    try:
-                        result = json.loads(potential_json)
-                        logger.info("✅ Successfully parsed JSON using brace matching")
-                        return result
-                    except json.JSONDecodeError:
-                        break
+    # Additional pattern matching for specific JSON structures
+    # Try to find JSON that might have extra text after it
+    json_with_extra_pattern = r'({[\s\S]*?})\s*(?:[^{]|$)'
+    extra_matches = re.findall(json_with_extra_pattern, text)
+    
+    if extra_matches:
+        logger.info(f"🔍 Found {len(extra_matches)} JSON patterns with potential extra text")
+        for i, match in enumerate(extra_matches):
+            try:
+                cleaned_match = match.strip()
+                if cleaned_match and cleaned_match.startswith('{') and cleaned_match.endswith('}'):
+                    result = json.loads(cleaned_match)
+                    logger.info(f"✅ Successfully parsed JSON with extra text pattern {i+1}")
+                    return result
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Failed to parse JSON pattern {i+1}: {str(e)}")
+                continue
     
     logger.error("❌ Failed to extract JSON from text - all methods exhausted")
     logger.error(f"📝 Text preview: {repr(text[:200])}...")

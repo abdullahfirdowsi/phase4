@@ -50,7 +50,14 @@ You are a teacher or a professor, remember that your name is AI Tutor, and you w
 """
 
 REGENRATE_OR_FILTER_JSON ="""
-This json is in malformed format, correct it and return only json string as text, do not include any token other than json. ensure correct data is present and json is valid. reduce text limit such that the element is in response range. return only json string nothing else, not even a single extra character. Make sure the JSON is properly formatted and parseable.
+The previous response was not valid JSON. Please generate a new learning path response that:
+1. Contains ONLY valid JSON - no markdown, no code blocks, no extra text
+2. Must include a 'topics' field with an array of topic objects
+3. Each topic must have: name, description, time_required, links, videos, subtopics
+4. Follow the exact JSON structure specified in the original prompt
+5. Ensure the JSON is properly formatted and parseable
+6. Do not include any text before or after the JSON object
+7. Start directly with { and end with }
 """
 
 CALCULATE_SCORE="""Based on my last 10 inputs on quizzes calculate my final score. Return numeric value only."""

@@ -42,11 +42,20 @@ const Learning = () => {
       try {
         const response = await fetch(`http://localhost:8000/lessons/lessons?username=${username}`);
         if (response.ok) {
-          const lessonsData = await response.json();
-          setFeaturedLessons(lessonsData.adminLessons || []);
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const lessonsData = await response.json();
+            setFeaturedLessons(lessonsData.adminLessons || []);
+          } else {
+            console.warn('Lessons API returned non-JSON response, using empty lessons list');
+            setFeaturedLessons([]);
+          }
+        } else if (response.status === 404) {
+          console.warn('Lessons API endpoint not found, using empty lessons list');
+          setFeaturedLessons([]);
         }
       } catch (error) {
-        console.log("Featured lessons not available");
+        console.warn("Featured lessons service not available:", error.message);
         setFeaturedLessons([]);
       }
       

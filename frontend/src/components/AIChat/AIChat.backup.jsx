@@ -26,37 +26,6 @@ const AIChat = () => {
   const textareaRef = useRef(null);
   const hasFetched = useRef(false);
   
-  // Helper function to detect if content is a learning path
-  const isLearningPathContent = (content) => {
-    if (!content) return false;
-    
-    // If content is a string, try to parse it
-    let parsedContent = content;
-    if (typeof content === 'string') {
-      try {
-        parsedContent = JSON.parse(content);
-      } catch (e) {
-        return false;
-      }
-    }
-    
-    // Check if it has learning path structure
-    if (typeof parsedContent === 'object' && parsedContent !== null) {
-      // Check for common learning path properties
-      return (
-        parsedContent.hasOwnProperty('topics') &&
-        Array.isArray(parsedContent.topics) &&
-        (
-          parsedContent.hasOwnProperty('name') ||
-          parsedContent.hasOwnProperty('course_duration') ||
-          parsedContent.hasOwnProperty('description')
-        )
-      );
-    }
-    
-    return false;
-  };
-  
   console.log('💬 AIChat current state:', {
     messagesCount: messages.length,
     isGenerating,
@@ -165,8 +134,7 @@ const AIChat = () => {
             // Create a new message object instead of modifying the existing one
             updatedMessages[lastMessageIndex] = {
               ...updatedMessages[lastMessageIndex],
-              content: accumulatedResponse,
-              type: isLearningPath ? 'learning_path' : 'content' // Preserve the type
+              content: accumulatedResponse
             };
             
             return updatedMessages;
@@ -257,8 +225,7 @@ const AIChat = () => {
             // Create a new message object instead of modifying the existing one
             updatedMessages[lastMessageIndex] = {
               ...updatedMessages[lastMessageIndex],
-              content: accumulatedResponse,
-              type: 'content' // Quick actions are always content type
+              content: accumulatedResponse
             };
             
             return updatedMessages;
@@ -312,9 +279,6 @@ const AIChat = () => {
       return null;
     }
 
-    // Ensure content is a string for ReactMarkdown
-    const contentString = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-
     return (
       <div className="ai-message-container">
         <div className="ai-avatar">
@@ -355,7 +319,7 @@ const AIChat = () => {
                 td: ({children}) => <td className="markdown-td">{children}</td>,
               }}
             >
-              {contentString}
+              {content}
             </ReactMarkdown>
           </div>
         </div>
@@ -382,11 +346,6 @@ const AIChat = () => {
     let parsedContent = content;
     if (typeof content === 'string') {
       try {
-        // Check if the string is empty or just whitespace
-        if (!content.trim()) {
-          throw new Error("Content is empty");
-        }
-        
         // Try to parse the string as JSON
         parsedContent = JSON.parse(content);
         console.log("Successfully parsed string content as JSON");
@@ -394,12 +353,10 @@ const AIChat = () => {
         // If the parsed content has a 'content' property that's a string, it might be a nested response
         if (parsedContent.content && typeof parsedContent.content === 'string') {
           try {
-            // Check if nested content is not empty
-            if (parsedContent.content.trim()) {
-              const nestedContent = JSON.parse(parsedContent.content);
-              parsedContent = nestedContent;
-              console.log("Successfully parsed nested content as JSON");
-            }
+            // Try to parse the nested content
+            const nestedContent = JSON.parse(parsedContent.content);
+            parsedContent = nestedContent;
+            console.log("Successfully parsed nested content as JSON");
           } catch (e) {
             console.error("Failed to parse nested content as JSON:", e);
             // Keep the outer parsed content
@@ -417,8 +374,6 @@ const AIChat = () => {
               Unable to display learning path. The content is not in the expected format.
               <br />
               <small>Error: {e.message}</small>
-              <br />
-              <small>Content preview: {typeof content === 'string' ? content.substring(0, 100) : 'Not a string'}</small>
             </Alert>
           </div>
         );
@@ -612,8 +567,7 @@ const AIChat = () => {
                 {message.role === 'user' ? (
                   <UserMessage message={message} />
                 ) : (
-                  // Check if it's a learning path by type or by content structure
-                  (message.type === 'learning_path' || isLearningPathContent(message.content)) ? (
+                  message.type === 'learning_path' ? (
                     <LearningPathDisplay content={message.content} />
                   ) : (
                     <AIMessage message={message} />
