@@ -1,15 +1,13 @@
 import React from "react";
 import "./Sidebar.scss";
 import { 
-  Grid3x3Gap, 
-  ChatSquare, 
-  BookHalf, 
-  TrophyFill, 
-  Person,
+  House, 
+  ChatDots, 
+  Signpost, 
+  ClipboardCheck, 
+  Gear,
   ChevronLeft,
-  ChevronRight,
-  QuestionCircle,
-  Shield
+  ChevronRight
 } from "react-bootstrap-icons";
 
 const Sidebar = ({
@@ -23,26 +21,26 @@ const Sidebar = ({
   const menuItems = [
     {
       id: "dashboard",
-      text: "Dashboard",
-      icon: <Grid3x3Gap size={20} />,
+      text: "Home",
+      icon: <House size={20} />,
       screen: "dashboard",
     },
     {
       id: "chat",
       text: "AI Chat",
-      icon: <ChatSquare size={20} />,
+      icon: <ChatDots size={20} />,
       screen: "chat",
     },
     {
       id: "learning",
-      text: "Learning",
-      icon: <BookHalf size={20} />,
-      screen: "learning-paths", // Keep existing routing
+      text: "Learning Paths",
+      icon: <Signpost size={20} />,
+      screen: "learning-paths",
     },
     {
       id: "quiz-system",
-      text: "Quiz System",
-      icon: <QuestionCircle size={20} />,
+      text: "Quiz",
+      icon: <ClipboardCheck size={20} />,
       screen: "quiz-system",
     },
   ];
@@ -52,7 +50,7 @@ const Sidebar = ({
     menuItems.push({
       id: "admin",
       text: "Admin Panel",
-      icon: <Shield size={20} />,
+      icon: <Gear size={20} />,
       screen: "admin",
       isAdmin: true
     });
@@ -63,38 +61,36 @@ const Sidebar = ({
   };
 
   return (
-    <div className={`optimized-sidebar ${isCollapsed ? "collapsed" : ""}`}>
+    <div className={`modern-sidebar ${isCollapsed ? "collapsed" : ""}`}>
       {/* Sidebar Toggle */}
-      <div className="sidebar-header">
+      <div className="sidebar-toggle-container">
         <button
           className="sidebar-toggle"
           onClick={toggleSidebar}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
       {/* Navigation Menu */}
       <nav className="sidebar-nav">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            className={`nav-item ${activeScreen === item.screen ? 'active' : ''} ${item.isAdmin ? 'admin-item' : ''}`}
-            onClick={() => handleItemClick(item)}
-            title={isCollapsed ? item.text : undefined}
-          >
-            <div className="nav-content">
-              <div className="nav-icon">
-                {item.icon}
-              </div>
-              {!isCollapsed && (
-                <span className="nav-text">{item.text}</span>
-              )}
-            </div>
-            {activeScreen === item.screen && <div className="active-indicator" />}
-          </button>
-        ))}
+        <ul className="nav-list">
+          {menuItems.map((item) => (
+            <li key={item.id} className="nav-item-container">
+              <button
+                className={`nav-item ${activeScreen === item.screen ? 'active' : ''} ${item.isAdmin ? 'admin-item' : ''}`}
+                onClick={() => handleItemClick(item)}
+                title={isCollapsed ? item.text : undefined}
+                aria-label={item.text}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                {!isCollapsed && <span className="nav-text">{item.text}</span>}
+                {activeScreen === item.screen && <span className="active-indicator" />}
+              </button>
+            </li>
+          ))}
+        </ul>
       </nav>
 
       {/* Sidebar Footer */}
@@ -113,7 +109,7 @@ const Sidebar = ({
           </div>
           {isAdmin && (
             <div className="admin-badge">
-              <Shield size={14} className="me-1" />
+              <Gear size={14} className="me-1" />
               Admin User
             </div>
           )}

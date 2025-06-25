@@ -51,8 +51,8 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="simple-dashboard">
-      {/* Enhanced Sidebar */}
+    <div className="dashboard-container">
+      {/* Modern Sidebar */}
       <Sidebar
         isCollapsed={sidebarCollapsed}
         toggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -62,7 +62,7 @@ const Dashboard = () => {
       />
 
       {/* Main Content Area */}
-      <div className="dashboard-main">
+      <div className={`dashboard-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderMainContent()}
       </div>
 

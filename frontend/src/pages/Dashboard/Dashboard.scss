@@ -1,7 +1,7 @@
 @use "../../styles/variables" as v;
 @use "../../styles/themes";
 
-.simple-dashboard {
+.dashboard-container {
   display: flex;
   height: calc(100vh - #{v.$navbar-height});
   background: var(--bg-primary);
@@ -17,7 +17,11 @@
   position: relative;
   min-width: 0;
   overflow: hidden;
-  margin-left: 0; // No margin needed since sidebar is separate
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &.sidebar-collapsed {
+    margin-left: 0;
+  }
 }
 
 .mobile-overlay {
@@ -34,7 +38,7 @@
 
 // Responsive design
 @media (max-width: v.$breakpoint-tablet) {
-  .simple-dashboard {
+  .dashboard-container {
     height: calc(100vh - 70px);
   }
   
@@ -44,7 +48,7 @@
 }
 
 @media (max-width: v.$breakpoint-mobile) {
-  .simple-dashboard {
+  .dashboard-container {
     height: calc(100vh - 60px);
   }
   
