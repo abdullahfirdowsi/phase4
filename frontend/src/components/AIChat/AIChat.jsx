@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Container, Row, Col, Button, Alert, Spinner } from 'react-bootstrap';
+import { Container, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
 import { fetchChatHistory, askQuestion, clearChat } from '../../api';
 import './AIChat.scss';

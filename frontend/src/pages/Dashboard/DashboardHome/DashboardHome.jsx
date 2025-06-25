@@ -32,7 +32,17 @@ const DashboardHome = () => {
     setTimeout(() => {
       // Use navigate with replace to ensure we can't go back to the input page
       navigate("/dashboard/chat", { replace: true });
-    }, 500);
+    }, 300);
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    setInputValue(suggestion);
+    // Submit the form after a short delay to allow the input to update visually
+    setTimeout(() => {
+      sessionStorage.setItem("initialQuestion", suggestion.trim());
+      setIsLoading(true);
+      navigate("/dashboard/chat", { replace: true });
+    }, 100);
   };
 
   return (
@@ -78,21 +88,24 @@ const DashboardHome = () => {
               <Button 
                 variant="outline-primary" 
                 className="suggestion-chip"
-                onClick={() => setInputValue("Create a learning path for JavaScript")}
+                onClick={() => handleSuggestionClick("Create a learning path for JavaScript")}
+                disabled={isLoading}
               >
                 JavaScript learning path
               </Button>
               <Button 
                 variant="outline-primary" 
                 className="suggestion-chip"
-                onClick={() => setInputValue("Generate a quiz about world history")}
+                onClick={() => handleSuggestionClick("Generate a quiz about world history")}
+                disabled={isLoading}
               >
                 History quiz
               </Button>
               <Button 
                 variant="outline-primary" 
                 className="suggestion-chip"
-                onClick={() => setInputValue("Explain quantum computing")}
+                onClick={() => handleSuggestionClick("Explain quantum computing")}
+                disabled={isLoading}
               >
                 Quantum computing
               </Button>
