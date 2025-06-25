@@ -105,9 +105,15 @@
         transform: translateX(0);
       }
       
+      &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
       &:disabled {
-        opacity: 0.7;
-        background: var(--bg-tertiary);
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        opacity: 0.5;
+        cursor: not-allowed;
       }
     }
   }

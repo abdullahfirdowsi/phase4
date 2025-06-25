@@ -35,7 +35,7 @@ const DashboardHome = () => {
     }, 300);
   };
 
-  const handleSuggestionClick = (suggestion) => {
+  const handleQuickStart = (suggestion) => {
     setInputValue(suggestion);
     // Submit the form after a short delay to allow the input to update visually
     setTimeout(() => {
@@ -68,7 +68,7 @@ const DashboardHome = () => {
                 />
                 <Button 
                   type="submit" 
-                  className="submit-button"
+                  className={`submit-button ${!inputValue.trim() ? 'disabled' : ''}`}
                   disabled={isLoading || !inputValue.trim()}
                 >
                   {isLoading ? (
@@ -88,7 +88,7 @@ const DashboardHome = () => {
               <Button 
                 variant="outline-primary" 
                 className="suggestion-chip"
-                onClick={() => handleSuggestionClick("Create a learning path for JavaScript")}
+                onClick={() => handleQuickStart("Create a learning path for JavaScript")}
                 disabled={isLoading}
               >
                 JavaScript learning path
@@ -96,7 +96,7 @@ const DashboardHome = () => {
               <Button 
                 variant="outline-primary" 
                 className="suggestion-chip"
-                onClick={() => handleSuggestionClick("Generate a quiz about world history")}
+                onClick={() => handleQuickStart("Generate a quiz about world history")}
                 disabled={isLoading}
               >
                 History quiz
@@ -104,7 +104,7 @@ const DashboardHome = () => {
               <Button 
                 variant="outline-primary" 
                 className="suggestion-chip"
-                onClick={() => handleSuggestionClick("Explain quantum computing")}
+                onClick={() => handleQuickStart("Explain quantum computing")}
                 disabled={isLoading}
               >
                 Quantum computing
