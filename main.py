@@ -70,6 +70,7 @@ origins = [
     "https://eduverse-ai.vercel.app",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    "*"  # Allow all origins for development
 ]
 
 app.add_middleware(
@@ -178,19 +179,19 @@ async def api_info():
 
 # Import and include API routers
 try:
-    from api.auth_api import auth_router
-    from api.chat_api import chat_router
-    from api.upload_api import upload_router
-    from api.avatar_api import avatar_router
-    from api.profile_api import profile_router
-    from ai_quiz_generator import ai_quiz_router
+    from auth import auth_router
+    from chat import chat_router
+    from api_quiz_generator import ai_quiz_router
+    from learning_paths import learning_paths_router
+    from lessons import lessons_router
+    from quiz_system import quiz_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])
-    app.include_router(upload_router, prefix="/upload", tags=["File Upload"])
-    app.include_router(avatar_router, prefix="/lessons", tags=["Avatar Generation"])
-    app.include_router(profile_router, prefix="/api", tags=["User Profile"])
     app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
+    app.include_router(learning_paths_router, prefix="/learning-paths", tags=["Learning Paths"])
+    app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
+    app.include_router(quiz_router, prefix="/quiz-system", tags=["Quiz System"])
     
     logger.info("✅ API routers loaded successfully")
 except Exception as e:
@@ -219,11 +220,13 @@ async def get_user_stats_legacy(username: str):
 async def get_all_goals_legacy(username: str):
     """Legacy endpoint for learning goals"""
     try:
-        from services.learning_service import learning_service
-        result = await learning_service.get_user_goals(username)
-        if result.success:
-            return {"learning_goals": result.data["goals"]}
-        return {"learning_goals": []}
+        # Directly query the database for learning goals
+        from database import chats_collection
+        chat_session = chats_collection.find_one({"username": username})
+        if not chat_session or "learning_goals" not in chat_session:
+            return {"learning_goals": []}
+        
+        return {"learning_goals": chat_session["learning_goals"]}
     except Exception as e:
         logger.error(f"Learning goals error: {e}")
         return {"learning_goals": []}
@@ -308,13 +311,9 @@ async def not_found_handler(request, exc):
             "available_endpoints": [
                 "/auth/login", "/auth/signup", "/auth/profile",
                 "/chat/ask", "/chat/history", "/chat/search",
-                "/upload/image", "/upload/audio", "/upload/video",
-                "/lessons/generate-avatar", "/lessons/status/{lesson_id}",
-                "/lessons/predefined-avatars", "/lessons/available-voices",
-                "/lessons/create-voice-clone", "/lessons/voice-status/{voice_id}",
-                "/api/profile", "/api/profile/language", "/api/profile/password",
-                "/api/profile/upload-image", "/api/profile/activity",
-                "/admin/migrate", "/admin/initialize-db",
+                "/quiz/generate-ai-quiz", "/quiz/submit-ai-quiz",
+                "/learning-paths/list", "/learning-paths/detail/{path_id}",
+                "/lessons/lessons", "/lessons/lessons/enroll",
                 "/docs", "/health"
             ]
         }

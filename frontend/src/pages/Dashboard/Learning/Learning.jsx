@@ -13,7 +13,7 @@ import {
   CheckCircle,
   XCircle
 } from "react-bootstrap-icons";
-import { getAllLearningGoals } from "../../../api";
+import { getAllLearningGoals, updateLearningPathProgress } from "../../../api";
 import "./Learning.scss";
 
 const Learning = () => {
@@ -49,92 +49,61 @@ const Learning = () => {
         } else {
           console.log("Lessons API endpoint not found, using empty lessons list");
           // Create sample featured lessons since the endpoint is not available
-          const sampleLessons = [
-            {
-              _id: "sample_lesson_1",
-              title: "Introduction to Python Programming",
-              description: "Learn the basics of Python programming language including variables, data types, and control structures.",
-              subject: "Programming",
-              difficulty: "Beginner",
-              duration: "2 hours",
-              tags: ["Python", "Programming", "Beginner"],
-              enrollments: 1250,
-              createdAt: new Date().toISOString()
-            },
-            {
-              _id: "sample_lesson_2",
-              title: "Web Development Fundamentals",
-              description: "Understand the core concepts of web development including HTML, CSS, and JavaScript.",
-              subject: "Web Development",
-              difficulty: "Intermediate",
-              duration: "4 hours",
-              tags: ["HTML", "CSS", "JavaScript"],
-              enrollments: 980,
-              createdAt: new Date().toISOString()
-            },
-            {
-              _id: "sample_lesson_3",
-              title: "Data Science Essentials",
-              description: "Explore the fundamentals of data science including data analysis, visualization, and basic machine learning.",
-              subject: "Data Science",
-              difficulty: "Advanced",
-              duration: "6 hours",
-              tags: ["Data Science", "Machine Learning", "Python"],
-              enrollments: 750,
-              createdAt: new Date().toISOString()
-            }
-          ];
-          
-          setFeaturedLessons(sampleLessons);
+          createSampleLessons();
         }
       } catch (error) {
         console.log("Lessons API endpoint not found, using empty lessons list");
         // Create sample featured lessons since the endpoint is not available
-        const sampleLessons = [
-          {
-            _id: "sample_lesson_1",
-            title: "Introduction to Python Programming",
-            description: "Learn the basics of Python programming language including variables, data types, and control structures.",
-            subject: "Programming",
-            difficulty: "Beginner",
-            duration: "2 hours",
-            tags: ["Python", "Programming", "Beginner"],
-            enrollments: 1250,
-            createdAt: new Date().toISOString()
-          },
-          {
-            _id: "sample_lesson_2",
-            title: "Web Development Fundamentals",
-            description: "Understand the core concepts of web development including HTML, CSS, and JavaScript.",
-            subject: "Web Development",
-            difficulty: "Intermediate",
-            duration: "4 hours",
-            tags: ["HTML", "CSS", "JavaScript"],
-            enrollments: 980,
-            createdAt: new Date().toISOString()
-          },
-          {
-            _id: "sample_lesson_3",
-            title: "Data Science Essentials",
-            description: "Explore the fundamentals of data science including data analysis, visualization, and basic machine learning.",
-            subject: "Data Science",
-            difficulty: "Advanced",
-            duration: "6 hours",
-            tags: ["Data Science", "Machine Learning", "Python"],
-            enrollments: 750,
-            createdAt: new Date().toISOString()
-          }
-        ];
-        
-        setFeaturedLessons(sampleLessons);
+        createSampleLessons();
       }
       
     } catch (error) {
       console.error("Error fetching learning content:", error);
       setError("Failed to load learning content");
+      createSampleLessons();
     } finally {
       setLoading(false);
     }
+  };
+
+  const createSampleLessons = () => {
+    const sampleLessons = [
+      {
+        _id: "sample_lesson_1",
+        title: "Introduction to Python Programming",
+        description: "Learn the basics of Python programming language including variables, data types, and control structures.",
+        subject: "Programming",
+        difficulty: "Beginner",
+        duration: "2 hours",
+        tags: ["Python", "Programming", "Beginner"],
+        enrollments: 1250,
+        createdAt: new Date().toISOString()
+      },
+      {
+        _id: "sample_lesson_2",
+        title: "Web Development Fundamentals",
+        description: "Understand the core concepts of web development including HTML, CSS, and JavaScript.",
+        subject: "Web Development",
+        difficulty: "Intermediate",
+        duration: "4 hours",
+        tags: ["HTML", "CSS", "JavaScript"],
+        enrollments: 980,
+        createdAt: new Date().toISOString()
+      },
+      {
+        _id: "sample_lesson_3",
+        title: "Data Science Essentials",
+        description: "Explore the fundamentals of data science including data analysis, visualization, and basic machine learning.",
+        subject: "Data Science",
+        difficulty: "Advanced",
+        duration: "6 hours",
+        tags: ["Data Science", "Machine Learning", "Python"],
+        enrollments: 750,
+        createdAt: new Date().toISOString()
+      }
+    ];
+    
+    setFeaturedLessons(sampleLessons);
   };
 
   const handleEnrollInLesson = async (lessonId) => {
@@ -182,6 +151,14 @@ const Learning = () => {
         // Handle learning path details
         const pathData = myLearningPaths.find(path => path.name === contentId);
         if (pathData) {
+          // Process topics to ensure they have completed property
+          const processedTopics = pathData.study_plans && pathData.study_plans[0] && 
+            pathData.study_plans[0].topics ? 
+            pathData.study_plans[0].topics.map(topic => ({
+              ...topic,
+              completed: topic.completed || false
+            })) : [];
+          
           setSelectedContent({
             id: contentId,
             title: pathData.name,
@@ -189,7 +166,7 @@ const Learning = () => {
             content: pathData.study_plans,
             progress: pathData.progress,
             type: "learning_path",
-            topics: pathData.study_plans && pathData.study_plans[0] ? pathData.study_plans[0].topics : []
+            topics: processedTopics
           });
           setShowDetailModal(true);
           return;
@@ -221,7 +198,7 @@ const Learning = () => {
     }
   };
 
-  const handleMarkTopicCompleted = (topicIndex, completed) => {
+  const handleMarkTopicCompleted = async (topicIndex, completed) => {
     if (!selectedContent || selectedContent.type !== "learning_path") return;
     
     // Update the selected content
@@ -282,20 +259,10 @@ const Learning = () => {
     
     // Try to update on the backend
     try {
-      fetch("/api/learning-paths/progress/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          path_id: selectedContent.id,
-          topic_index: topicIndex,
-          completed: completed
-        })
-      }).catch(err => {
-        console.log("Progress update API not available, using local state only");
-      });
+      await updateLearningPathProgress(selectedContent.id, topicIndex, completed);
     } catch (error) {
       console.error("Error updating progress:", error);
+      // Continue with local state updates even if backend fails
     }
   };
 

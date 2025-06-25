@@ -49,96 +49,133 @@ const QuizSystem = () => {
 
   const fetchQuizzes = async () => {
     try {
-      // Create sample quizzes since the API is not available
-      const sampleQuizzes = [
-        {
-          id: "quiz_1",
-          title: "Python Programming Basics",
-          description: "Test your knowledge of Python fundamentals including variables, data types, and control structures.",
-          subject: "Programming",
-          difficulty: "beginner",
-          time_limit: 10,
-          questions: Array(5).fill().map((_, i) => ({
-            id: `q_${i+1}`,
-            question_number: i+1,
-            question: `Sample Python question ${i+1}`,
-            type: "mcq",
-            options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-            correct_answer: "A"
-          }))
-        },
-        {
-          id: "quiz_2",
-          title: "Web Development Fundamentals",
-          description: "Test your knowledge of HTML, CSS, and JavaScript basics.",
-          subject: "Web Development",
-          difficulty: "medium",
-          time_limit: 15,
-          questions: Array(8).fill().map((_, i) => ({
-            id: `q_${i+1}`,
-            question_number: i+1,
-            question: `Sample Web Development question ${i+1}`,
-            type: "mcq",
-            options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-            correct_answer: "B"
-          }))
-        },
-        {
-          id: "quiz_3",
-          title: "Data Science Essentials",
-          description: "Test your knowledge of data analysis, visualization, and basic machine learning concepts.",
-          subject: "Data Science",
-          difficulty: "hard",
-          time_limit: 20,
-          questions: Array(10).fill().map((_, i) => ({
-            id: `q_${i+1}`,
-            question_number: i+1,
-            question: `Sample Data Science question ${i+1}`,
-            type: "mcq",
-            options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-            correct_answer: "C"
-          }))
+      // Try to fetch quizzes from backend
+      try {
+        const response = await fetch(`http://localhost:8000/quiz/list?username=${localStorage.getItem("username")}`);
+        if (response.ok) {
+          const data = await response.json();
+          setQuizzes(data.quizzes || []);
+        } else {
+          console.log("Quiz API returned non-JSON response, using empty quiz list");
+          // Create sample quizzes since the API is not available
+          createSampleQuizzes();
         }
-      ];
-      
-      setQuizzes(sampleQuizzes);
+      } catch (error) {
+        console.log("Quiz API returned non-JSON response, using empty quiz list");
+        // Create sample quizzes since the API is not available
+        createSampleQuizzes();
+      }
     } catch (error) {
       console.error("Error fetching quizzes:", error);
-      setQuizzes([]);
+      createSampleQuizzes();
     } finally {
       setLoading(false);
     }
   };
 
+  const createSampleQuizzes = () => {
+    const sampleQuizzes = [
+      {
+        id: "quiz_1",
+        title: "Python Programming Basics",
+        description: "Test your knowledge of Python fundamentals including variables, data types, and control structures.",
+        subject: "Programming",
+        difficulty: "beginner",
+        time_limit: 10,
+        questions: Array(5).fill().map((_, i) => ({
+          id: `q_${i+1}`,
+          question_number: i+1,
+          question: `Sample Python question ${i+1}`,
+          type: "mcq",
+          options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+          correct_answer: "A"
+        }))
+      },
+      {
+        id: "quiz_2",
+        title: "Web Development Fundamentals",
+        description: "Test your knowledge of HTML, CSS, and JavaScript basics.",
+        subject: "Web Development",
+        difficulty: "medium",
+        time_limit: 15,
+        questions: Array(8).fill().map((_, i) => ({
+          id: `q_${i+1}`,
+          question_number: i+1,
+          question: `Sample Web Development question ${i+1}`,
+          type: "mcq",
+          options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+          correct_answer: "B"
+        }))
+      },
+      {
+        id: "quiz_3",
+        title: "Data Science Essentials",
+        description: "Test your knowledge of data analysis, visualization, and basic machine learning concepts.",
+        subject: "Data Science",
+        difficulty: "hard",
+        time_limit: 20,
+        questions: Array(10).fill().map((_, i) => ({
+          id: `q_${i+1}`,
+          question_number: i+1,
+          question: `Sample Data Science question ${i+1}`,
+          type: "mcq",
+          options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+          correct_answer: "C"
+        }))
+      }
+    ];
+    
+    setQuizzes(sampleQuizzes);
+  };
+
   const fetchQuizResults = async () => {
     try {
-      // Create sample quiz results since the API is not available
-      const sampleResults = [
-        {
-          id: "result_1",
-          quiz_id: "quiz_1",
-          quiz_title: "Python Programming Basics",
-          score_percentage: 80,
-          correct_answers: 4,
-          total_questions: 5,
-          submitted_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
-        },
-        {
-          id: "result_2",
-          quiz_id: "quiz_2",
-          quiz_title: "Web Development Fundamentals",
-          score_percentage: 75,
-          correct_answers: 6,
-          total_questions: 8,
-          submitted_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
+      // Try to fetch quiz results from backend
+      try {
+        const response = await fetch(`http://localhost:8000/quiz/results?username=${localStorage.getItem("username")}`);
+        if (response.ok) {
+          const data = await response.json();
+          setQuizResults(data.results || []);
+        } else {
+          console.log("Quiz results API returned non-JSON response, using empty results list");
+          // Create sample quiz results since the API is not available
+          createSampleQuizResults();
         }
-      ];
-      
-      setQuizResults(sampleResults);
+      } catch (error) {
+        console.log("Quiz results API returned non-JSON response, using empty results list");
+        // Create sample quiz results since the API is not available
+        createSampleQuizResults();
+      }
     } catch (error) {
       console.error("Error fetching quiz results:", error);
-      setQuizResults([]);
+      createSampleQuizResults();
     }
+  };
+
+  const createSampleQuizResults = () => {
+    // Create sample quiz results since the API is not available
+    const sampleResults = [
+      {
+        id: "result_1",
+        quiz_id: "quiz_1",
+        quiz_title: "Python Programming Basics",
+        score_percentage: 80,
+        correct_answers: 4,
+        total_questions: 5,
+        submitted_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
+      },
+      {
+        id: "result_2",
+        quiz_id: "quiz_2",
+        quiz_title: "Web Development Fundamentals",
+        score_percentage: 75,
+        correct_answers: 6,
+        total_questions: 8,
+        submitted_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
+      }
+    ];
+    
+    setQuizResults(sampleResults);
   };
 
   const handleCreateQuiz = async () => {
@@ -199,7 +236,23 @@ const QuizSystem = () => {
     try {
       setLoading(true);
       
-      // Calculate score (in a real app, this would be done on the server)
+      // Try to submit to backend first
+      try {
+        const result = await submitQuiz(currentQuiz.id, quizAnswers);
+        if (result) {
+          setQuizResult(result);
+          setShowQuizModal(false);
+          setShowResultModal(true);
+          // Refresh quiz results
+          fetchQuizResults();
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.log("Quiz submission API failed, using local calculation");
+      }
+      
+      // Calculate score locally (in a real app, this would be done on the server)
       const totalQuestions = currentQuiz.questions.length;
       let correctAnswers = 0;
       

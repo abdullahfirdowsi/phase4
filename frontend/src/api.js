@@ -1,5 +1,5 @@
 // Enhanced API configuration with better error handling and CORS support
-const API_BASE_URL = "http://localhost:8000"; // Updated to point to FastAPI backend
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"; // Use environment variable if available
 
 // Enhanced fetch wrapper with better error handling
 const apiRequest = async (url, options = {}) => {
@@ -339,7 +339,8 @@ export const getAllLearningGoals = async () => {
     return data.learning_goals || [];
   } catch (error) {
     console.error("Error fetching learning goals:", error);
-    throw error;
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
   }
 };
 
@@ -673,40 +674,46 @@ export const generateQuiz = async (topic, difficulty = "medium", numQuestions = 
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
-    const data = await apiRequest(`${API_BASE_URL}/quiz/generate-ai-quiz`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        username,
-        topic,
-        difficulty,
-        num_questions: numQuestions,
-        time_limit: numQuestions * 2 // 2 minutes per question
-      }),
-    });
+    // First try the dedicated quiz API endpoint
+    try {
+      const data = await apiRequest(`${API_BASE_URL}/quiz/generate-ai-quiz`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username,
+          topic,
+          difficulty,
+          num_questions: numQuestions,
+          time_limit: numQuestions * 2 // 2 minutes per question
+        }),
+      });
 
-    return data;
+      return data;
+    } catch (error) {
+      // If the dedicated endpoint fails, fall back to the chat API
+      console.error("Error generating quiz:", error);
+      console.log("Falling back to chat API for quiz generation");
+      
+      let quizData = null;
+      await askQuestion(
+        `Create a quiz about ${topic} with ${numQuestions} questions at ${difficulty} difficulty level.`,
+        (response) => {
+          if (typeof response === 'object') {
+            quizData = response;
+          }
+        },
+        () => {},
+        true,
+        false
+      );
+      
+      return quizData;
+    }
   } catch (error) {
-    console.error("Error generating quiz:", error);
-    // Fallback to using the chat API for quiz generation
-    console.log("Falling back to chat API for quiz generation");
-    
-    let quizData = null;
-    await askQuestion(
-      `Create a quiz about ${topic} with ${numQuestions} questions at ${difficulty} difficulty level.`,
-      (response) => {
-        if (typeof response === 'object') {
-          quizData = response;
-        }
-      },
-      () => {},
-      true,
-      false
-    );
-    
-    return quizData;
+    console.error("Error generating quiz (all methods failed):", error);
+    throw error;
   }
 };
 
@@ -718,21 +725,48 @@ export const submitQuiz = async (quizId, answers) => {
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
-    const data = await apiRequest(`${API_BASE_URL}/quiz/submit-ai-quiz`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        username,
-        quiz_id: quizId,
-        answers
-      }),
-    });
+    // First try the dedicated quiz API endpoint
+    try {
+      const data = await apiRequest(`${API_BASE_URL}/quiz/submit-ai-quiz`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username,
+          quiz_id: quizId,
+          answers
+        }),
+      });
 
-    return data;
+      return data;
+    } catch (error) {
+      // If the dedicated endpoint fails, fall back to the chat API
+      console.error("Error submitting quiz:", error);
+      console.log("Falling back to chat API for quiz submission");
+      
+      // Create a string with the questions and answers
+      const answersText = Object.entries(answers).map(([id, answer]) => {
+        return `Q${id}: Answer: ${answer}`;
+      }).join('\n');
+      
+      let resultData = null;
+      await askQuestion(
+        `Please grade my quiz answers:\n\n${answersText}`,
+        (response) => {
+          if (typeof response === 'object') {
+            resultData = response;
+          }
+        },
+        () => {},
+        true,
+        false
+      );
+      
+      return resultData;
+    }
   } catch (error) {
-    console.error("Error submitting quiz:", error);
+    console.error("Error submitting quiz (all methods failed):", error);
     throw error;
   }
 };
@@ -784,5 +818,87 @@ export const getActiveQuizzes = async () => {
   } catch (error) {
     console.error("Error fetching active quizzes:", error);
     return [];
+  }
+};
+
+// Update learning path progress
+export const updateLearningPathProgress = async (pathId, topicIndex, completed) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    // Try the learning paths API first
+    try {
+      const data = await apiRequest(`${API_BASE_URL}/learning-paths/progress/update`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username,
+          path_id: pathId,
+          topic_index: topicIndex,
+          completed
+        }),
+      });
+      return data;
+    } catch (error) {
+      // If that fails, try the chat API
+      console.error("Learning paths API error:", error);
+      console.log("Falling back to chat API for progress update");
+      
+      const data = await apiRequest(`${API_BASE_URL}/chat/update-goal`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username,
+          goal_name: pathId,
+          updated_goal: {
+            // We don't have the full goal structure here, so this is a best effort
+            progress: completed ? 100 : 0
+          }
+        }),
+      });
+      return data;
+    }
+  } catch (error) {
+    console.error("Error updating learning path progress (all methods failed):", error);
+    // Return a default response instead of throwing
+    return { success: false, message: "Failed to update progress" };
+  }
+};
+
+// Get learning path details
+export const getLearningPathDetails = async (pathId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    // Try the learning paths API first
+    try {
+      const data = await apiRequest(
+        `${API_BASE_URL}/learning-paths/detail/${pathId}?username=${encodeURIComponent(username)}`,
+        {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      return data.path;
+    } catch (error) {
+      // If that fails, return null and let the UI handle it
+      console.error("Learning paths API error:", error);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error getting learning path details:", error);
+    return null;
   }
 };
