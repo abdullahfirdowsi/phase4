@@ -65,7 +65,8 @@ async def process_chat_request(username: str, session_id: str, user_prompt: str)
     """Process regular chat request with streaming"""
     try:
         # Import here to avoid circular imports
-        from chat import generate_chat_stream, BASIC_ENVIRONMENT_PROMPT
+        from chat import generate_chat_stream
+        from constants import get_basic_environment_prompt
         
         # Get recent chat history for context
         history_result = await chat_service.get_chat_history(username, session_id, limit=10)
@@ -78,8 +79,16 @@ async def process_chat_request(username: str, session_id: str, user_prompt: str)
                 if msg.get("message_type") != "learning_path"
             ]
         
-        # Add current prompt
-        enhanced_prompt = f"{user_prompt} {BASIC_ENVIRONMENT_PROMPT}"
+        # Get user preferences for language
+        from services.user_service import user_service
+        user = await user_service.get_user_by_username(username)
+        user_language = "English"  # Default to English
+        if user and "preferences" in user:
+            user_language = user["preferences"].get("language", "English")
+        
+        # Add current prompt with language-specific environment
+        language_specific_prompt = get_basic_environment_prompt(user_language)
+        enhanced_prompt = f"{user_prompt} {language_specific_prompt}"
         recent_messages.append({"role": "user", "content": enhanced_prompt})
         
         async def chat_stream():
@@ -158,6 +167,18 @@ async def process_learning_path_request(username: str, session_id: str, user_pro
         
         # If successful, create learning goal
         if result.get("response") == "JSON" and result.get("content"):
+            # Store the learning path content as a JSON string to ensure consistency
+            content_to_store = result["content"]
+            if isinstance(content_to_store, dict):
+                # Store the content as a serialized JSON string
+                await chat_service.store_message(
+                    username=username,
+                    session_id=session_id,
+                    role="assistant",
+                    content=json.dumps(content_to_store),
+                    message_type=MessageType.LEARNING_PATH
+                )
+            
             learning_goal_data = {
                 "name": result["content"].get("name", "AI Generated Learning Path"),
                 "description": result["content"].get("description", ""),

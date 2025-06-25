@@ -87,10 +87,10 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             
         logger.info("✅ Successfully parsed and validated JSON")
         
-        # Store the response
+        # Store the response - serialize JSON to string for consistent storage
         response_message = {
             "role": "assistant",
-            "content": learning_path_json,
+            "content": json.dumps(learning_path_json) if isinstance(learning_path_json, dict) else learning_path_json,
             "type": "learning_path",
             "timestamp": response_timestamp
         }
@@ -121,7 +121,7 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
                 logger.info("✅ Successfully extracted and validated JSON from text")
                 response_message = {
                     "role": "assistant",
-                    "content": parsedData,
+                    "content": json.dumps(parsedData) if isinstance(parsedData, dict) else parsedData,
                     "type": "learning_path",
                     "timestamp": response_timestamp
                 }

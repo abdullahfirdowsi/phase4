@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaRedo, FaPlus, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash, FaCheck, FaClock } from 'react-icons/fa';
 import { fetchChatHistory, askQuestion, clearChat, saveLearningPath } from '../../api';
@@ -9,6 +9,8 @@ import { formatDistanceToNow } from 'date-fns';
 import SearchModal from './SearchModal';
 import AnalyticsModal from './AnalyticsModal';
 import ConfirmModal from './ConfirmModal';
+import UserMessage from './UserMessage';
+import AIMessage from './AIMessage';
 
 const AIChat = () => {
   console.log('🚀 AIChat component is rendering...');
@@ -146,42 +148,43 @@ const AIChat = () => {
     try {
       let accumulatedResponse = '';
       
-      await askQuestion(
-        userMessage,
-        (partialResponse) => {
-          // Update the AI message with the accumulated response
-          // For learning paths, the partialResponse will be the full API response object
-          if (isLearningPath && typeof partialResponse === 'object' && partialResponse.content) {
-            // Extract the content from the API response for learning paths
-            accumulatedResponse = partialResponse.content;
-            console.log('📚 Learning Path Content:', accumulatedResponse);
-          } else {
-            // For regular messages, it's the accumulated text
-            accumulatedResponse = partialResponse;
-          }
-          
-          setMessages(prevMessages => {
-            const updatedMessages = [...prevMessages];
-            const lastMessageIndex = updatedMessages.length - 1;
+        await askQuestion(
+          userMessage,
+          (partialResponse) => {
+            // Update the AI message with the accumulated response
+            // For learning paths, the partialResponse will be the full API response object
+            if (isLearningPath && typeof partialResponse === 'object' && partialResponse.content) {
+              // Extract the content from the API response for learning paths
+              accumulatedResponse = partialResponse.content;
+              console.log('📚 Learning Path Content:', accumulatedResponse);
+            } else {
+              // For regular messages, it's the accumulated text
+              accumulatedResponse = partialResponse;
+            }
             
-            // Create a new message object instead of modifying the existing one
-            updatedMessages[lastMessageIndex] = {
-              ...updatedMessages[lastMessageIndex],
-              content: accumulatedResponse,
-              type: isLearningPath ? 'learning_path' : 'content' // Preserve the type
-            };
-            
-            return updatedMessages;
-          });
-        },
-        () => {
-          // On complete
-          setIsGenerating(false);
-          loadChatHistory(); // Refresh to get server-stored messages
-        },
-        isQuiz,
-        isLearningPath
-      );
+            setMessages(prevMessages => {
+              const updatedMessages = [...prevMessages];
+              const lastMessageIndex = updatedMessages.length - 1;
+              
+              // Create a new message object instead of modifying the existing one
+              updatedMessages[lastMessageIndex] = {
+                ...updatedMessages[lastMessageIndex],
+                content: accumulatedResponse,
+                type: isLearningPath ? 'learning_path' : 'content' // Preserve the type
+              };
+              
+              return updatedMessages;
+            });
+          },
+          () => {
+            // On complete - Don't refresh chat history to preserve timestamps
+            setIsGenerating(false);
+            // Note: Removed loadChatHistory() to prevent timestamp inconsistency
+            // The messages are already stored locally with correct timestamps
+          },
+          isQuiz,
+          isLearningPath
+        );
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
@@ -267,9 +270,9 @@ const AIChat = () => {
           });
         },
         () => {
-          // On complete
+          // On complete - Don't refresh chat history to preserve timestamps
           setIsGenerating(false);
-          loadChatHistory(); // Refresh to get server-stored messages
+          // Note: Removed loadChatHistory() to prevent timestamp inconsistency
         },
         false,
         false
@@ -387,8 +390,9 @@ const AIChat = () => {
           });
         },
         () => {
+          // On complete - Don't refresh chat history to preserve timestamps
           setIsGenerating(false);
-          loadChatHistory();
+          // Note: Removed loadChatHistory() to prevent timestamp inconsistency
         },
         false,
         true // isLearningPath = true
@@ -401,158 +405,43 @@ const AIChat = () => {
     }
   };
 
-  // Render user message
-  const UserMessage = ({ message }) => {
-    const { content, timestamp } = message;
+
+  // Memoize the learning path content check
+  const memoizedIsLearningPathContent = useCallback((content) => {
+    if (!content) return false;
     
-    // Handle timezone properly - ensure consistent UTC handling
-    let timeAgo = null;
-    if (timestamp) {
+    // If content is a string, try to parse it
+    let parsedContent = content;
+    if (typeof content === 'string') {
       try {
-        let messageDate;
-        
-        // Handle different timestamp formats from backend
-        if (typeof timestamp === 'string') {
-          // If timestamp is ISO string from old system or frontend
-          messageDate = new Date(timestamp);
-        } else if (timestamp instanceof Date) {
-          // If timestamp is Date object from new system
-          messageDate = new Date(timestamp);
-        } else if (timestamp.$date) {
-          // If timestamp is MongoDB Date format
-          messageDate = new Date(timestamp.$date);
-        } else {
-          // Fallback
-          messageDate = new Date(timestamp);
-        }
-        
-        // Check if the date is valid
-        if (!isNaN(messageDate.getTime())) {
-          // Convert to UTC time for consistent calculation
-          const utcTime = messageDate.getTime();
-          const localTime = utcTime;
-          const adjustedDate = new Date(localTime);
-          
-          timeAgo = formatDistanceToNow(adjustedDate, { addSuffix: true });
-        }
+        parsedContent = JSON.parse(content);
       } catch (e) {
-        console.error('Error parsing timestamp:', timestamp, e);
+        return false;
       }
     }
-
-    return (
-      <div className="user-message-container">
-        <div className="user-message-bubble">
-          <div className="message-content">{content}</div>
-          {timeAgo && (
-            <div className="message-time">{timeAgo}</div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Render AI message
-  const AIMessage = ({ message }) => {
-    const { content, timestamp } = message;
     
-    // Handle timezone properly - ensure consistent UTC handling
-    let timeAgo = null;
-    if (timestamp) {
-      try {
-        let messageDate;
-        
-        // Handle different timestamp formats from backend
-        if (typeof timestamp === 'string') {
-          // If timestamp is ISO string from old system or frontend
-          messageDate = new Date(timestamp);
-        } else if (timestamp instanceof Date) {
-          // If timestamp is Date object from new system
-          messageDate = new Date(timestamp);
-        } else if (timestamp.$date) {
-          // If timestamp is MongoDB Date format
-          messageDate = new Date(timestamp.$date);
-        } else {
-          // Fallback
-          messageDate = new Date(timestamp);
-        }
-        
-        // Check if the date is valid
-        if (!isNaN(messageDate.getTime())) {
-          // Convert to UTC time for consistent calculation
-          const utcTime = messageDate.getTime();
-          const localTime = utcTime;
-          const adjustedDate = new Date(localTime);
-          
-          timeAgo = formatDistanceToNow(adjustedDate, { addSuffix: true });
-        }
-      } catch (e) {
-        console.error('Error parsing timestamp:', timestamp, e);
-      }
+    // Check if it has learning path structure
+    if (typeof parsedContent === 'object' && parsedContent !== null) {
+      // Check for common learning path properties
+      return (
+        parsedContent.hasOwnProperty('topics') &&
+        Array.isArray(parsedContent.topics) &&
+        (
+          parsedContent.hasOwnProperty('name') ||
+          parsedContent.hasOwnProperty('course_duration') ||
+          parsedContent.hasOwnProperty('description')
+        )
+      );
     }
+    
+    return false;
+  }, []);
 
-    if (!content) {
-      return null;
-    }
-
-    // Ensure content is a string for ReactMarkdown
-    const contentString = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-
-    return (
-      <div className="ai-message-container">
-        <div className="ai-avatar">
-          <img src="/icons/aitutor-short-no-bg.png" alt="AI" className="avatar-image" />
-        </div>
-        
-        <div className="ai-message-card">
-          <div className="ai-header">
-            <span className="ai-label">AI Tutor</span>
-            {timeAgo && (
-              <small className="message-time">{timeAgo}</small>
-            )}
-          </div>
-          
-          <div className="message-content">
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              components={{
-                // Custom styling for markdown elements
-                h1: ({children}) => <h1 className="markdown-h1">{children}</h1>,
-                h2: ({children}) => <h2 className="markdown-h2">{children}</h2>,
-                h3: ({children}) => <h3 className="markdown-h3">{children}</h3>,
-                p: ({children}) => <p className="markdown-p">{children}</p>,
-                ul: ({children}) => <ul className="markdown-ul">{children}</ul>,
-                ol: ({children}) => <ol className="markdown-ol">{children}</ol>,
-                li: ({children}) => <li className="markdown-li">{children}</li>,
-                code: ({children, className}) => {
-                  const isInline = !className;
-                  return isInline ? 
-                    <code className="markdown-code-inline">{children}</code> :
-                    <code className="markdown-code-block">{children}</code>;
-                },
-                pre: ({children}) => <pre className="markdown-pre">{children}</pre>,
-                blockquote: ({children}) => <blockquote className="markdown-blockquote">{children}</blockquote>,
-                a: ({children, href}) => <a className="markdown-link" href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
-                table: ({children}) => <table className="markdown-table">{children}</table>,
-                th: ({children}) => <th className="markdown-th">{children}</th>,
-                td: ({children}) => <td className="markdown-td">{children}</td>,
-              }}
-            >
-              {contentString}
-            </ReactMarkdown>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Memoize the messages to prevent unnecessary re-renders
+  const memoizedMessages = useMemo(() => messages, [messages]);
 
   // Render learning path display
-  const LearningPathDisplay = ({ content }) => {
-    const [isSaving, setIsSaving] = useState(false);
-    const [isSaved, setIsSaved] = useState(false);
-    const [saveError, setSaveError] = useState(null);
-    const [saveSuccess, setSuccess] = useState(null);
-
+  const LearningPathDisplay = useCallback(({ content }) => {
     // Log the content type and value for debugging
     console.log("Learning Path Content Type:", typeof content);
     console.log("Learning Path Content Preview:", 
@@ -634,8 +523,6 @@ const AIChat = () => {
       );
     }
 
-    // Use the main component's handleSave function
-
     return (
       <div className="learning-path-container">
         <div className="learning-path-card">
@@ -650,18 +537,6 @@ const AIChat = () => {
           </div>
           
           <div className="learning-path-body">
-            {saveError && (
-              <Alert variant="danger" dismissible onClose={() => setSaveError(null)}>
-                {saveError}
-              </Alert>
-            )}
-            
-            {saveSuccess && (
-              <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-                {saveSuccess}
-              </Alert>
-            )}
-            
             {parsedContent.description && (
               <div className="path-description">
                 <p>{parsedContent.description}</p>
@@ -767,7 +642,7 @@ const AIChat = () => {
         </div>
       </div>
     );
-  };
+  }, [handleSave, handleRegenerate, isSaved, isSaving, isGenerating]);
 
   return (
     <div className="ai-chat">

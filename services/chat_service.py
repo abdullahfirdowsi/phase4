@@ -1,7 +1,7 @@
 """
 Chat Service - Handles all chat and messaging operations
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timedelta
 from models.schemas import ChatMessage, MessageType, APIResponse
 from database_config import get_collections
@@ -38,7 +38,7 @@ class ChatService:
             return str(uuid.uuid4())  # Fallback
     
     async def store_message(self, username: str, session_id: str, role: str, 
-                          content: str, message_type: MessageType = MessageType.CONTENT,
+                          content: Union[str, Dict[str, Any]], message_type: MessageType = MessageType.CONTENT,
                           metadata: Optional[Dict[str, Any]] = None) -> APIResponse:
         """Store a chat message"""
         try:

@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 from database import chats_collection, users_collection
-from constants import LEARNING_PATH_PROMPT, BASIC_ENVIRONMENT_PROMPT, REGENRATE_OR_FILTER_JSON, CALCULATE_SCORE
+from constants import get_basic_environment_prompt, LEARNING_PATH_PROMPT, REGENRATE_OR_FILTER_JSON, CALCULATE_SCORE
 from utils import extract_json
 import os
 from learning_path import process_learning_path_query
@@ -162,7 +162,15 @@ async def chat(
             return JSONResponse(content=result)
 
         # Case 2 : Stream prompt
-        user_prompt = f"{user_prompt} {BASIC_ENVIRONMENT_PROMPT}"
+        # Get user preferences from user collection
+        user = users_collection.find_one({"username": username})
+        user_language = "English"  # Default to English
+        if user and "preferences" in user:
+            user_language = user["preferences"].get("language", "English")
+        
+        # Generate language-specific prompt
+        language_specific_prompt = get_basic_environment_prompt(user_language)
+        user_prompt = f"{user_prompt} {language_specific_prompt}"
 
         async def chat_stream():
             response_content = ""

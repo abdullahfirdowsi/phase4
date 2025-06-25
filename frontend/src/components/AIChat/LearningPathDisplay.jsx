@@ -22,6 +22,11 @@ const LearningPathDisplay = ({ content }) => {
   let parsedContent = content;
   if (typeof content === 'string') {
     try {
+      // Check if the string is empty or just whitespace
+      if (!content.trim()) {
+        throw new Error("Content is empty");
+      }
+      
       // Try to parse the string as JSON
       parsedContent = JSON.parse(content);
       console.log("Successfully parsed string content as JSON");
@@ -29,10 +34,12 @@ const LearningPathDisplay = ({ content }) => {
       // If the parsed content has a 'content' property that's a string, it might be a nested response
       if (parsedContent.content && typeof parsedContent.content === 'string') {
         try {
-          // Try to parse the nested content
-          const nestedContent = JSON.parse(parsedContent.content);
-          parsedContent = nestedContent;
-          console.log("Successfully parsed nested content as JSON");
+          // Check if nested content is not empty
+          if (parsedContent.content.trim()) {
+            const nestedContent = JSON.parse(parsedContent.content);
+            parsedContent = nestedContent;
+            console.log("Successfully parsed nested content as JSON");
+          }
         } catch (e) {
           console.error("Failed to parse nested content as JSON:", e);
           // Keep the outer parsed content
@@ -50,6 +57,8 @@ const LearningPathDisplay = ({ content }) => {
             Unable to display learning path. The content is not in the expected format.
             <br />
             <small>Error: {e.message}</small>
+            <br />
+            <small>Content preview: {typeof content === 'string' ? content.substring(0, 100) : 'Not a string'}</small>
           </Alert>
         </div>
       );
