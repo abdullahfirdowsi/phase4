@@ -9,7 +9,9 @@ import {
   Award,
   GraphUp,
   People,
-  Eye
+  Eye,
+  CheckCircle,
+  XCircle
 } from "react-bootstrap-icons";
 import { getAllLearningGoals } from "../../../api";
 import "./Learning.scss";
@@ -38,44 +40,94 @@ const Learning = () => {
       const learningGoals = await getAllLearningGoals();
       setMyLearningPaths(learningGoals || []);
       
-      // Create sample featured lessons since the endpoint is not available
-      const sampleLessons = [
-        {
-          _id: "sample_lesson_1",
-          title: "Introduction to Python Programming",
-          description: "Learn the basics of Python programming language including variables, data types, and control structures.",
-          subject: "Programming",
-          difficulty: "Beginner",
-          duration: "2 hours",
-          tags: ["Python", "Programming", "Beginner"],
-          enrollments: 1250,
-          createdAt: new Date().toISOString()
-        },
-        {
-          _id: "sample_lesson_2",
-          title: "Web Development Fundamentals",
-          description: "Understand the core concepts of web development including HTML, CSS, and JavaScript.",
-          subject: "Web Development",
-          difficulty: "Intermediate",
-          duration: "4 hours",
-          tags: ["HTML", "CSS", "JavaScript"],
-          enrollments: 980,
-          createdAt: new Date().toISOString()
-        },
-        {
-          _id: "sample_lesson_3",
-          title: "Data Science Essentials",
-          description: "Explore the fundamentals of data science including data analysis, visualization, and basic machine learning.",
-          subject: "Data Science",
-          difficulty: "Advanced",
-          duration: "6 hours",
-          tags: ["Data Science", "Machine Learning", "Python"],
-          enrollments: 750,
-          createdAt: new Date().toISOString()
+      // Try to fetch lessons from backend
+      try {
+        const response = await fetch(`http://localhost:8000/lessons/lessons?username=${username}`);
+        if (response.ok) {
+          const data = await response.json();
+          setFeaturedLessons(data.adminLessons || []);
+        } else {
+          console.log("Lessons API endpoint not found, using empty lessons list");
+          // Create sample featured lessons since the endpoint is not available
+          const sampleLessons = [
+            {
+              _id: "sample_lesson_1",
+              title: "Introduction to Python Programming",
+              description: "Learn the basics of Python programming language including variables, data types, and control structures.",
+              subject: "Programming",
+              difficulty: "Beginner",
+              duration: "2 hours",
+              tags: ["Python", "Programming", "Beginner"],
+              enrollments: 1250,
+              createdAt: new Date().toISOString()
+            },
+            {
+              _id: "sample_lesson_2",
+              title: "Web Development Fundamentals",
+              description: "Understand the core concepts of web development including HTML, CSS, and JavaScript.",
+              subject: "Web Development",
+              difficulty: "Intermediate",
+              duration: "4 hours",
+              tags: ["HTML", "CSS", "JavaScript"],
+              enrollments: 980,
+              createdAt: new Date().toISOString()
+            },
+            {
+              _id: "sample_lesson_3",
+              title: "Data Science Essentials",
+              description: "Explore the fundamentals of data science including data analysis, visualization, and basic machine learning.",
+              subject: "Data Science",
+              difficulty: "Advanced",
+              duration: "6 hours",
+              tags: ["Data Science", "Machine Learning", "Python"],
+              enrollments: 750,
+              createdAt: new Date().toISOString()
+            }
+          ];
+          
+          setFeaturedLessons(sampleLessons);
         }
-      ];
-      
-      setFeaturedLessons(sampleLessons);
+      } catch (error) {
+        console.log("Lessons API endpoint not found, using empty lessons list");
+        // Create sample featured lessons since the endpoint is not available
+        const sampleLessons = [
+          {
+            _id: "sample_lesson_1",
+            title: "Introduction to Python Programming",
+            description: "Learn the basics of Python programming language including variables, data types, and control structures.",
+            subject: "Programming",
+            difficulty: "Beginner",
+            duration: "2 hours",
+            tags: ["Python", "Programming", "Beginner"],
+            enrollments: 1250,
+            createdAt: new Date().toISOString()
+          },
+          {
+            _id: "sample_lesson_2",
+            title: "Web Development Fundamentals",
+            description: "Understand the core concepts of web development including HTML, CSS, and JavaScript.",
+            subject: "Web Development",
+            difficulty: "Intermediate",
+            duration: "4 hours",
+            tags: ["HTML", "CSS", "JavaScript"],
+            enrollments: 980,
+            createdAt: new Date().toISOString()
+          },
+          {
+            _id: "sample_lesson_3",
+            title: "Data Science Essentials",
+            description: "Explore the fundamentals of data science including data analysis, visualization, and basic machine learning.",
+            subject: "Data Science",
+            difficulty: "Advanced",
+            duration: "6 hours",
+            tags: ["Data Science", "Machine Learning", "Python"],
+            enrollments: 750,
+            createdAt: new Date().toISOString()
+          }
+        ];
+        
+        setFeaturedLessons(sampleLessons);
+      }
       
     } catch (error) {
       console.error("Error fetching learning content:", error);
@@ -87,10 +139,27 @@ const Learning = () => {
 
   const handleEnrollInLesson = async (lessonId) => {
     try {
-      // Since the actual API is not available, we'll simulate enrollment
-      console.log(`Enrolling in lesson: ${lessonId}`);
+      // Try to call the actual API first
+      try {
+        const response = await fetch("http://localhost:8000/lessons/lessons/enroll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username,
+            lesson_id: lessonId
+          })
+        });
+
+        if (response.ok) {
+          setSuccess("Successfully enrolled in lesson!");
+          fetchLearningContent();
+          return;
+        }
+      } catch (error) {
+        console.log("Enrollment API not available, using local state update");
+      }
       
-      // Show success message
+      // Fallback to local state update if API fails
       setSuccess("Successfully enrolled in lesson!");
       
       // Update featured lessons to show enrollment
@@ -116,10 +185,11 @@ const Learning = () => {
           setSelectedContent({
             id: contentId,
             title: pathData.name,
-            description: "Personalized learning path",
+            description: pathData.description || "Personalized learning path",
             content: pathData.study_plans,
             progress: pathData.progress,
-            type: "learning_path"
+            type: "learning_path",
+            topics: pathData.study_plans && pathData.study_plans[0] ? pathData.study_plans[0].topics : []
           });
           setShowDetailModal(true);
           return;
@@ -148,6 +218,84 @@ const Learning = () => {
     } catch (error) {
       console.error("Error fetching content details:", error);
       setError("Failed to load content details");
+    }
+  };
+
+  const handleMarkTopicCompleted = (topicIndex, completed) => {
+    if (!selectedContent || selectedContent.type !== "learning_path") return;
+    
+    // Update the selected content
+    setSelectedContent(prevContent => {
+      const updatedTopics = [...(prevContent.topics || [])];
+      if (updatedTopics[topicIndex]) {
+        updatedTopics[topicIndex] = {
+          ...updatedTopics[topicIndex],
+          completed: completed
+        };
+      }
+      
+      // Calculate new progress
+      const totalTopics = updatedTopics.length;
+      const completedTopics = updatedTopics.filter(topic => topic.completed).length;
+      const newProgress = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
+      
+      return {
+        ...prevContent,
+        topics: updatedTopics,
+        progress: newProgress
+      };
+    });
+    
+    // Update the learning paths list
+    setMyLearningPaths(prevPaths => {
+      return prevPaths.map(path => {
+        if (path.name === selectedContent.title) {
+          // Find the study plan
+          const updatedStudyPlans = path.study_plans.map(plan => {
+            const updatedTopics = [...(plan.topics || [])];
+            if (updatedTopics[topicIndex]) {
+              updatedTopics[topicIndex] = {
+                ...updatedTopics[topicIndex],
+                completed: completed
+              };
+            }
+            return {
+              ...plan,
+              topics: updatedTopics
+            };
+          });
+          
+          // Calculate new progress
+          const totalTopics = path.study_plans[0]?.topics?.length || 0;
+          const completedTopics = path.study_plans[0]?.topics?.filter(topic => topic.completed).length || 0;
+          const newProgress = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
+          
+          return {
+            ...path,
+            study_plans: updatedStudyPlans,
+            progress: newProgress
+          };
+        }
+        return path;
+      });
+    });
+    
+    // Try to update on the backend
+    try {
+      fetch("/api/learning-paths/progress/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          path_id: selectedContent.id,
+          topic_index: topicIndex,
+          completed: completed
+        })
+      }).catch(err => {
+        console.log("Progress update API not available, using local state only");
+      });
+    } catch (error) {
+      console.error("Error updating progress:", error);
     }
   };
 
@@ -364,7 +512,12 @@ const Learning = () => {
         </div>
 
         {/* Content Detail Modal */}
-        <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg">
+        <Modal 
+          show={showDetailModal} 
+          onHide={() => setShowDetailModal(false)} 
+          size="lg"
+          className="learning-detail-modal"
+        >
           <Modal.Header closeButton>
             <Modal.Title>{selectedContent?.title}</Modal.Title>
           </Modal.Header>
@@ -376,25 +529,123 @@ const Learning = () => {
                   
                   {selectedContent.type === "learning_path" && (
                     <div className="learning-path-content">
-                      <h5>Learning Modules</h5>
-                      {selectedContent.content?.map((plan, index) => (
-                        <Card key={index} className="module-card">
-                          <Card.Body>
-                            <h6>{plan.name || `Module ${index + 1}`}</h6>
-                            <p>{plan.description}</p>
-                            {plan.topics && (
-                              <div className="topics-list">
-                                <strong>Topics:</strong>
-                                <ul>
-                                  {plan.topics.slice(0, 3).map((topic, topicIndex) => (
-                                    <li key={topicIndex}>{topic.name}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </Card.Body>
-                        </Card>
-                      ))}
+                      <div className="path-stats">
+                        <div className="stat-item">
+                          <GraphUp className="stat-icon" />
+                          <div>
+                            <div className="stat-value">{Math.round(selectedContent.progress || 0)}%</div>
+                            <div className="stat-label">Progress</div>
+                          </div>
+                        </div>
+                        {selectedContent.content && selectedContent.content[0]?.duration && (
+                          <div className="stat-item">
+                            <Clock className="stat-icon" />
+                            <div>
+                              <div className="stat-value">{selectedContent.content[0].duration}</div>
+                              <div className="stat-label">Duration</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <h5 className="section-title">Learning Modules</h5>
+                      {selectedContent.topics && selectedContent.topics.length > 0 ? (
+                        <div className="topics-list">
+                          {selectedContent.topics.map((topic, topicIndex) => (
+                            <Card key={topicIndex} className="topic-card mb-3">
+                              <Card.Body>
+                                <div className="topic-header">
+                                  <div className="topic-title-wrapper">
+                                    <span className="topic-number">{topicIndex + 1}</span>
+                                    <h6 className="topic-title">{topic.name}</h6>
+                                  </div>
+                                  <div className="topic-actions">
+                                    <div className="completion-toggle">
+                                      <Button
+                                        variant={topic.completed ? "success" : "outline-secondary"}
+                                        size="sm"
+                                        className="completion-btn"
+                                        onClick={() => handleMarkTopicCompleted(topicIndex, !topic.completed)}
+                                      >
+                                        {topic.completed ? (
+                                          <>
+                                            <CheckCircle size={14} className="me-1" />
+                                            Completed
+                                          </>
+                                        ) : (
+                                          <>
+                                            <XCircle size={14} className="me-1" />
+                                            Mark Complete
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <p className="topic-description">{topic.description}</p>
+                                
+                                {topic.time_required && (
+                                  <div className="topic-meta">
+                                    <Clock size={14} className="me-1" />
+                                    <span>{topic.time_required}</span>
+                                  </div>
+                                )}
+                                
+                                <div className="topic-resources">
+                                  {topic.links && topic.links.length > 0 && (
+                                    <div className="resource-section">
+                                      <h6 className="resource-title">Reading Materials</h6>
+                                      <ul className="resource-list">
+                                        {topic.links.map((link, i) => (
+                                          <li key={i}>
+                                            <a href={link} target="_blank" rel="noopener noreferrer">
+                                              {link.replace(/^https?:\/\//, '').split('/')[0]}
+                                            </a>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {topic.videos && topic.videos.length > 0 && (
+                                    <div className="resource-section">
+                                      <h6 className="resource-title">Video Resources</h6>
+                                      <ul className="resource-list">
+                                        {topic.videos.map((video, i) => (
+                                          <li key={i}>
+                                            <a href={video} target="_blank" rel="noopener noreferrer">
+                                              {video.includes('youtube') ? 'YouTube Video' : 'Video Resource'}
+                                            </a>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {topic.subtopics && topic.subtopics.length > 0 && (
+                                  <div className="subtopics-section">
+                                    <h6 className="subtopics-title">Subtopics</h6>
+                                    <ul className="subtopics-list">
+                                      {topic.subtopics.map((subtopic, i) => (
+                                        <li key={i} className="subtopic-item">
+                                          <strong>{subtopic.name}</strong>
+                                          {subtopic.description && <p>{subtopic.description}</p>}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </Card.Body>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="no-topics">
+                          <p>No learning modules found for this path.</p>
+                        </div>
+                      )}
                     </div>
                   )}
 
