@@ -136,10 +136,20 @@ async def chat(
             store_chat_history(username, user_message)
         prev_5_messages.append(user_message)
 
+        # Only append CALCULATE_SCORE if this is actually a quiz submission, not a quiz generation request
         if isQuiz:
-            user_prompt = f"{user_prompt} {CALCULATE_SCORE}"
-            # Update quiz stats
-            update_user_stats(username, "totalQuizzes")
+            # Check if the user is asking for quiz generation vs submitting answers
+            user_prompt_lower = user_prompt.lower()
+            is_quiz_generation = any(keyword in user_prompt_lower for keyword in [
+                'generate', 'create', 'make', 'quiz about', 'quiz on', 'quiz for',
+                'give me a quiz', 'start a quiz', 'new quiz'
+            ])
+            
+            if not is_quiz_generation:
+                user_prompt = f"{user_prompt} {CALCULATE_SCORE}"
+            # Update quiz stats only when submitting, not generating
+            if not is_quiz_generation:
+                update_user_stats(username, "totalQuizzes")
         
         # Case 1: Learning Path JSON generation 
         if isLearningPath:
@@ -170,7 +180,9 @@ async def chat(
         
         # Generate language-specific prompt
         language_specific_prompt = get_basic_environment_prompt(user_language)
-        user_prompt = f"{user_prompt} {language_specific_prompt}"
+        # Append language prompt only for general queries
+        if not isQuiz:
+            user_prompt = f"{user_prompt} {language_specific_prompt}"
 
         async def chat_stream():
             response_content = ""

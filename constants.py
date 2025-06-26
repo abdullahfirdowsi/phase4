@@ -62,4 +62,4 @@ The previous response was not valid JSON. Please generate a new learning path re
 7. Start directly with { and end with }
 """
 
-CALCULATE_SCORE="""Based on my last 10 inputs on quizzes calculate my final score. Return numeric value only."""
+CALCULATE_SCORE="""Based on the quiz answers I just provided, please grade my quiz and calculate my final score. Provide detailed feedback on each answer and overall performance. Return the results in a structured format with correct answers, explanations, and final score."""

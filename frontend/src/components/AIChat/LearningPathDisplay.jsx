@@ -98,7 +98,6 @@ const LearningPathDisplay = memo(({ message }) => {
         <Card className="learning-path-card">
           <Card.Body className="text-center py-5">
             <Spinner animation="border" variant="primary" className="mb-3" />
-            <p>Processing learning path...</p>
           </Card.Body>
         </Card>
       </div>

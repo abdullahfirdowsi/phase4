@@ -14,7 +14,7 @@ import { askQuestion } from '../../../api';
 import './LearningPathQuiz.scss';
 
 const LearningPathQuiz = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('learning-path');
   const [error, setError] = useState(null);
   const [learningPath, setLearningPath] = useState(null);
@@ -25,12 +25,15 @@ const LearningPathQuiz = () => {
   const [topic, setTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  useEffect(() => {
-    // Generate initial learning path when component mounts
-    generateLearningPath();
-  }, []);
+  // Removed auto-generation on component mount to prevent unwanted API calls
 
   const generateLearningPath = async () => {
+    // Prevent API call if topic is empty
+    if (!topic.trim()) {
+      setError('Please enter a topic before generating a learning path.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setIsGenerating(true);
@@ -63,6 +66,12 @@ const LearningPathQuiz = () => {
   };
 
   const generateQuiz = async () => {
+    // Prevent API call if topic is empty
+    if (!topic.trim()) {
+      setError('Please enter a topic before generating a quiz.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setIsGenerating(true);

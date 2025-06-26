@@ -136,7 +136,7 @@ const AIChat = () => {
             if (hasLearningPathStructure || 
                 (typeof msg.content === 'object' && msg.content.topics && Array.isArray(msg.content.topics))) {
               messageType = 'learning_path';
-              console.log('🎯 DETECTED learning path content:', typeof msg.content, msg.content.substring ? msg.content.substring(0, 100) + '...' : msg.content);
+            console.log('🎯 DETECTED learning path content:', typeof msg.content, typeof msg.content === 'string' && msg.content.substring ? msg.content.substring(0, 100) + '...' : msg.content);
             }
           }
           
@@ -144,7 +144,7 @@ const AIChat = () => {
             ...msg,
             id: msg.id || `${msg.timestamp || Date.now()}-${index}`,
             type: messageType,
-            contentHash: msg.role + '_' + String(msg.content).substring(0, 50)
+            contentHash: msg.role + '_' + String(msg.content || '').substring(0, 50)
           };
         })
         .filter((msg) => {
@@ -426,7 +426,7 @@ const AIChat = () => {
         {messages.length > 0 ? (
             messages.map((message, index) => {
               // Create a stable unique key for each message
-              const messageKey = message.id || `${message.role}-${message.timestamp || index}-${message.content?.substring(0, 50).replace(/\s/g, '')}`;
+              const messageKey = message.id || `${message.role}-${message.timestamp || index}-${typeof message.content === 'string' ? message.content.substring(0, 50).replace(/\s/g, '') : String(message.content || '').substring(0, 50).replace(/\s/g, '')}`; 
               
               return (
                 <div key={messageKey} className="message-wrapper">
@@ -444,7 +444,7 @@ const AIChat = () => {
                         isLearningPathType,
                         isLearningPathContent,
                         shouldShowLearningPath,
-                        contentPreview: typeof message.content === 'string' ? message.content.substring(0, 100) + '...' : typeof message.content
+                        contentPreview: typeof message.content === 'string' && message.content.substring ? message.content.substring(0, 100) + '...' : typeof message.content
                       });
                       
                       return shouldShowLearningPath ? (

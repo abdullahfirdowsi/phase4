@@ -196,25 +196,80 @@ async def process_learning_path_request(username: str, session_id: str, user_pro
         raise HTTPException(status_code=500, detail="Failed to process learning path request")
 
 async def process_quiz_request(username: str, session_id: str, user_prompt: str):
-    """Process quiz generation request"""
+    """Process quiz generation request with streaming response"""
     try:
         # Import here to avoid circular imports
-        from chat import generate_response
-        from constants import CALCULATE_SCORE
+        from chat import generate_chat_stream
+        from constants import CALCULATE_SCORE, get_basic_environment_prompt
         
-        enhanced_prompt = f"{user_prompt} {CALCULATE_SCORE}"
-        response = generate_response(enhanced_prompt)
+        # Check if this is quiz generation vs quiz submission
+        user_prompt_lower = user_prompt.lower()
+        is_quiz_generation = any(keyword in user_prompt_lower for keyword in [
+            'generate', 'create', 'make', 'quiz about', 'quiz on', 'quiz for',
+            'give me a quiz', 'start a quiz', 'new quiz'
+        ])
         
-        # Store assistant response
-        await chat_service.store_message(
-            username=username,
-            session_id=session_id,
-            role="assistant",
-            content=response,
-            message_type=MessageType.QUIZ
-        )
+        # Get recent chat history for context
+        history_result = await chat_service.get_chat_history(username, session_id, limit=10)
+        recent_messages = []
         
-        return {"response": response, "type": "quiz"}
+        if history_result.success:
+            recent_messages = [
+                {"role": msg["role"], "content": msg["content"]}
+                for msg in history_result.data["messages"]
+                if msg.get("message_type") != "learning_path"
+            ]
+        
+        # Get user preferences for language
+        from services.user_service import user_service
+        user = await user_service.get_user_by_username(username)
+        user_language = "English"  # Default to English
+        if user and "preferences" in user:
+            user_language = user["preferences"].get("language", "English")
+        
+        # Build enhanced prompt
+        if is_quiz_generation:
+            # For quiz generation, just add language preference
+            language_specific_prompt = get_basic_environment_prompt(user_language)
+            enhanced_prompt = f"{user_prompt} {language_specific_prompt}"
+        else:
+            # For quiz submission/grading, add CALCULATE_SCORE
+            enhanced_prompt = f"{user_prompt} {CALCULATE_SCORE}"
+        
+        # Add current prompt to messages
+        recent_messages.append({"role": "user", "content": enhanced_prompt})
+        
+        async def quiz_stream():
+            response_content = ""
+            try:
+                async for token in generate_chat_stream(recent_messages):
+                    if token:
+                        response_content += token
+                        yield token
+                
+                # Store assistant response
+                await chat_service.store_message(
+                    username=username,
+                    session_id=session_id,
+                    role="assistant",
+                    content=response_content,
+                    message_type=MessageType.QUIZ
+                )
+                
+            except Exception as e:
+                logger.error(f"Quiz streaming error: {e}")
+                error_message = "I'm experiencing technical difficulties generating the quiz. Please try again later."
+                yield error_message
+                
+                await chat_service.store_message(
+                    username=username,
+                    session_id=session_id,
+                    role="assistant",
+                    content=error_message,
+                    message_type=MessageType.QUIZ
+                )
+        
+        return StreamingResponse(quiz_stream(), media_type="text/plain")
         
     except Exception as e:
         logger.error(f"Quiz processing error: {e}")
