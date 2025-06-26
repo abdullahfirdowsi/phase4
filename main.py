@@ -193,7 +193,7 @@ async def api_info():
 
 # Import and include API routers
 try:
-    from auth import auth_router
+    from api.auth_api import auth_router
     from chat import chat_router
     # Fix: Import ai_quiz_generator as ai_quiz_router directly
     # from ai_quiz_generator import ai_quiz_router

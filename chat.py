@@ -158,7 +158,7 @@ async def chat(
                 "timestamp": user_timestamp
             }
             store_chat_history(username, user_message)
-            result = process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, prompt_with_preference)
+            result = await process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, prompt_with_preference)
             return JSONResponse(content=result)
 
         # Case 2 : Stream prompt

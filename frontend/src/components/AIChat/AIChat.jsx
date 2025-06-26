@@ -184,9 +184,14 @@ const AIChat = () => {
             
             setMessages(prevMessages => {
               if (isLearningPath) {
-                // For learning paths, don't add message locally since backend stores it
-                // We'll reload chat history after completion to get the stored message
-                return prevMessages;
+                // For learning paths, add the AI response to show it in UI immediately
+                const newAIMessage = {
+                  role: 'assistant',
+                  content: accumulatedResponse,
+                  type: 'learning_path',
+                  timestamp: new Date().toISOString()
+                };
+                return [...prevMessages, newAIMessage];
               } else {
                 // For regular messages, update the last (temp) AI message
                 const updatedMessages = [...prevMessages];
@@ -206,10 +211,8 @@ const AIChat = () => {
           () => {
             // On complete
             setIsGenerating(false);
-            // For learning paths, reload chat history to get the message stored by backend
-            if (isLearningPath) {
-              loadChatHistory();
-            }
+            // Note: Removed loadChatHistory() call to prevent duplicate messages
+            // The message is already handled locally in the streaming response
           },
           isQuiz,
           isLearningPath
