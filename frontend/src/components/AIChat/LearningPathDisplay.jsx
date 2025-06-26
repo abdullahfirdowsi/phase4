@@ -116,12 +116,31 @@ const LearningPathDisplay = memo(({ message }) => {
     setError(null);
     
     try {
+      // Check authentication first
+      const username = localStorage.getItem("username");
+      const token = localStorage.getItem("token");
+      
+      console.log('🔐 Auth check:', { 
+        hasUsername: !!username, 
+        hasToken: !!token,
+        username: username 
+      });
+      
+      if (!username || !token) {
+        throw new Error('You must be logged in to save learning paths');
+      }
+      
       console.log('📊 Parsed Content Structure:', parsedContent);
+      
+      // Validate that we have the required data
+      if (!parsedContent.topics || !Array.isArray(parsedContent.topics) || parsedContent.topics.length === 0) {
+        throw new Error('Learning path must contain at least one topic');
+      }
       
       // Transform the parsed content to match the expected API format
       const pathData = {
         name: parsedContent.name || parsedContent.topic || "Learning Path",
-        description: parsedContent.description || "",
+        description: parsedContent.description || "A personalized learning path to help you master new skills.",
         difficulty: parsedContent.difficulty || "Intermediate",
         duration: parsedContent.course_duration || parsedContent.duration || "4-6 weeks",
         prerequisites: parsedContent.prerequisites || [],
@@ -137,7 +156,22 @@ const LearningPathDisplay = memo(({ message }) => {
         tags: parsedContent.tags || []
       };
       
+      // Ensure all required fields are present
+      if (!pathData.description) {
+        pathData.description = "A personalized learning path to help you master new skills.";
+      }
+      if (!pathData.difficulty) {
+        pathData.difficulty = "Intermediate";
+      }
+      if (!pathData.duration) {
+        pathData.duration = "4-6 weeks";
+      }
+      if (!pathData.topics || pathData.topics.length === 0) {
+        throw new Error('Learning path must contain at least one topic');
+      }
+      
       console.log('📝 Sending Path Data:', pathData);
+      console.log('📝 Path Data JSON:', JSON.stringify(pathData, null, 2));
       
       await saveLearningPath(pathData);
       setIsSaved(true);
@@ -148,7 +182,18 @@ const LearningPathDisplay = memo(({ message }) => {
       }, 3000);
     } catch (error) {
       console.error('Error saving learning path:', error);
-      setError('Failed to save learning path. Please try again.');
+      
+      // Show more specific error messages
+      let errorMessage = 'Failed to save learning path. Please try again.';
+      if (error.message.includes('authenticated') || error.message.includes('login')) {
+        errorMessage = 'Please log in to save learning paths.';
+      } else if (error.message.includes('Field required')) {
+        errorMessage = 'Missing required data. Please try generating the learning path again.';
+      } else if (error.message.includes('422')) {
+        errorMessage = 'Invalid data format. Please try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSaving(false);
     }

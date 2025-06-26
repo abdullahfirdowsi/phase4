@@ -956,15 +956,20 @@ export const saveLearningPath = async (learningPathData) => {
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
+    const requestBody = {
+      username: username,
+      path_data: learningPathData
+    };
+    
+    console.log('📤 Sending learning path request:', requestBody);
+    
     const data = await apiRequest(`${API_BASE_URL}/learning-paths/create`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        username,
-        path_data: learningPathData
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     return data;

@@ -15,6 +15,9 @@ import {
 import { formatLocalDate } from "../../../utils/dateUtils";
 import "./LearningPaths.scss";
 
+// API Base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 const LearningPaths = () => {
   const [learningPaths, setLearningPaths] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +52,7 @@ const LearningPaths = () => {
         ...(filter.tags && { tags: filter.tags })
       });
 
-      const response = await fetch(`/api/learning-paths/list?${queryParams}`);
+      const response = await fetch(`${API_BASE_URL}/learning-paths/list?${queryParams}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -68,7 +71,7 @@ const LearningPaths = () => {
   const handleCreatePath = async () => {
     try {
       const username = localStorage.getItem("username");
-      const response = await fetch("/api/learning-paths/create", {
+      const response = await fetch(`${API_BASE_URL}/learning-paths/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, path_data: formData })
@@ -100,7 +103,7 @@ const LearningPaths = () => {
   const handleViewDetails = async (pathId) => {
     try {
       const username = localStorage.getItem("username");
-      const response = await fetch(`/api/learning-paths/detail/${pathId}?username=${username}`);
+      const response = await fetch(`${API_BASE_URL}/learning-paths/detail/${pathId}?username=${username}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -118,7 +121,7 @@ const LearningPaths = () => {
   const handleUpdateProgress = async (pathId, topicIndex, completed) => {
     try {
       const username = localStorage.getItem("username");
-      const response = await fetch("/api/learning-paths/progress/update", {
+      const response = await fetch(`${API_BASE_URL}/learning-paths/progress/update`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
