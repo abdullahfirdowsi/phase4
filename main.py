@@ -195,8 +195,7 @@ async def api_info():
 try:
     from api.auth_api import auth_router
     from chat import chat_router
-    # Fix: Import ai_quiz_generator as ai_quiz_router directly
-    # from ai_quiz_generator import ai_quiz_router
+    from ai_quiz_generator import ai_quiz_router
     from learning_paths import learning_paths_router
     from lessons import lessons_router
     from quiz_system import quiz_router
@@ -204,8 +203,7 @@ try:
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])
-    # Fix: Comment out the ai_quiz_router inclusion since it's not available
-    # app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
+    app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
     app.include_router(learning_paths_router, prefix="/learning-paths", tags=["Learning Paths"])
     app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
     app.include_router(quiz_router, prefix="/quiz-system", tags=["Quiz System"])
@@ -329,7 +327,7 @@ async def not_found_handler(request, exc):
             "available_endpoints": [
                 "/auth/login", "/auth/signup", "/auth/profile",
                 "/chat/ask", "/chat/history", "/chat/search",
-                "/quiz/generate-ai-quiz", "/quiz/submit-ai-quiz",
+                "/quiz/generate", "/quiz/submit",
                 "/learning-paths/list", "/learning-paths/detail/{path_id}",
                 "/lessons/lessons", "/lessons/lessons/enroll",
                 "/avatar/generate-avatar", "/avatar/status/{lesson_id}",

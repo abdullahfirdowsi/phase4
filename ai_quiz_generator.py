@@ -29,9 +29,14 @@ class QuizGenerationRequest(BaseModel):
     username: str
     topic: str
     difficulty: str = "medium"  # easy, medium, hard
-    num_questions: int = 5
+    question_count: int = 5  # Change from num_questions to question_count to match frontend
     question_types: List[str] = ["mcq", "true_false", "short_answer"]
     time_limit: int = 10  # minutes
+    
+    @property
+    def num_questions(self):
+        """Alias for backward compatibility"""
+        return self.question_count
 
 class QuizSubmissionRequest(BaseModel):
     username: str
@@ -171,7 +176,7 @@ def store_quiz_message(username: str, content: Dict[str, Any]):
     except Exception as e:
         logger.error(f"Error storing quiz message: {e}")
 
-@ai_quiz_router.post("/generate-ai-quiz")
+@ai_quiz_router.post("/generate")
 async def generate_ai_quiz(request: QuizGenerationRequest):
     """Generate an AI-powered quiz in JSON format"""
     try:
@@ -222,7 +227,7 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
         logger.error(f"Error generating AI quiz: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@ai_quiz_router.post("/submit-ai-quiz")
+@ai_quiz_router.post("/submit")
 async def submit_ai_quiz(request: QuizSubmissionRequest):
     """Submit quiz answers and get AI-generated results"""
     try:

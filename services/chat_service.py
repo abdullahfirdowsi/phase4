@@ -132,12 +132,45 @@ class ChatService:
             )
     
     async def search_messages(self, username: str, query: str, limit: int = 20) -> APIResponse:
-        """Search messages using full-text search"""
+        """Search messages using full-text search with fallback to regex"""
         try:
-            search_results = list(self.chat_collection.find({
-                "username": username,
-                "$text": {"$search": query}
-            }).limit(limit))
+            search_results = []
+            
+            # First try full-text search (requires text index)
+            try:
+                search_results = list(self.chat_collection.find({
+                    "username": username,
+                    "$text": {"$search": query}
+                }).limit(limit))
+                logger.debug(f"Full-text search returned {len(search_results)} results")
+            except Exception as text_search_error:
+                logger.warning(f"Full-text search failed: {text_search_error}")
+                
+                # Fallback to regex search if full-text search fails
+                try:
+                    search_results = list(self.chat_collection.find({
+                        "username": username,
+                        "content": {"$regex": query, "$options": "i"}
+                    }).limit(limit))
+                    logger.debug(f"Regex search returned {len(search_results)} results")
+                except Exception as regex_error:
+                    logger.warning(f"Regex search failed: {regex_error}")
+                    
+                    # Final fallback: iterate through messages
+                    all_messages = list(self.chat_collection.find({"username": username}).limit(1000))
+                    search_results = []
+                    
+                    for msg in all_messages:
+                        content = msg.get("content", "")
+                        if isinstance(content, str) and query.lower() in content.lower():
+                            search_results.append(msg)
+                            if len(search_results) >= limit:
+                                break
+                    
+                    logger.debug(f"Manual search returned {len(search_results)} results")
+            
+            # Sort by timestamp (most recent first)
+            search_results.sort(key=lambda x: x.get("timestamp", datetime.utcnow()), reverse=True)
             
             # Convert ObjectId to string
             for message in search_results:

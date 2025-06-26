@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Form, Button, ListGroup, Spinner, Alert } from 'react-bootstrap';
 import { Search, X } from 'react-bootstrap-icons';
 import { searchMessages } from '../../api';
@@ -10,15 +10,20 @@ const SearchModal = ({ show, onHide }) => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [searchTimeout, setSearchTimeout] = useState(null);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  // Debounced search function
+  const debouncedSearch = useCallback(async (searchQuery) => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const searchResults = await searchMessages(query);
+      const searchResults = await searchMessages(searchQuery);
       setResults(searchResults);
     } catch (error) {
       setError('Failed to search messages. Please try again.');
@@ -26,6 +31,37 @@ const SearchModal = ({ show, onHide }) => {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Handle input change with debouncing
+  const handleInputChange = (e) => {
+    const newQuery = e.target.value;
+    setQuery(newQuery);
+
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout for debounced search
+    const newTimeout = setTimeout(() => {
+      debouncedSearch(newQuery);
+    }, 300); // 300ms delay
+
+    setSearchTimeout(newTimeout);
+  };
+
+  // Manual search function (for button click)
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    
+    // Clear any pending debounced search
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+      setSearchTimeout(null);
+    }
+    
+    await debouncedSearch(query);
   };
 
   const handleKeyPress = (e) => {
@@ -34,6 +70,29 @@ const SearchModal = ({ show, onHide }) => {
       handleSearch();
     }
   };
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
+  // Reset state when modal is closed
+  useEffect(() => {
+    if (!show) {
+      setQuery('');
+      setResults([]);
+      setError(null);
+      setLoading(false);
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        setSearchTimeout(null);
+      }
+    }
+  }, [show, searchTimeout]);
 
   return (
     <Modal 
@@ -54,9 +113,9 @@ const SearchModal = ({ show, onHide }) => {
         <Form.Group className="mb-3">
           <Form.Control
             type="text"
-            placeholder="Search your chat history..."
+            placeholder="Search your chat history... (results appear as you type)"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             className="search-input"
           />
