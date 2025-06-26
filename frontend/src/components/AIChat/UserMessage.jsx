@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import './UserMessage.scss';
 
-const UserMessage = ({ message }) => {
+const UserMessage = memo(({ message }) => {
   const { content, timestamp } = message;
   const timeAgo = formatRelativeTime(timestamp);
 
@@ -16,6 +16,6 @@ const UserMessage = ({ message }) => {
       </div>
     </div>
   );
-};
+});
 
 export default UserMessage;

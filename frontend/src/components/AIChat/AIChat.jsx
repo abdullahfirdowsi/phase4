@@ -14,8 +14,6 @@ import AIMessage from './AIMessage';
 import LearningPathDisplayComponent from './LearningPathDisplay';
 
 const AIChat = () => {
-  console.log('🚀 AIChat component is rendering...');
-  
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -39,22 +37,34 @@ const AIChat = () => {
       try {
         parsedContent = JSON.parse(content);
       } catch (e) {
-        return false;
+        // If parsing fails, check if it looks like learning path JSON
+        const contentStr = content.toLowerCase();
+        return contentStr.includes('"topics"') && 
+               (contentStr.includes('"course_duration"') || contentStr.includes('"duration"')) && 
+               (contentStr.includes('"name"') || contentStr.includes('"description"') || contentStr.includes('programming') || contentStr.includes('learning'));
       }
     }
     
     // Check if it has learning path structure
     if (typeof parsedContent === 'object' && parsedContent !== null) {
+      // First check if it's an API response wrapper
+      if (parsedContent.content && typeof parsedContent.content === 'string') {
+        try {
+          const nestedContent = JSON.parse(parsedContent.content);
+          parsedContent = nestedContent;
+        } catch (e) {
+          // If nested parsing fails, use the original content
+        }
+      }
+      
       // Check for common learning path properties
-      return (
-        parsedContent.hasOwnProperty('topics') &&
-        Array.isArray(parsedContent.topics) &&
-        (
-          parsedContent.hasOwnProperty('name') ||
-          parsedContent.hasOwnProperty('course_duration') ||
-          parsedContent.hasOwnProperty('description')
-        )
-      );
+      const hasTopics = parsedContent.hasOwnProperty('topics') && Array.isArray(parsedContent.topics);
+      const hasMetadata = parsedContent.hasOwnProperty('name') || 
+                         parsedContent.hasOwnProperty('course_duration') || 
+                         parsedContent.hasOwnProperty('duration') ||
+                         parsedContent.hasOwnProperty('description');
+      
+      return hasTopics && hasMetadata;
     }
     
     return false;
@@ -74,7 +84,7 @@ const AIChat = () => {
       loadChatHistory();
       hasFetched.current = true;
     }
-  }, []);
+  }, []); // Empty dependency array to run only once
 
   // Check for initial question from home page
   useEffect(() => {
@@ -99,7 +109,56 @@ const AIChat = () => {
     try {
       setError(null);
       const history = await fetchChatHistory();
-      setMessages(history || []);
+      
+      // Process history and ensure proper typing with deduplication
+      const seenContentHashes = new Set();
+      const processedHistory = (history || [])
+        .map((msg, index) => {
+          let messageType = msg.type || 'content';
+          
+          // For assistant messages, check if content is a learning path
+          if (msg.role === 'assistant' && msg.content) {
+            // Force check for learning path JSON patterns
+            const contentStr = String(msg.content).toLowerCase();
+            
+            // Simplified detection - just check for topics array
+            const hasLearningPathStructure = (
+              contentStr.includes('"topics"') && 
+              contentStr.includes('[') &&
+              contentStr.includes('{') &&
+              (contentStr.includes('"name"') || contentStr.includes('"description"') || 
+               contentStr.includes('programming') || contentStr.includes('learning') || 
+               contentStr.includes('study') || contentStr.includes('python') || 
+               contentStr.includes('time_required'))
+            );
+            
+            // Also check if it's already parsed as an object
+            if (hasLearningPathStructure || 
+                (typeof msg.content === 'object' && msg.content.topics && Array.isArray(msg.content.topics))) {
+              messageType = 'learning_path';
+              console.log('🎯 DETECTED learning path content:', typeof msg.content, msg.content.substring ? msg.content.substring(0, 100) + '...' : msg.content);
+            }
+          }
+          
+          return {
+            ...msg,
+            id: msg.id || `${msg.timestamp || Date.now()}-${index}`,
+            type: messageType,
+            contentHash: msg.role + '_' + String(msg.content).substring(0, 50)
+          };
+        })
+        .filter((msg) => {
+          // Remove duplicate messages based on content
+          if (seenContentHashes.has(msg.contentHash)) {
+            console.log('🚫 Removing duplicate message:', msg.contentHash);
+            return false;
+          }
+          seenContentHashes.add(msg.contentHash);
+          return true;
+        });
+      
+      console.log('📚 Processed chat history:', processedHistory);
+      setMessages(processedHistory);
     } catch (err) {
       console.error('Error fetching chat history:', err);
       setError('Failed to load chat history. Please try again.');
@@ -147,22 +206,16 @@ const AIChat = () => {
       timestamp: new Date().toISOString()
     };
     
-    // For learning paths, don't create temporary AI message as backend handles it
-    // For regular messages, add temporary placeholder for AI response
-    if (!isLearningPath) {
-      const tempAIMessage = {
-        role: 'assistant',
-        content: '',
-        type: 'content',
-        timestamp: new Date().toISOString()
-      };
-      
-      // Update messages with both user message and empty AI message
-      setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
-    } else {
-      // For learning paths, only add user message
-      setMessages(prevMessages => [...prevMessages, newUserMessage]);
-    }
+    // Always create a temporary AI message placeholder
+    const tempAIMessage = {
+      role: 'assistant',
+      content: '',
+      type: isLearningPath ? 'learning_path' : 'content',
+      timestamp: new Date().toISOString()
+    };
+    
+    // Update messages with both user message and empty AI message
+    setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
     setIsGenerating(true);
     
     try {
@@ -183,36 +236,37 @@ const AIChat = () => {
             }
             
             setMessages(prevMessages => {
-              if (isLearningPath) {
-                // For learning paths, add the AI response to show it in UI immediately
-                const newAIMessage = {
-                  role: 'assistant',
-                  content: accumulatedResponse,
-                  type: 'learning_path',
-                  timestamp: new Date().toISOString()
-                };
-                return [...prevMessages, newAIMessage];
-              } else {
-                // For regular messages, update the last (temp) AI message
-                const updatedMessages = [...prevMessages];
-                const lastMessageIndex = updatedMessages.length - 1;
-                
-                // Create a new message object instead of modifying the existing one
-                updatedMessages[lastMessageIndex] = {
-                  ...updatedMessages[lastMessageIndex],
-                  content: accumulatedResponse,
-                  type: 'content'
-                };
-                
-                return updatedMessages;
+              // Always update the last AI message (which was created as a temp placeholder)
+              const updatedMessages = [...prevMessages];
+              const lastMessageIndex = updatedMessages.length - 1;
+              
+              // Detect if the accumulated response looks like a learning path
+              let messageType = isLearningPath ? 'learning_path' : 'content';
+              
+              // Additional runtime detection for learning path content
+              if (!isLearningPath && typeof accumulatedResponse === 'string') {
+                const contentStr = accumulatedResponse.toLowerCase();
+                // Simplified detection - if it has topics array, it's likely a learning path
+                if (contentStr.includes('"topics"') && contentStr.includes('[') && contentStr.includes('{')) {
+                  messageType = 'learning_path';
+                  console.log('🎯 Runtime detection: Found learning path content during streaming!');
+                }
               }
+              
+              // Create a new message object instead of modifying the existing one
+              updatedMessages[lastMessageIndex] = {
+                ...updatedMessages[lastMessageIndex],
+                content: accumulatedResponse,
+                type: messageType
+              };
+              
+              return updatedMessages;
             });
           },
           () => {
             // On complete
             setIsGenerating(false);
-            // Note: Removed loadChatHistory() call to prevent duplicate messages
-            // The message is already handled locally in the streaming response
+            // No chat history reload to prevent duplication
           },
           isQuiz,
           isLearningPath
@@ -329,21 +383,31 @@ const AIChat = () => {
       try {
         parsedContent = JSON.parse(content);
       } catch (e) {
-        return false;
+        // If parsing fails, check if it looks like learning path JSON
+        const contentStr = content.toLowerCase();
+        return contentStr.includes('"topics"') && contentStr.includes('[');
       }
     }
     
     // Check if it has learning path structure
     if (typeof parsedContent === 'object' && parsedContent !== null) {
-      // Check for common learning path properties
+      // First check if it's an API response wrapper
+      if (parsedContent.content && typeof parsedContent.content === 'string') {
+        try {
+          const nestedContent = JSON.parse(parsedContent.content);
+          parsedContent = nestedContent;
+        } catch (e) {
+          // If nested parsing fails, check the string content
+          const contentStr = parsedContent.content.toLowerCase();
+          return contentStr.includes('"topics"') && contentStr.includes('[');
+        }
+      }
+      
+      // Simple check: if it has a topics array, it's likely a learning path
       return (
         parsedContent.hasOwnProperty('topics') &&
         Array.isArray(parsedContent.topics) &&
-        (
-          parsedContent.hasOwnProperty('name') ||
-          parsedContent.hasOwnProperty('course_duration') ||
-          parsedContent.hasOwnProperty('description')
-        )
+        parsedContent.topics.length > 0
       );
     }
     
@@ -359,23 +423,42 @@ const AIChat = () => {
       <Container fluid className="chat-container">
         {/* Chat Messages */}
         <div className="chat-messages">
-          {messages.length > 0 ? (
-            messages.map((message, index) => (
-              <div key={index} className="message-wrapper">
-                {message.role === 'user' ? (
-                  <UserMessage message={message} />
-                ) : (
-                  // Check if it's a learning path by type or by content structure
-                  (message.type === 'learning_path' || isLearningPathContent(message.content)) ? (
-                    <LearningPathDisplayComponent 
-                      message={message.content} 
-                    />
+        {messages.length > 0 ? (
+            messages.map((message, index) => {
+              // Create a stable unique key for each message
+              const messageKey = message.id || `${message.role}-${message.timestamp || index}-${message.content?.substring(0, 50).replace(/\s/g, '')}`;
+              
+              return (
+                <div key={messageKey} className="message-wrapper">
+                  {message.role === 'user' ? (
+                    <UserMessage message={message} />
                   ) : (
-                    <AIMessage message={message} />
-                  )
-                )}
-              </div>
-            ))
+                    // Check if it's a learning path by content structure or type
+                    (() => {
+                      const isLearningPathType = message.type === 'learning_path';
+                      const isLearningPathContent = memoizedIsLearningPathContent(message.content);
+                      const shouldShowLearningPath = isLearningPathType || isLearningPathContent;
+                      
+                      console.log('🔍 Message routing debug:', {
+                        messageType: message.type,
+                        isLearningPathType,
+                        isLearningPathContent,
+                        shouldShowLearningPath,
+                        contentPreview: typeof message.content === 'string' ? message.content.substring(0, 100) + '...' : typeof message.content
+                      });
+                      
+                      return shouldShowLearningPath ? (
+                        <LearningPathDisplayComponent 
+                          message={message.content} 
+                        />
+                      ) : (
+                        <AIMessage message={message} />
+                      );
+                    })()
+                  )}
+                </div>
+              );
+            })
           ) : (
             <div className="welcome-screen">
               <div className="welcome-content">

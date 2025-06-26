@@ -269,6 +269,42 @@
       }
     }
     
+    .learning-path-footer {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-light);
+      padding: 1rem;
+      
+      .path-stats {
+        .badge {
+          font-size: 0.875rem;
+          padding: 0.5rem 0.75rem;
+        }
+      }
+      
+      .path-actions {
+        .btn {
+          font-weight: 600;
+          border-radius: 0.5rem;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          }
+          
+          &:disabled {
+            transform: none;
+            box-shadow: none;
+          }
+          
+          .spinner-border {
+            width: 1rem;
+            height: 1rem;
+          }
+        }
+      }
+    }
+    
   }
 }
 

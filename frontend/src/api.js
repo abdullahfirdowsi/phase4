@@ -30,7 +30,22 @@ const apiRequest = async (url, options = {}) => {
     }
 
     if (!response.ok) {
-      const errorMessage = data?.detail || data?.message || `HTTP ${response.status}: ${response.statusText}`;
+      let errorMessage;
+      if (typeof data === 'object' && data !== null) {
+        // Handle validation errors (array of error objects)
+        if (Array.isArray(data.detail)) {
+          errorMessage = data.detail.map(err => {
+            if (typeof err === 'object') {
+              return `${err.loc ? err.loc.join('.') + ': ' : ''}${err.msg || 'Validation error'}`;
+            }
+            return err;
+          }).join(', ');
+        } else {
+          errorMessage = data?.detail || data?.message || JSON.stringify(data);
+        }
+      } else {
+        errorMessage = data || `HTTP ${response.status}: ${response.statusText}`;
+      }
       console.error(`❌ API Error: ${errorMessage}`);
       throw new Error(errorMessage);
     }
@@ -929,6 +944,32 @@ export const featureContent = async (contentId, featured = true) => {
     return data;
   } catch (error) {
     console.error("Error featuring content:", error);
+    throw error;
+  }
+};
+
+// Save Learning Path API Call
+export const saveLearningPath = async (learningPathData) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/learning-paths/create`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username,
+        path_data: learningPathData
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error saving learning path:", error);
     throw error;
   }
 };

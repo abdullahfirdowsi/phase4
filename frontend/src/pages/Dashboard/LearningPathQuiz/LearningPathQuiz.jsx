@@ -22,7 +22,7 @@ const LearningPathQuiz = () => {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizResult, setQuizResult] = useState(null);
   const [showQuizResult, setShowQuizResult] = useState(false);
-  const [topic, setTopic] = useState('Python Programming');
+  const [topic, setTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
