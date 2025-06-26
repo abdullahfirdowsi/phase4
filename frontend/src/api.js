@@ -932,3 +932,176 @@ export const featureContent = async (contentId, featured = true) => {
     throw error;
   }
 };
+
+// Update Learning Path Progress API Call
+export const updateLearningPathProgress = async (pathId, topicId, completed = true) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/chat/update-learning-path-progress`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username,
+        path_id: pathId,
+        topic_id: topicId,
+        completed
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating learning path progress:", error);
+    throw error;
+  }
+};
+
+// Quiz System API Calls
+export const generateQuiz = async (topic, difficulty = "medium", questionCount = 5) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/quiz/generate`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username,
+        topic,
+        difficulty,
+        question_count: questionCount
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error generating quiz:", error);
+    throw error;
+  }
+};
+
+export const submitQuiz = async (quizId, answers) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/quiz/submit`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username,
+        quiz_id: quizId,
+        answers
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error submitting quiz:", error);
+    throw error;
+  }
+};
+
+export const getQuizHistory = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/quiz/history?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data.history || [];
+  } catch (error) {
+    console.error("Error fetching quiz history:", error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
+  }
+};
+
+// Search Messages API Call
+export const searchMessages = async (query) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/chat/search?username=${encodeURIComponent(username)}&query=${encodeURIComponent(query)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data.messages || [];
+  } catch (error) {
+    console.error("Error searching messages:", error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
+  }
+};
+
+// Get Chat Analytics API Call
+export const getChatAnalytics = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/chat/analytics?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data.analytics || {
+      totalMessages: 0,
+      totalTokens: 0,
+      averageResponseTime: 0,
+      mostActiveDay: 'N/A',
+      topicBreakdown: [],
+      weeklyActivity: []
+    };
+  } catch (error) {
+    console.error("Error fetching chat analytics:", error);
+    // Return default analytics instead of throwing to prevent UI crashes
+    return {
+      totalMessages: 0,
+      totalTokens: 0,
+      averageResponseTime: 0,
+      mostActiveDay: 'N/A',
+      topicBreakdown: [],
+      weeklyActivity: []
+    };
+  }
+};

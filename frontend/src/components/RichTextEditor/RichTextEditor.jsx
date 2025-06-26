@@ -3,7 +3,7 @@ import { Button, ButtonGroup, Dropdown } from 'react-bootstrap';
 import { 
   TypeBold, TypeItalic, TypeUnderline, Link, 
   ListUl, ListOl, BlockquoteLeft, Image, 
-  Code, Justify, JustifyLeft, JustifyCenter, JustifyRight
+  Code, TextLeft, TextCenter, TextRight
 } from 'react-bootstrap-icons';
 import './RichTextEditor.scss';
 
@@ -108,16 +108,16 @@ const RichTextEditor = ({ initialContent = '', onChange }) => {
         
         <ButtonGroup className="mb-2">
           <Button variant="outline-secondary" onClick={() => handleAlignmentChange('Left')}>
-            <JustifyLeft />
+            <TextLeft />
           </Button>
           <Button variant="outline-secondary" onClick={() => handleAlignmentChange('Center')}>
-            <JustifyCenter />
+            <TextCenter />
           </Button>
           <Button variant="outline-secondary" onClick={() => handleAlignmentChange('Right')}>
-            <JustifyRight />
+            <TextRight />
           </Button>
           <Button variant="outline-secondary" onClick={() => handleAlignmentChange('')}>
-            <Justify />
+            <TextCenter />
           </Button>
         </ButtonGroup>
       </div>
