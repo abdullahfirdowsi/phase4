@@ -91,18 +91,7 @@ const LearningPathDisplay = memo(({ message }) => {
     processContent();
   }, [content]);
 
-  // Show loading spinner while processing content
-  if (isLoading) {
-    return (
-      <div className="learning-path-container">
-        <Card className="learning-path-card">
-          <Card.Body className="text-center py-5">
-            <Spinner animation="border" variant="primary" className="mb-3" />
-          </Card.Body>
-        </Card>
-      </div>
-    );
-  }
+  // No loading spinner - removed for immediate display
 
   // If no parsed content yet, return null or keep loading
   if (!parsedContent) {
