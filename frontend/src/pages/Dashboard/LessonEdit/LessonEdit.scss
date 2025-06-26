@@ -1,0 +1,35 @@
+@use "../../../styles/variables" as v;
+@use "../../../styles/themes";
+
+.lesson-edit-page {
+  background: var(--bg-primary);
+  min-height: calc(100vh - #{v.$navbar-height});
+  padding: 2rem;
+  
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    text-align: center;
+    
+    p {
+      color: var(--text-secondary);
+      margin: 0;
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: v.$breakpoint-tablet) {
+  .lesson-edit-page {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: v.$breakpoint-mobile) {
+  .lesson-edit-page {
+    padding: 1rem;
+  }
+}

@@ -10,7 +10,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Book,
-  Trophy
+  Trophy,
+  FileEarmarkText,
+  PeopleFill
 } from "react-bootstrap-icons";
 
 const Sidebar = ({
@@ -50,6 +52,13 @@ const Sidebar = ({
       icon: <ClipboardCheck size={20} />,
       screen: "quiz-system",
       path: "/dashboard/quiz-system"
+    },
+    {
+      id: "user-lessons",
+      text: "My Lessons",
+      icon: <FileEarmarkText size={20} />,
+      screen: "user-lessons",
+      path: "/dashboard/lessons"
     },
     {
       id: "learning-path-quiz",

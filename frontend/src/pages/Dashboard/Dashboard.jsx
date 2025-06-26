@@ -6,6 +6,9 @@ import Learning from "./Learning/Learning";
 import QuizSystem from "./QuizSystem/QuizSystem";
 import LearningPathQuiz from "./LearningPathQuiz/LearningPathQuiz";
 import AdminDashboard from "./AdminDashboard/AdminDashboard";
+import UserLessons from "./UserLessons/UserLessons";
+import LessonView from "./LessonView/LessonView";
+import LessonEdit from "./LessonEdit/LessonEdit";
 import AIChat from "../../components/AIChat/AIChat";
 import UserProfile from "../../components/UserProfile/UserProfile";
 import ErrorBoundary from "../../components/ErrorBoundary";
@@ -32,6 +35,8 @@ const Dashboard = () => {
       setActiveScreen('learning-path-quiz');
     } else if (path.includes('/profile')) {
       setActiveScreen('profile');
+    } else if (path.includes('/lessons')) {
+      setActiveScreen('user-lessons');
     } else if (path.includes('/admin') && isAdmin) {
       setActiveScreen('admin');
     } else {
@@ -77,6 +82,21 @@ const Dashboard = () => {
           <Route path="/profile" element={
             <ErrorBoundary>
               <UserProfile />
+            </ErrorBoundary>
+          } />
+          <Route path="/lessons" element={
+            <ErrorBoundary>
+              <UserLessons />
+            </ErrorBoundary>
+          } />
+          <Route path="/lessons/view/:lessonId" element={
+            <ErrorBoundary>
+              <LessonView />
+            </ErrorBoundary>
+          } />
+          <Route path="/lessons/edit/:lessonId" element={
+            <ErrorBoundary>
+              <LessonEdit />
             </ErrorBoundary>
           } />
           {isAdmin && (

@@ -469,628 +469,6 @@ export const updateUserProfile = async (profileData) => {
   }
 };
 
-// Update User Password API Call
-export const updateUserPassword = async (currentPassword, newPassword) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/auth/update-password`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({ 
-        username, 
-        current_password: currentPassword,
-        new_password: newPassword
-      }),
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Error updating password:", error);
-    throw error;
-  }
-};
-
-// Get User Statistics API Call
-export const getUserStats = async () => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/chat/user-stats?username=${encodeURIComponent(username)}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching user stats:", error);
-    // Return default stats if API fails
-    return {
-      totalGoals: 0,
-      completedGoals: 0,
-      totalQuizzes: 0,
-      averageScore: 0,
-      streakDays: 0,
-      totalStudyTime: 0
-    };
-  }
-};
-
-// Get Assessments API Call
-export const getAssessments = async () => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/chat/assessments?username=${encodeURIComponent(username)}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data.assessments || [];
-  } catch (error) {
-    console.error("Error fetching assessments:", error);
-    return [];
-  }
-};
-
-// Delete Learning Goal API Call
-export const deleteLearningGoal = async (goalName) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/chat/delete-goal`, {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({ username, goal_name: goalName }),
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Error deleting learning goal:", error);
-    throw error;
-  }
-};
-
-// Update Learning Goal API Call
-export const updateLearningGoal = async (goalName, updatedGoal) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/chat/update-goal`, {
-      method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({ 
-        username, 
-        goal_name: goalName, 
-        updated_goal: updatedGoal 
-      }),
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Error updating learning goal:", error);
-    throw error;
-  }
-};
-
-// Test API connectivity
-export const testConnection = async () => {
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/health`);
-    console.log("✅ Backend connection successful:", data);
-    return data;
-  } catch (error) {
-    console.error("❌ Backend connection failed:", error);
-    throw error;
-  }
-};
-
-// Search messages
-export const searchMessages = async (query) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/chat/search?username=${encodeURIComponent(username)}&query=${encodeURIComponent(query)}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data.messages || [];
-  } catch (error) {
-    console.error("Error searching messages:", error);
-    return [];
-  }
-};
-
-// Get chat analytics
-export const getChatAnalytics = async (days = 30) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/chat/analytics?username=${encodeURIComponent(username)}&days=${days}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data.analytics || [];
-  } catch (error) {
-    console.error("Error fetching chat analytics:", error);
-    return [];
-  }
-};
-
-// Generate quiz from AI
-export const generateQuiz = async (topic, difficulty = "medium", numQuestions = 5) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    // First try the dedicated quiz API endpoint
-    try {
-      const data = await apiRequest(`${API_BASE_URL}/quiz/generate-ai-quiz`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          username,
-          topic,
-          difficulty,
-          num_questions: numQuestions,
-          time_limit: numQuestions * 2 // 2 minutes per question
-        }),
-      });
-
-      return data;
-    } catch (error) {
-      // If the dedicated endpoint fails, fall back to the chat API
-      console.error("Error generating quiz:", error);
-      console.log("Falling back to chat API for quiz generation");
-      
-      let quizData = null;
-      await askQuestion(
-        `Create a quiz about ${topic} with ${numQuestions} questions at ${difficulty} difficulty level.`,
-        (response) => {
-          if (typeof response === 'object') {
-            quizData = response;
-          }
-        },
-        () => {},
-        true,
-        false
-      );
-      
-      return quizData;
-    }
-  } catch (error) {
-    console.error("Error generating quiz (all methods failed):", error);
-    throw error;
-  }
-};
-
-// Submit quiz answers
-export const submitQuiz = async (quizId, answers) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    // First try the dedicated quiz API endpoint
-    try {
-      const data = await apiRequest(`${API_BASE_URL}/quiz/submit-ai-quiz`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          username,
-          quiz_id: quizId,
-          answers
-        }),
-      });
-
-      return data;
-    } catch (error) {
-      // If the dedicated endpoint fails, fall back to the chat API
-      console.error("Error submitting quiz:", error);
-      console.log("Falling back to chat API for quiz submission");
-      
-      // Create a string with the questions and answers
-      const answersText = Object.entries(answers).map(([id, answer]) => {
-        return `Q${id}: Answer: ${answer}`;
-      }).join('\n');
-      
-      let resultData = null;
-      await askQuestion(
-        `Please grade my quiz answers:\n\n${answersText}`,
-        (response) => {
-          if (typeof response === 'object') {
-            resultData = response;
-          }
-        },
-        () => {},
-        true,
-        false
-      );
-      
-      return resultData;
-    }
-  } catch (error) {
-    console.error("Error submitting quiz (all methods failed):", error);
-    throw error;
-  }
-};
-
-// Get quiz history
-export const getQuizHistory = async () => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/quiz/quiz-history?username=${encodeURIComponent(username)}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data.quiz_history || [];
-  } catch (error) {
-    console.error("Error fetching quiz history:", error);
-    return [];
-  }
-};
-
-// Get active quizzes
-export const getActiveQuizzes = async () => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/quiz/active-quizzes?username=${encodeURIComponent(username)}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data.active_quizzes || [];
-  } catch (error) {
-    console.error("Error fetching active quizzes:", error);
-    return [];
-  }
-};
-
-// Update learning path progress
-export const updateLearningPathProgress = async (pathId, topicIndex, completed) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    // Try the learning paths API first
-    try {
-      const data = await apiRequest(`${API_BASE_URL}/learning-paths/progress/update`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          username,
-          path_id: pathId,
-          topic_index: topicIndex,
-          completed
-        }),
-      });
-      return data;
-    } catch (error) {
-      // If that fails, try the chat API
-      console.error("Learning paths API error:", error);
-      console.log("Falling back to chat API for progress update");
-      
-      const data = await apiRequest(`${API_BASE_URL}/chat/update-goal`, {
-        method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          username,
-          goal_name: pathId,
-          updated_goal: {
-            // We don't have the full goal structure here, so this is a best effort
-            progress: completed ? 100 : 0
-          }
-        }),
-      });
-      return data;
-    }
-  } catch (error) {
-    console.error("Error updating learning path progress (all methods failed):", error);
-    // Return a default response instead of throwing
-    return { success: false, message: "Failed to update progress" };
-  }
-};
-
-// Get learning path details
-export const getLearningPathDetails = async (pathId) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    // Try the learning paths API first
-    try {
-      const data = await apiRequest(
-        `${API_BASE_URL}/learning-paths/detail/${pathId}?username=${encodeURIComponent(username)}`,
-        {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        }
-      );
-      return data.path;
-    } catch (error) {
-      // If that fails, return null and let the UI handle it
-      console.error("Learning paths API error:", error);
-      return null;
-    }
-  } catch (error) {
-    console.error("Error getting learning path details:", error);
-    return null;
-  }
-};
-
-// Get lesson detail
-export const getLessonDetail = async (lessonId) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/lessons/${lessonId}?username=${encodeURIComponent(username)}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching lesson detail:", error);
-    throw error;
-  }
-};
-
-// Generate avatar video
-export const generateAvatar = async (
-  lessonId, 
-  avatarImageUrl, 
-  voiceLanguage = "en", 
-  voiceId = null,
-  voiceType = "default_male",
-  voiceUrl = null
-) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/avatar/generate-avatar`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        lesson_id: lessonId,
-        avatar_image_url: avatarImageUrl,
-        voice_language: voiceLanguage,
-        voice_id: voiceId,
-        voice_type: voiceType,
-        voice_url: voiceUrl
-      }),
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Error generating avatar:", error);
-    throw error;
-  }
-};
-
-// Get avatar status
-export const getAvatarStatus = async (lessonId) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/avatar/status/${lessonId}?username=${encodeURIComponent(username)}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching avatar status:", error);
-    throw error;
-  }
-};
-
-// Get available voices
-export const getAvailableVoices = async () => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/avatar/available-voices`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching available voices:", error);
-    throw error;
-  }
-};
-
-// Create voice clone
-export const createVoiceClone = async (audioUrl, voiceName) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/avatar/create-voice-clone`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        audio_url: audioUrl,
-        voice_name: voiceName
-      }),
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Error creating voice clone:", error);
-    throw error;
-  }
-};
-
-// Get voice status
-export const getVoiceStatus = async (voiceId) => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/avatar/voice-status/${voiceId}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching voice status:", error);
-    throw error;
-  }
-};
-
-// Get predefined avatars
-export const getPredefinedAvatars = async () => {
-  const username = localStorage.getItem("username");
-  const token = localStorage.getItem("token");
-
-  if (!username || !token) throw new Error("User not authenticated");
-
-  try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/avatar/predefined-avatars`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data.avatars || [];
-  } catch (error) {
-    console.error("Error fetching predefined avatars:", error);
-    return [];
-  }
-};
-
 // Upload file to S3
 export const uploadFile = async (file, folder = "uploads") => {
   const username = localStorage.getItem("username");
@@ -1132,8 +510,8 @@ export const uploadFile = async (file, folder = "uploads") => {
   }
 };
 
-// Generate lesson script
-export const generateLessonScript = async (lessonId) => {
+// User Lessons API Calls
+export const getUserLessons = async () => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
 
@@ -1141,7 +519,7 @@ export const generateLessonScript = async (lessonId) => {
 
   try {
     const data = await apiRequest(
-      `${API_BASE_URL}/lessons/${lessonId}/script?username=${encodeURIComponent(username)}`,
+      `${API_BASE_URL}/lessons/user?username=${encodeURIComponent(username)}`,
       {
         method: "GET",
         headers: {
@@ -1152,41 +530,63 @@ export const generateLessonScript = async (lessonId) => {
 
     return data;
   } catch (error) {
-    console.error("Error generating lesson script:", error);
-    throw error;
+    console.error("Error fetching user lessons:", error);
+    // Return empty array to prevent UI crashes
+    return { lessons: [] };
   }
 };
 
-// Generate avatar video for lesson
-export const generateAvatarVideo = async (lessonId, avatarUrl, voiceUrl = null, voiceType = "default_male") => {
+export const createUserLesson = async (lessonData) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
 
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
-    const data = await apiRequest(`${API_BASE_URL}/lessons/generate-avatar-video`, {
+    const data = await apiRequest(`${API_BASE_URL}/lessons/user`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
       },
       body: JSON.stringify({
-        lesson_id: lessonId,
-        avatar_url: avatarUrl,
-        voice_url: voiceUrl,
-        voice_type: voiceType
+        username,
+        lesson_data: lessonData
       }),
     });
 
     return data;
   } catch (error) {
-    console.error("Error generating avatar video:", error);
+    console.error("Error creating lesson:", error);
     throw error;
   }
 };
 
-// Get video status
-export const getVideoStatus = async (lessonId) => {
+export const updateLesson = async (lessonId, lessonData) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/lessons/user/${lessonId}`, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username,
+        lesson_data: lessonData
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating lesson:", error);
+    throw error;
+  }
+};
+
+export const getLessonDetail = async (lessonId) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
 
@@ -1194,7 +594,7 @@ export const getVideoStatus = async (lessonId) => {
 
   try {
     const data = await apiRequest(
-      `${API_BASE_URL}/lessons/${lessonId}/video-status?username=${encodeURIComponent(username)}`,
+      `${API_BASE_URL}/lessons/user/${lessonId}?username=${encodeURIComponent(username)}`,
       {
         method: "GET",
         headers: {
@@ -1205,7 +605,330 @@ export const getVideoStatus = async (lessonId) => {
 
     return data;
   } catch (error) {
-    console.error("Error fetching video status:", error);
+    console.error("Error fetching lesson detail:", error);
+    throw error;
+  }
+};
+
+export const deleteUserLesson = async (lessonId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/lessons/user/${lessonId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ username }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error deleting lesson:", error);
+    throw error;
+  }
+};
+
+export const updateLessonProgress = async (lessonId, progress, completed = false) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/lessons/user/${lessonId}/progress`, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username,
+        progress,
+        completed
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating lesson progress:", error);
+    throw error;
+  }
+};
+
+export const saveLesson = async (lessonId, save = true) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/lessons/user/${lessonId}/save`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username,
+        save
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error saving lesson:", error);
+    throw error;
+  }
+};
+
+// Admin User Management API Calls
+export const getUsers = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/admin/users?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    throw error;
+  }
+};
+
+export const updateUserStatus = async (targetUsername, status) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/admin/users/${targetUsername}/status`, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        admin_username: username,
+        status
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating user status:", error);
+    throw error;
+  }
+};
+
+export const deleteUser = async (targetUsername) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/admin/users/${targetUsername}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        admin_username: username
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    throw error;
+  }
+};
+
+// Admin Content Moderation API Calls
+export const getContentForModeration = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/admin/moderation?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching content for moderation:", error);
+    throw error;
+  }
+};
+
+export const moderateContent = async (contentId, action, reason = null) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/admin/moderation/${contentId}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        admin_username: username,
+        action,
+        reason
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error moderating content:", error);
+    throw error;
+  }
+};
+
+// Admin Analytics API Calls
+export const getAdminAnalytics = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/admin/analytics?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching admin analytics:", error);
+    throw error;
+  }
+};
+
+// Admin System Configuration API Calls
+export const getSystemConfig = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/admin/config?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching system config:", error);
+    throw error;
+  }
+};
+
+export const updateSystemConfig = async (configData) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/admin/config`, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        admin_username: username,
+        config: configData
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating system config:", error);
+    throw error;
+  }
+};
+
+// Admin Popular Content API Calls
+export const getPopularContent = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/admin/popular-content?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching popular content:", error);
+    throw error;
+  }
+};
+
+export const featureContent = async (contentId, featured = true) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/admin/popular-content/${contentId}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        admin_username: username,
+        featured
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error featuring content:", error);
     throw error;
   }
 };
