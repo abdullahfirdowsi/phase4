@@ -386,7 +386,12 @@ const LessonView = () => {
                 <div className="info-item">
                   <span className="info-label">Created On</span>
                   <span className="info-value">
-                    {new Date(lesson.createdAt).toLocaleDateString()}
+                    {new Date(lesson.createdAt).toLocaleDateString('en-IN', {
+                      timeZone: 'Asia/Kolkata',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })}
                   </span>
                 </div>
                 

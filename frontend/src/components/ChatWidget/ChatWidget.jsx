@@ -66,7 +66,11 @@ const ChatWidget = ({ onClose }) => {
                 {msg.text}
               </div>
               <div className="message-time">
-                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {msg.timestamp.toLocaleTimeString('en-IN', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  timeZone: 'Asia/Kolkata'
+                })}
               </div>
             </div>
           ))}

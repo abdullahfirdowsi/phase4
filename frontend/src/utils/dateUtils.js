@@ -1,14 +1,17 @@
 import { formatDistanceToNow } from 'date-fns';
 
+// Indian Standard Time timezone identifier
+const IST_TIMEZONE = 'Asia/Kolkata';
+
 /**
- * Converts UTC timestamp to local Date object
+ * Converts UTC timestamp to IST Date object
  * @param {string|Date} utcTimestamp - UTC timestamp string or Date object
- * @returns {Date} Local Date object
+ * @returns {Date} Date object representing the same moment in time
  */
-export const utcToLocal = (utcTimestamp) => {
+export const utcToIST = (utcTimestamp) => {
   if (!utcTimestamp) return null;
   
-  // If it's already a Date object, return as is (assuming it's already in local time)
+  // If it's already a Date object, return as is
   if (utcTimestamp instanceof Date) {
     return utcTimestamp;
   }
@@ -16,37 +19,43 @@ export const utcToLocal = (utcTimestamp) => {
   // Parse UTC timestamp string to Date object
   const utcDate = new Date(utcTimestamp);
   
-  // The Date constructor automatically converts to local time
   return utcDate;
 };
 
 /**
- * Formats UTC timestamp to local date string
+ * Legacy function for backward compatibility
+ * @deprecated Use utcToIST instead
+ */
+export const utcToLocal = utcToIST;
+
+/**
+ * Formats UTC timestamp to IST date string
  * @param {string|Date} utcTimestamp - UTC timestamp string or Date object
  * @param {object} options - Intl.DateTimeFormat options
- * @returns {string} Formatted local date string
+ * @returns {string} Formatted IST date string
  */
 export const formatLocalDate = (utcTimestamp, options = {}) => {
-  const localDate = utcToLocal(utcTimestamp);
+  const localDate = utcToIST(utcTimestamp);
   if (!localDate) return '';
   
   const defaultOptions = {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: IST_TIMEZONE
   };
   
-  return localDate.toLocaleDateString('en-US', { ...defaultOptions, ...options });
+  return localDate.toLocaleDateString('en-IN', { ...defaultOptions, ...options });
 };
 
 /**
- * Formats UTC timestamp to local date and time string
+ * Formats UTC timestamp to IST date and time string
  * @param {string|Date} utcTimestamp - UTC timestamp string or Date object
  * @param {object} options - Intl.DateTimeFormat options
- * @returns {string} Formatted local date and time string
+ * @returns {string} Formatted IST date and time string
  */
 export const formatLocalDateTime = (utcTimestamp, options = {}) => {
-  const localDate = utcToLocal(utcTimestamp);
+  const localDate = utcToIST(utcTimestamp);
   if (!localDate) return '';
   
   const defaultOptions = {
@@ -54,10 +63,11 @@ export const formatLocalDateTime = (utcTimestamp, options = {}) => {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: IST_TIMEZONE
   };
   
-  return localDate.toLocaleString('en-US', { ...defaultOptions, ...options });
+  return localDate.toLocaleString('en-IN', { ...defaultOptions, ...options });
 };
 
 /**
@@ -66,7 +76,7 @@ export const formatLocalDateTime = (utcTimestamp, options = {}) => {
  * @returns {string} Relative time string
  */
 export const formatRelativeTime = (utcTimestamp) => {
-  const localDate = utcToLocal(utcTimestamp);
+  const localDate = utcToIST(utcTimestamp);
   if (!localDate) return '';
   
   return formatDistanceToNow(localDate, { addSuffix: true });
@@ -75,30 +85,32 @@ export const formatRelativeTime = (utcTimestamp) => {
 /**
  * Formats UTC timestamp to short date format for compact display
  * @param {string|Date} utcTimestamp - UTC timestamp string or Date object
- * @returns {string} Short date string (MM/DD/YYYY)
+ * @returns {string} Short date string (DD/MM/YYYY)
  */
 export const formatShortDate = (utcTimestamp) => {
-  const localDate = utcToLocal(utcTimestamp);
+  const localDate = utcToIST(utcTimestamp);
   if (!localDate) return '';
   
-  return localDate.toLocaleDateString('en-US', {
-    month: '2-digit',
+  return localDate.toLocaleDateString('en-IN', {
     day: '2-digit',
-    year: 'numeric'
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: IST_TIMEZONE
   });
 };
 
 /**
- * Formats UTC timestamp to time only
+ * Formats UTC timestamp to time only in IST
  * @param {string|Date} utcTimestamp - UTC timestamp string or Date object
  * @returns {string} Time string (HH:MM AM/PM)
  */
 export const formatLocalTime = (utcTimestamp) => {
-  const localDate = utcToLocal(utcTimestamp);
+  const localDate = utcToIST(utcTimestamp);
   if (!localDate) return '';
   
-  return localDate.toLocaleTimeString('en-US', {
+  return localDate.toLocaleTimeString('en-IN', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: IST_TIMEZONE
   });
 };
