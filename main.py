@@ -195,7 +195,7 @@ async def api_info():
 try:
     from auth import auth_router
     from chat import chat_router
-    from api_quiz_generator import ai_quiz_router
+    from ai_quiz_generator import ai_quiz_router
     from learning_paths import learning_paths_router
     from lessons import lessons_router
     from quiz_system import quiz_router

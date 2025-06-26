@@ -295,7 +295,7 @@ class TavusService:
                 
                 # Call script generation (this would be implemented elsewhere)
                 # For now, we'll use a placeholder
-                script = f"Welcome to your lesson on {lesson.get('topic', 'this topic')}. Let's explore the key concepts together."
+                script = f"Welcome to your lesson on {lesson.get('title', 'this topic')}. Let's explore the key concepts together."
                 
                 # Update lesson with script
                 self.collections['lessons'].update_one(
