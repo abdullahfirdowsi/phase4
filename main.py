@@ -194,7 +194,8 @@ async def api_info():
 # Import and include API routers
 try:
     from api.auth_api import auth_router
-    from chat import chat_router
+    from api.chat_api import chat_router as new_chat_router  # Use new implementation with proper analytics
+    from chat import chat_router as legacy_chat_router  # Keep legacy for backward compatibility
     from ai_quiz_generator import ai_quiz_router
     from learning_paths import learning_paths_router
     from lessons import lessons_router
@@ -202,7 +203,8 @@ try:
     from api.avatar_api import avatar_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-    app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])
+    app.include_router(new_chat_router, prefix="/chat", tags=["Chat & Messaging Enhanced"])  # Use new implementation
+    app.include_router(legacy_chat_router, prefix="/chat-legacy", tags=["Chat & Messaging Legacy"])  # Keep legacy for compatibility
     app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
     app.include_router(learning_paths_router, prefix="/learning-paths", tags=["Learning Paths"])
     app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])

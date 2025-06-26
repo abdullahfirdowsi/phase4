@@ -1067,7 +1067,7 @@ export const searchMessages = async (query) => {
 };
 
 // Get Chat Analytics API Call
-export const getChatAnalytics = async () => {
+export const getChatAnalytics = async (days = 30) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
 
@@ -1075,7 +1075,7 @@ export const getChatAnalytics = async () => {
 
   try {
     const data = await apiRequest(
-      `${API_BASE_URL}/chat/analytics?username=${encodeURIComponent(username)}`,
+      `${API_BASE_URL}/chat/analytics?username=${encodeURIComponent(username)}&days=${days}`,
       {
         method: "GET",
         headers: {
@@ -1084,24 +1084,10 @@ export const getChatAnalytics = async () => {
       }
     );
 
-    return data.analytics || {
-      totalMessages: 0,
-      totalTokens: 0,
-      averageResponseTime: 0,
-      mostActiveDay: 'N/A',
-      topicBreakdown: [],
-      weeklyActivity: []
-    };
+    return data.analytics || [];
   } catch (error) {
     console.error("Error fetching chat analytics:", error);
-    // Return default analytics instead of throwing to prevent UI crashes
-    return {
-      totalMessages: 0,
-      totalTokens: 0,
-      averageResponseTime: 0,
-      mostActiveDay: 'N/A',
-      topicBreakdown: [],
-      weeklyActivity: []
-    };
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
   }
 };
