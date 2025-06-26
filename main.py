@@ -41,6 +41,13 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("⚠️ D-ID Avatar Service not configured - using fallback avatar generation")
         
+        # Initialize Tavus service
+        from services.tavus_service import tavus_service
+        if tavus_service.is_configured:
+            logger.info("✅ Tavus Avatar Service initialized successfully")
+        else:
+            logger.warning("⚠️ Tavus Avatar Service not configured - using fallback avatar generation")
+        
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
         # Don't raise the exception, just log it
@@ -54,7 +61,7 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app with lifespan
 app = FastAPI(
     title="AI Tutor - Enhanced Learning Management System",
-    description="Scalable AI-powered learning platform with modular MongoDB architecture and D-ID avatar integration",
+    description="Scalable AI-powered learning platform with modular MongoDB architecture and avatar video integration",
     version="5.0.0",
     lifespan=lifespan
 )
@@ -115,7 +122,8 @@ async def root():
             "Message Archiving",
             "Role-based Access Control",
             "AWS S3 File Storage",
-            "D-ID Avatar Generation"
+            "D-ID Avatar Generation",
+            "Tavus Avatar Video Generation"
         ],
         "collections": [
             "users",
@@ -135,6 +143,10 @@ async def health_check():
     from services.did_service import did_service
     did_status = "available" if did_service.is_configured else "not configured"
     
+    # Check Tavus service status
+    from services.tavus_service import tavus_service
+    tavus_status = "available" if tavus_service.is_configured else "not configured"
+    
     return {
         "status": "healthy",
         "timestamp": "2024-01-01T00:00:00Z",
@@ -148,6 +160,7 @@ async def health_check():
             "s3_service": "active",
             "avatar_service": "active",
             "did_service": did_status,
+            "tavus_service": tavus_status,
             "api": "running",
             "cors": "enabled"
         },
@@ -172,7 +185,8 @@ async def api_info():
             "Automated data migration",
             "Message archiving system",
             "AWS S3 file storage integration",
-            "D-ID Avatar video generation"
+            "D-ID Avatar video generation",
+            "Tavus Avatar video generation"
         ],
         "documentation": "/docs"
     }
@@ -185,6 +199,7 @@ try:
     from learning_paths import learning_paths_router
     from lessons import lessons_router
     from quiz_system import quiz_router
+    from api.avatar_api import avatar_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])
@@ -192,6 +207,7 @@ try:
     app.include_router(learning_paths_router, prefix="/learning-paths", tags=["Learning Paths"])
     app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
     app.include_router(quiz_router, prefix="/quiz-system", tags=["Quiz System"])
+    app.include_router(avatar_router, prefix="/avatar", tags=["Avatar Generation"])
     
     logger.info("✅ API routers loaded successfully")
 except Exception as e:
@@ -314,6 +330,7 @@ async def not_found_handler(request, exc):
                 "/quiz/generate-ai-quiz", "/quiz/submit-ai-quiz",
                 "/learning-paths/list", "/learning-paths/detail/{path_id}",
                 "/lessons/lessons", "/lessons/lessons/enroll",
+                "/avatar/generate-avatar", "/avatar/status/{lesson_id}",
                 "/docs", "/health"
             ]
         }
@@ -346,4 +363,5 @@ if __name__ == "__main__":
     print("📈 Real-time Analytics & Search")
     print("🗄️ AWS S3 File Storage Integration")
     print("🎬 D-ID Avatar Video Generation")
+    print("🎬 Tavus Avatar Video Generation")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -2,6 +2,7 @@
 import json
 import datetime
 import logging
+import uuid
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -87,8 +88,45 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             
         logger.info("✅ Successfully parsed and validated JSON")
         
-# Store the response in chat history for display purposes only
-        # NOT saving to learning goals collection - that will only happen when user clicks "Save Study Plan"
+        # Create a lesson document in the lessons collection
+        lesson_id = f"lesson_{datetime.datetime.utcnow().timestamp()}"
+        
+        # Determine topic from learning path or user prompt
+        topic = learning_path_json.get("name", "")
+        if not topic:
+            # Extract topic from user prompt
+            topic = user_prompt.split("learning path for ")[-1].split(" ")[0] if "learning path for " in user_prompt else ""
+            topic = topic or "Generated Lesson"
+        
+        # Create lesson document
+        lesson_doc = {
+            "lesson_id": lesson_id,
+            "title": topic,
+            "description": learning_path_json.get("description", ""),
+            "content": "",  # Will be filled with script later
+            "lesson_type": "video",
+            "subject": topic,
+            "difficulty": learning_path_json.get("difficulty", "Intermediate"),
+            "duration": int(learning_path_json.get("course_duration", "30").split()[0]),
+            "is_public": True,
+            "created_by": username,
+            "resources": learning_path_json.get("links", []),
+            "tags": learning_path_json.get("tags", []),
+            "created_at": datetime.datetime.utcnow(),
+            "learning_path": learning_path_json,
+            "status": "pending_avatar",
+            "updated_at": datetime.datetime.utcnow()
+        }
+        
+        # Store in lessons collection
+        from database_config import get_collections
+        collections = get_collections()
+        lessons_collection = collections['lessons']
+        lessons_collection.insert_one(lesson_doc)
+        
+        logger.info(f"✅ Created lesson document with ID: {lesson_id}")
+        
+        # Store the response in chat history for display purposes only
         response_message = {
             "role": "assistant",
             "content": json.dumps(learning_path_json) if isinstance(learning_path_json, dict) else learning_path_json,
@@ -100,7 +138,8 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             "response": "JSON",
             "type": "learning_path",
             "timestamp": response_timestamp,
-            "content": learning_path_json
+            "content": learning_path_json,
+            "lesson_id": lesson_id  # Include lesson_id in response
         }
         
         try:
@@ -120,6 +159,45 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             # Validate extracted JSON
             if "topics" in parsedData and isinstance(parsedData["topics"], list):
                 logger.info("✅ Successfully extracted and validated JSON from text")
+                
+                # Create a lesson document in the lessons collection
+                lesson_id = f"lesson_{datetime.datetime.utcnow().timestamp()}"
+                
+                # Determine topic from learning path or user prompt
+                topic = parsedData.get("name", "")
+                if not topic:
+                    # Extract topic from user prompt
+                    topic = user_prompt.split("learning path for ")[-1].split(" ")[0] if "learning path for " in user_prompt else ""
+                    topic = topic or "Generated Lesson"
+                
+                # Create lesson document
+                lesson_doc = {
+                    "lesson_id": lesson_id,
+                    "title": topic,
+                    "description": parsedData.get("description", ""),
+                    "content": "",  # Will be filled with script later
+                    "lesson_type": "video",
+                    "subject": topic,
+                    "difficulty": parsedData.get("difficulty", "Intermediate"),
+                    "duration": int(parsedData.get("course_duration", "30").split()[0]),
+                    "is_public": True,
+                    "created_by": username,
+                    "resources": parsedData.get("links", []),
+                    "tags": parsedData.get("tags", []),
+                    "created_at": datetime.datetime.utcnow(),
+                    "learning_path": parsedData,
+                    "status": "pending_avatar",
+                    "updated_at": datetime.datetime.utcnow()
+                }
+                
+                # Store in lessons collection
+                from database_config import get_collections
+                collections = get_collections()
+                lessons_collection = collections['lessons']
+                lessons_collection.insert_one(lesson_doc)
+                
+                logger.info(f"✅ Created lesson document with ID: {lesson_id}")
+                
                 response_message = {
                     "role": "assistant",
                     "content": json.dumps(parsedData) if isinstance(parsedData, dict) else parsedData,
@@ -131,7 +209,8 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
                     "response": "JSON",
                     "type": "learning_path",
                     "timestamp": response_timestamp,
-                    "content": parsedData
+                    "content": parsedData,
+                    "lesson_id": lesson_id  # Include lesson_id in response
                 }
                 
                 try:

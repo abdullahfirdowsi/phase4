@@ -902,3 +902,310 @@ export const getLearningPathDetails = async (pathId) => {
     return null;
   }
 };
+
+// Get lesson detail
+export const getLessonDetail = async (lessonId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/lessons/${lessonId}?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching lesson detail:", error);
+    throw error;
+  }
+};
+
+// Generate avatar video
+export const generateAvatar = async (
+  lessonId, 
+  avatarImageUrl, 
+  voiceLanguage = "en", 
+  voiceId = null,
+  voiceType = "default_male",
+  voiceUrl = null
+) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/avatar/generate-avatar`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        lesson_id: lessonId,
+        avatar_image_url: avatarImageUrl,
+        voice_language: voiceLanguage,
+        voice_id: voiceId,
+        voice_type: voiceType,
+        voice_url: voiceUrl
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error generating avatar:", error);
+    throw error;
+  }
+};
+
+// Get avatar status
+export const getAvatarStatus = async (lessonId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/avatar/status/${lessonId}?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching avatar status:", error);
+    throw error;
+  }
+};
+
+// Get available voices
+export const getAvailableVoices = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/avatar/available-voices`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching available voices:", error);
+    throw error;
+  }
+};
+
+// Create voice clone
+export const createVoiceClone = async (audioUrl, voiceName) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/avatar/create-voice-clone`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        audio_url: audioUrl,
+        voice_name: voiceName
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error creating voice clone:", error);
+    throw error;
+  }
+};
+
+// Get voice status
+export const getVoiceStatus = async (voiceId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/avatar/voice-status/${voiceId}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching voice status:", error);
+    throw error;
+  }
+};
+
+// Get predefined avatars
+export const getPredefinedAvatars = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/avatar/predefined-avatars`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data.avatars || [];
+  } catch (error) {
+    console.error("Error fetching predefined avatars:", error);
+    return [];
+  }
+};
+
+// Upload file to S3
+export const uploadFile = async (file, folder = "uploads") => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    // Create form data
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    // Determine endpoint based on file type
+    let endpoint = "image";
+    if (file.type.startsWith("audio/")) {
+      endpoint = "audio";
+    } else if (file.type.startsWith("video/")) {
+      endpoint = "video";
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/upload/${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    throw error;
+  }
+};
+
+// Generate lesson script
+export const generateLessonScript = async (lessonId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/lessons/${lessonId}/script?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error generating lesson script:", error);
+    throw error;
+  }
+};
+
+// Generate avatar video for lesson
+export const generateAvatarVideo = async (lessonId, avatarUrl, voiceUrl = null, voiceType = "default_male") => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/lessons/generate-avatar-video`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        lesson_id: lessonId,
+        avatar_url: avatarUrl,
+        voice_url: voiceUrl,
+        voice_type: voiceType
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error generating avatar video:", error);
+    throw error;
+  }
+};
+
+// Get video status
+export const getVideoStatus = async (lessonId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(
+      `${API_BASE_URL}/lessons/${lessonId}/video-status?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching video status:", error);
+    throw error;
+  }
+};

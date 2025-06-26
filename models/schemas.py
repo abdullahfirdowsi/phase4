@@ -35,6 +35,20 @@ class LessonType(str, Enum):
     QUIZ = "quiz"
     INTERACTIVE = "interactive"
 
+class LessonStatus(str, Enum):
+    DRAFT = "draft"
+    PENDING_AVATAR = "pending_avatar"
+    PROCESSING_VIDEO = "processing_video"
+    VIDEO_READY = "video_ready"
+    VIDEO_FAILED = "video_failed"
+    VIDEO_TIMEOUT = "video_timeout"
+    PUBLISHED = "published"
+
+class VoiceType(str, Enum):
+    DEFAULT_MALE = "default_male"
+    DEFAULT_FEMALE = "default_female"
+    CLONED = "cloned"
+
 # User Models
 class UserPreferences(BaseModel):
     language: str = "en"
@@ -189,9 +203,28 @@ class Lesson(BaseModel):
     resources: List[str] = []
     tags: List[str] = []
     created_at: datetime
+    
+    # Learning path content
+    learning_path: Optional[Dict[str, Any]] = None
+    
+    # Script for narration
+    script: Optional[str] = None
+    
+    # Avatar and voice information
+    avatar_image: Optional[str] = None
+    voice_sample: Optional[str] = None
+    voice_type: Optional[VoiceType] = None
+    replica_id: Optional[str] = None
+    
+    # Video information
+    video_id: Optional[str] = None
     avatar_video_url: Optional[str] = None
-    avatar_status: Optional[str] = "pending"
-    did_talk_id: Optional[str] = None
+    has_avatar_video: bool = False
+    
+    # Status tracking
+    status: LessonStatus = LessonStatus.DRAFT
+    error: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         populate_by_name = True
@@ -260,6 +293,8 @@ class GenerateAvatarRequest(BaseModel):
     voice_language: str = "en"
     voice_gender: str = "female"
     voice_id: Optional[str] = None
+    voice_type: VoiceType = VoiceType.DEFAULT_MALE
+    voice_url: Optional[str] = None
 
 class GenerateAvatarResponse(BaseModel):
     success: bool
@@ -285,6 +320,8 @@ class VoiceModel(BaseModel):
 class AvatarCreationRequest(BaseModel):
     image_url: str
     voice_id: Optional[str] = None
+    voice_url: Optional[str] = None
+    voice_type: VoiceType = VoiceType.DEFAULT_MALE
     is_predefined: bool = False
     predefined_id: Optional[str] = None
     username: str

@@ -1,11 +1,17 @@
 # lessons.py - Lesson Management System
 import json
 import datetime
-from fastapi import APIRouter, HTTPException, Body, Query, Depends
+from fastapi import APIRouter, HTTPException, Body, Query, Depends, Header, Request
 from database import chats_collection, users_collection
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from auth import get_current_user
+import logging
+from services.tavus_service import tavus_service
+from chat import generate_response
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Router for lesson management
 lessons_router = APIRouter()
@@ -38,6 +44,43 @@ class UserStats(BaseModel):
     last_login: Optional[str] = None
     total_study_time: int = 0
     completed_lessons: int = 0
+
+class GenerateVideoRequest(BaseModel):
+    lesson_id: str
+    avatar_url: str
+    voice_url: Optional[str] = None
+    voice_type: str = "default_male"
+
+def _build_script_prompt(topic: str, learning_path_json: Dict[str, Any]) -> str:
+    """
+    Build a prompt for script generation
+    
+    Args:
+        topic: Lesson topic
+        learning_path_json: Structured learning path JSON
+        
+    Returns:
+        Prompt string for script generation
+    """
+    return f"""
+You are a helpful AI tutor. Create a narration script in natural language based on the following structured lesson JSON.
+
+Make it conversational, suitable for video narration. Include greetings, transitions, and summaries.
+
+Topic: {topic}
+
+Here is the learning path:
+{json.dumps(learning_path_json, indent=2)}
+
+The script should be:
+1. Conversational and engaging
+2. Well-structured with clear transitions
+3. Include a greeting and introduction
+4. Cover all key topics in the learning path
+5. End with a summary and encouragement
+
+Keep the script concise but comprehensive, suitable for a 5-10 minute video narration.
+"""
 
 # Helper function to check if user is admin
 def is_admin_user(username: str) -> bool:
@@ -426,3 +469,191 @@ async def get_lesson_detail(lesson_id: str, username: str = Query(...)):
     except Exception as e:
         print(f"Error fetching lesson detail: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@lessons_router.get("/lessons/{lesson_id}/script")
+async def get_lesson_script(lesson_id: str, username: str = Query(...)):
+    """
+    Get or generate script for a lesson
+    
+    If the lesson doesn't have a script, one will be generated
+    using the learning path content
+    """
+    try:
+        # Find the lesson
+        lesson = chats_collection.find_one({"lesson_id": lesson_id})
+        
+        if not lesson:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        
+        # Check if script already exists
+        if "script" in lesson and lesson["script"]:
+            return {
+                "script": lesson["script"],
+                "lesson_id": lesson_id,
+                "topic": lesson.get("topic", ""),
+                "generated": False
+            }
+        
+        # Generate script from learning path
+        learning_path = lesson.get("learning_path")
+        if not learning_path:
+            raise HTTPException(status_code=400, detail="Lesson has no learning path content")
+        
+        # Build prompt for script generation
+        topic = lesson.get("topic", "")
+        prompt = _build_script_prompt(topic, learning_path)
+        
+        # Generate script using Groq
+        script = generate_response(prompt)
+        
+        if not script:
+            raise HTTPException(status_code=500, detail="Failed to generate script")
+        
+        # Update lesson with script
+        chats_collection.update_one(
+            {"lesson_id": lesson_id},
+            {"$set": {
+                "script": script,
+                "updated_at": datetime.datetime.utcnow().isoformat() + "Z"
+            }}
+        )
+        
+        return {
+            "script": script,
+            "lesson_id": lesson_id,
+            "topic": topic,
+            "generated": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting/generating lesson script: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@lessons_router.post("/lessons/generate-avatar-video")
+async def generate_avatar_video(request: GenerateVideoRequest):
+    """
+    Generate avatar video for a lesson
+    
+    Args:
+        request: Video generation request with lesson_id, avatar_url, etc.
+        
+    Returns:
+        Generation status
+    """
+    try:
+        lesson_id = request.lesson_id
+        avatar_url = request.avatar_url
+        voice_url = request.voice_url
+        voice_type = request.voice_type
+        
+        # Validate inputs
+        if not lesson_id:
+            raise HTTPException(status_code=400, detail="Lesson ID is required")
+        
+        if not avatar_url:
+            raise HTTPException(status_code=400, detail="Avatar image URL is required")
+        
+        # Process video generation
+        result = await tavus_service.process_avatar_video_generation(
+            lesson_id=lesson_id,
+            avatar_url=avatar_url,
+            voice_url=voice_url,
+            voice_type=voice_type
+        )
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "message": "Avatar video generation started",
+                "lesson_id": lesson_id,
+                "video_id": result.get("video_id"),
+                "status": "processing"
+            }
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to generate avatar video: {result['error']}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating avatar video: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@lessons_router.get("/lessons/{lesson_id}/video-status")
+async def get_video_status(lesson_id: str, username: str = Query(...)):
+    """
+    Get avatar video generation status
+    
+    Args:
+        lesson_id: Lesson ID
+        username: Username
+        
+    Returns:
+        Video status information
+    """
+    try:
+        # Find the lesson
+        lesson = chats_collection.find_one({"lesson_id": lesson_id})
+        
+        if not lesson:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        
+        # Get video status
+        status = lesson.get("status", "unknown")
+        video_url = lesson.get("avatar_video_url")
+        error = lesson.get("error")
+        
+        return {
+            "lesson_id": lesson_id,
+            "status": status,
+            "video_url": video_url,
+            "error": error,
+            "has_video": bool(video_url)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting video status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@lessons_router.post("/lessons/webhook")
+async def tavus_webhook(request: Request, x_tavus_signature: Optional[str] = Header(None)):
+    """
+    Webhook endpoint for Tavus status updates
+    
+    Args:
+        request: Request object
+        x_tavus_signature: Tavus signature for verification
+        
+    Returns:
+        Acknowledgement
+    """
+    try:
+        # Get request body
+        payload = await request.json()
+        
+        # Process webhook
+        result = await tavus_service.handle_webhook(payload)
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "message": "Webhook processed successfully"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Failed to process webhook: {result['error']}"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        return {
+            "success": False,
+            "message": f"Error processing webhook: {str(e)}"
+        }

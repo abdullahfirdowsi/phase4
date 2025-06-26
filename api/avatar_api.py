@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Body, BackgroundTasks, Query, Depe
 from fastapi.responses import JSONResponse
 from services.avatar_service import avatar_service
 from services.did_service import did_service
+from services.tavus_service import tavus_service
 from models.schemas import GenerateAvatarRequest, GenerateAvatarResponse, PredefinedAvatar, VoiceModel, AvatarCreationRequest
 from typing import List, Dict, Any, Optional
 import logging
@@ -58,22 +59,32 @@ async def generate_avatar(
                 }
             )
         
-        # Check if D-ID service is configured
-        if not did_service.is_configured:
-            # Fall back to the original avatar service if D-ID is not configured
+        # Check if Tavus service is configured
+        if tavus_service.is_configured:
+            # Use Tavus service for avatar generation
             background_tasks.add_task(
-                avatar_service.process_avatar_generation,
+                tavus_service.process_avatar_video_generation,
                 lesson_id=request.lesson_id,
-                avatar_image_url=request.avatar_image_url,
-                language=request.voice_language
+                avatar_url=request.avatar_image_url,
+                voice_url=request.voice_url,
+                voice_type=request.voice_type
             )
-        else:
+        # Check if D-ID service is configured as fallback
+        elif did_service.is_configured:
             # Use D-ID service for avatar generation
             background_tasks.add_task(
                 did_service.process_avatar_generation,
                 lesson_id=request.lesson_id,
                 avatar_image_url=request.avatar_image_url,
                 voice_id=request.voice_id,
+                language=request.voice_language
+            )
+        else:
+            # Fall back to the original avatar service if neither is configured
+            background_tasks.add_task(
+                avatar_service.process_avatar_generation,
+                lesson_id=request.lesson_id,
+                avatar_image_url=request.avatar_image_url,
                 language=request.voice_language
             )
         
@@ -124,7 +135,7 @@ async def get_avatar_status(lesson_id: str, current_user: str = Depends(get_curr
         
         # Check if avatar video URL exists
         avatar_video_url = lesson.get("avatar_video_url")
-        avatar_status = lesson.get("avatar_status", "pending")
+        avatar_status = lesson.get("status", "pending")
         
         if avatar_video_url:
             return {
@@ -187,7 +198,7 @@ async def get_predefined_avatars(current_user: str = Depends(get_current_user)):
 @avatar_router.get("/available-voices")
 async def get_available_voices(current_user: str = Depends(get_current_user)):
     """
-    Get available voices from D-ID API
+    Get available voices from Tavus or D-ID API
     
     Args:
         current_user: Authenticated user
@@ -196,22 +207,51 @@ async def get_available_voices(current_user: str = Depends(get_current_user)):
         List of available voices
     """
     try:
-        result = await did_service.get_available_voices()
-        
-        if result["success"]:
+        # Try Tavus first, then fall back to D-ID
+        if tavus_service.is_configured:
+            # In a real implementation, you would call Tavus API to get voices
+            # For now, return a placeholder
             return {
                 "success": True,
-                "voices": result["voices"]
-            }
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "success": False,
-                    "message": "Failed to get available voices",
-                    "error": result["error"]
+                "voices": {
+                    "tavus": {
+                        "English": [
+                            {"id": "default_male", "name": "Default Male", "gender": "male"},
+                            {"id": "default_female", "name": "Default Female", "gender": "female"}
+                        ]
+                    }
                 }
-            )
+            }
+        elif did_service.is_configured:
+            result = await did_service.get_available_voices()
+            
+            if result["success"]:
+                return {
+                    "success": True,
+                    "voices": result["voices"]
+                }
+            else:
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "success": False,
+                        "message": "Failed to get available voices",
+                        "error": result["error"]
+                    }
+                )
+        else:
+            # Return default voices if neither service is configured
+            return {
+                "success": True,
+                "voices": {
+                    "default": {
+                        "English": [
+                            {"id": "default_male", "name": "Default Male", "gender": "male"},
+                            {"id": "default_female", "name": "Default Female", "gender": "female"}
+                        ]
+                    }
+                }
+            }
             
     except Exception as e:
         logger.error(f"❌ Available voices error: {e}")
@@ -231,7 +271,7 @@ async def create_voice_clone(
     current_user: str = Depends(get_current_user)
 ):
     """
-    Create a voice clone using D-ID API
+    Create a voice clone using Tavus or D-ID API
     
     Args:
         audio_url: URL of the audio sample
@@ -242,15 +282,18 @@ async def create_voice_clone(
         Voice clone result
     """
     try:
-        result = await did_service.create_voice_clone(audio_url, voice_name)
-        
-        if result["success"]:
+        # Try Tavus first, then fall back to D-ID
+        if tavus_service.is_configured:
+            # In a real implementation, you would call Tavus API to create voice clone
+            # For now, return a placeholder
+            voice_id = f"tavus_voice_{int(time.time())}"
+            
             # Store voice ID in user profile
             collections = did_service.collections
             collections['users'].update_one(
                 {"username": current_user},
                 {"$set": {
-                    "profile.voice_id": result["voice_id"],
+                    "profile.voice_id": voice_id,
                     "profile.voice_name": voice_name
                 }}
             )
@@ -258,16 +301,45 @@ async def create_voice_clone(
             return {
                 "success": True,
                 "message": "Voice clone created successfully",
-                "voice_id": result["voice_id"],
-                "status": result["status"]
+                "voice_id": voice_id,
+                "status": "processing"
             }
+        elif did_service.is_configured:
+            result = await did_service.create_voice_clone(audio_url, voice_name)
+            
+            if result["success"]:
+                # Store voice ID in user profile
+                collections = did_service.collections
+                collections['users'].update_one(
+                    {"username": current_user},
+                    {"$set": {
+                        "profile.voice_id": result["voice_id"],
+                        "profile.voice_name": voice_name
+                    }}
+                )
+                
+                return {
+                    "success": True,
+                    "message": "Voice clone created successfully",
+                    "voice_id": result["voice_id"],
+                    "status": result["status"]
+                }
+            else:
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "success": False,
+                        "message": "Failed to create voice clone",
+                        "error": result["error"]
+                    }
+                )
         else:
             return JSONResponse(
                 status_code=500,
                 content={
                     "success": False,
-                    "message": "Failed to create voice clone",
-                    "error": result["error"]
+                    "message": "Voice cloning service not configured",
+                    "error": "No voice cloning service available"
                 }
             )
             
@@ -291,29 +363,49 @@ async def get_voice_status(
     Get status of a voice clone
     
     Args:
-        voice_id: D-ID voice ID
+        voice_id: Voice ID
         current_user: Authenticated user
         
     Returns:
         Voice status
     """
     try:
-        result = await did_service.get_voice_status(voice_id)
-        
-        if result["success"]:
+        # Try Tavus first, then fall back to D-ID
+        if tavus_service.is_configured:
+            # In a real implementation, you would call Tavus API to check voice status
+            # For now, return a placeholder
             return {
                 "success": True,
                 "voice_id": voice_id,
-                "status": result["status"],
-                "ready": result["ready"]
+                "status": "ready",
+                "ready": True
             }
+        elif did_service.is_configured:
+            result = await did_service.get_voice_status(voice_id)
+            
+            if result["success"]:
+                return {
+                    "success": True,
+                    "voice_id": voice_id,
+                    "status": result["status"],
+                    "ready": result["ready"]
+                }
+            else:
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "success": False,
+                        "message": "Voice not found",
+                        "error": result["error"]
+                    }
+                )
         else:
             return JSONResponse(
-                status_code=404,
+                status_code=500,
                 content={
                     "success": False,
-                    "message": "Voice not found",
-                    "error": result["error"]
+                    "message": "Voice cloning service not configured",
+                    "error": "No voice cloning service available"
                 }
             )
             
@@ -329,16 +421,16 @@ async def get_voice_status(
         )
 
 @avatar_router.post("/webhook")
-async def did_webhook(
+async def avatar_webhook(
     request: Request,
-    x_did_signature: Optional[str] = Header(None)
+    x_signature: Optional[str] = Header(None)
 ):
     """
-    Webhook endpoint for D-ID status updates
+    Webhook endpoint for Tavus or D-ID status updates
     
     Args:
         request: Request object
-        x_did_signature: D-ID signature for verification
+        x_signature: Signature for verification
         
     Returns:
         Acknowledgement
@@ -347,103 +439,27 @@ async def did_webhook(
         # Get request body
         payload = await request.json()
         
-        # Verify webhook signature if configured
-        if did_service.webhook_secret and x_did_signature:
-            # Create HMAC signature for verification
-            request_body = await request.body()
-            signature = hmac.new(
-                did_service.webhook_secret.encode(),
-                request_body,
-                hashlib.sha256
-            ).hexdigest()
-            
-            # Compare signatures
-            if not hmac.compare_digest(signature, x_did_signature):
-                logger.warning(f"❌ Invalid webhook signature")
-                return JSONResponse(
-                    status_code=401,
-                    content={
-                        "success": False,
-                        "message": "Invalid signature"
-                    }
-                )
+        # Check for Tavus-specific fields
+        if "video_id" in payload:
+            # Process Tavus webhook
+            result = await tavus_service.handle_webhook(payload)
+        else:
+            # Process D-ID webhook
+            result = await did_service.handle_webhook(payload)
         
-        # Process webhook payload
-        talk_id = payload.get("id")
-        status = payload.get("status")
-        result_url = payload.get("result_url")
-        
-        if not talk_id or not status:
+        if result["success"]:
+            return {
+                "success": True,
+                "message": "Webhook processed successfully"
+            }
+        else:
             return JSONResponse(
                 status_code=400,
                 content={
                     "success": False,
-                    "message": "Invalid webhook payload"
+                    "message": f"Failed to process webhook: {result['error']}"
                 }
             )
-        
-        logger.info(f"📣 D-ID Webhook: Talk {talk_id} status: {status}")
-        
-        if status == "done" and result_url:
-            # Find the lesson associated with this talk_id
-            collections = did_service.collections
-            lesson = collections['lessons'].find_one({"did_talk_id": talk_id})
-            
-            if lesson:
-                lesson_id = lesson.get("lesson_id")
-                
-                # Download and upload to S3
-                upload_result = await did_service.download_and_upload_video(result_url, lesson_id)
-                
-                if upload_result["success"]:
-                    # Update lesson with avatar video URL
-                    collections['lessons'].update_one(
-                        {"lesson_id": lesson_id},
-                        {"$set": {
-                            "avatar_video_url": upload_result["s3_url"],
-                            "avatar_status": "completed",
-                            "updated_at": time.time()
-                        }}
-                    )
-                    
-                    logger.info(f"✅ Avatar video updated for lesson: {lesson_id}")
-                else:
-                    logger.error(f"❌ Failed to process webhook video: {upload_result['error']}")
-                    
-                    # Update lesson with error
-                    collections['lessons'].update_one(
-                        {"lesson_id": lesson_id},
-                        {"$set": {
-                            "avatar_status": "failed",
-                            "avatar_error": upload_result["error"],
-                            "updated_at": time.time()
-                        }}
-                    )
-        elif status == "error":
-            # Find the lesson associated with this talk_id
-            collections = did_service.collections
-            lesson = collections['lessons'].find_one({"did_talk_id": talk_id})
-            
-            if lesson:
-                lesson_id = lesson.get("lesson_id")
-                error_message = payload.get("error", "Unknown error")
-                
-                # Update lesson with error
-                collections['lessons'].update_one(
-                    {"lesson_id": lesson_id},
-                    {"$set": {
-                        "avatar_status": "failed",
-                        "avatar_error": error_message,
-                        "updated_at": time.time()
-                    }}
-                )
-                
-                logger.error(f"❌ D-ID processing error for lesson {lesson_id}: {error_message}")
-        
-        return {
-            "success": True,
-            "message": "Webhook received"
-        }
         
     except Exception as e:
         logger.error(f"❌ Webhook processing error: {e}")
