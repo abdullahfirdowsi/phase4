@@ -431,24 +431,62 @@ const QuizSystem = () => {
         const questionKey = question.question_number || index + 1;
         const userAnswer = quizAnswers[questionKey];
         const correctAnswer = question.correct_answer;
+        const questionType = question.type || 'mcq';
         
-        console.log(`Question ${questionKey}: User=${userAnswer}, Correct=${correctAnswer}, Match=${userAnswer === correctAnswer}`);
+        let isCorrect = false;
         
-        if (userAnswer === correctAnswer) {
+        if (userAnswer && userAnswer.trim()) {
+          if (questionType === 'short_answer') {
+            // For short answer questions, use a more flexible matching
+            // Check if user answer contains key concepts from correct answer
+            const userAnswerLower = userAnswer.toLowerCase().trim();
+            const correctAnswerLower = correctAnswer.toLowerCase().trim();
+            
+            // Simple keyword matching - if user answer contains main concepts
+            const correctWords = correctAnswerLower.split(/\s+/).filter(word => word.length > 3);
+            const matchingWords = correctWords.filter(word => userAnswerLower.includes(word));
+            
+            // Consider correct if at least 30% of key words match
+            isCorrect = matchingWords.length >= Math.max(1, Math.floor(correctWords.length * 0.3));
+            
+            console.log(`Question ${questionKey} (${questionType}): 
+  User: "${userAnswer}"
+  Correct: "${correctAnswer}"
+  Matching words: ${matchingWords.length}/${correctWords.length}
+  Is Correct: ${isCorrect}`);
+          } else {
+            // For MCQ and True/False, use exact matching
+            isCorrect = userAnswer.toString().trim() === correctAnswer.toString().trim();
+            
+            console.log(`Question ${questionKey} (${questionType}): User="${userAnswer}", Correct="${correctAnswer}", Match=${isCorrect}`);
+          }
+        } else {
+          console.log(`Question ${questionKey}: No answer provided`);
+        }
+        
+        if (isCorrect) {
           correctAnswers++;
         }
       });
       
-      const scorePercentage = (correctAnswers / totalQuestions) * 100;
+      // Calculate score percentage with safeguards
+      const scorePercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
       
-      // Create result object
+      console.log('🏆 Final scoring summary:', {
+        correctAnswers,
+        totalQuestions,
+        scorePercentage: `${scorePercentage.toFixed(1)}%`,
+        isValidScore: !isNaN(scorePercentage)
+      });
+      
+      // Create result object with validated data
       const result = {
         id: `result_${Date.now()}`,
         quiz_id: currentQuiz.id,
         quiz_title: currentQuiz.title,
-        score_percentage: scorePercentage,
-        correct_answers: correctAnswers,
-        total_questions: totalQuestions,
+        score_percentage: isNaN(scorePercentage) ? 0 : Math.round(scorePercentage * 100) / 100, // Round to 2 decimal places
+        correct_answers: correctAnswers || 0,
+        total_questions: totalQuestions || 0,
         submitted_at: new Date().toISOString()
       };
       
@@ -797,34 +835,58 @@ const QuizSystem = () => {
                       </h6>
                       
                       <div className="question-options">
-                        {question.options?.map((option, optIndex) => (
-                          <Form.Check
-                            key={`${question.question_number || index + 1}_${optIndex}_${option.substring(0, 10)}`}
-                            type="radio"
-                            id={`question_${question.question_number || index + 1}_option_${optIndex}`}
-                            name={`question_${question.question_number || index + 1}`}
-                            label={option}
-                            value={option.startsWith('A) ') ? 'A' : 
-                                   option.startsWith('B) ') ? 'B' : 
-                                   option.startsWith('C) ') ? 'C' : 
-                                   option.startsWith('D) ') ? 'D' : option}
-                            onChange={(e) => {
-                              const questionKey = question.question_number || index + 1;
-                              const newAnswers = {
-                                ...quizAnswers,
-                                [questionKey]: e.target.value
-                              };
-                              console.log(`📝 Answer changed for question ${questionKey}: ${e.target.value}`);
-                              console.log('📝 Current answers object:', newAnswers);
-                              setQuizAnswers(newAnswers);
-                            }}
-                            checked={quizAnswers[question.question_number || index + 1] === 
-                                    (option.startsWith('A) ') ? 'A' : 
+                        {/* Handle different question types */}
+                        {question.type === 'short_answer' ? (
+                          /* Short Answer Question */
+                          <Form.Group className="mt-3">
+                            <Form.Control
+                              as="textarea"
+                              rows={3}
+                              placeholder="Enter your answer here..."
+                              value={quizAnswers[question.question_number || index + 1] || ''}
+                              onChange={(e) => {
+                                const questionKey = question.question_number || index + 1;
+                                const newAnswers = {
+                                  ...quizAnswers,
+                                  [questionKey]: e.target.value
+                                };
+                                console.log(`📝 Answer changed for question ${questionKey}: ${e.target.value}`);
+                                console.log('📝 Current answers object:', newAnswers);
+                                setQuizAnswers(newAnswers);
+                              }}
+                            />
+                          </Form.Group>
+                        ) : (
+                          /* Multiple Choice or True/False Questions */
+                          question.options?.map((option, optIndex) => (
+                            <Form.Check
+                              key={`${question.question_number || index + 1}_${optIndex}_${option.substring(0, 10)}`}
+                              type="radio"
+                              id={`question_${question.question_number || index + 1}_option_${optIndex}`}
+                              name={`question_${question.question_number || index + 1}`}
+                              label={option}
+                              value={option.startsWith('A) ') ? 'A' : 
                                      option.startsWith('B) ') ? 'B' : 
                                      option.startsWith('C) ') ? 'C' : 
-                                     option.startsWith('D) ') ? 'D' : option)}
-                          />
-                        ))}
+                                     option.startsWith('D) ') ? 'D' : option}
+                              onChange={(e) => {
+                                const questionKey = question.question_number || index + 1;
+                                const newAnswers = {
+                                  ...quizAnswers,
+                                  [questionKey]: e.target.value
+                                };
+                                console.log(`📝 Answer changed for question ${questionKey}: ${e.target.value}`);
+                                console.log('📝 Current answers object:', newAnswers);
+                                setQuizAnswers(newAnswers);
+                              }}
+                              checked={quizAnswers[question.question_number || index + 1] === 
+                                      (option.startsWith('A) ') ? 'A' : 
+                                       option.startsWith('B) ') ? 'B' : 
+                                       option.startsWith('C) ') ? 'C' : 
+                                       option.startsWith('D) ') ? 'D' : option)}
+                            />
+                          ))
+                        )}
                       </div>
                     </Card.Body>
                   </Card>
