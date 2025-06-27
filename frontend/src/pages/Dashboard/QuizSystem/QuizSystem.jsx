@@ -384,28 +384,44 @@ const QuizSystem = () => {
       
       // Convert quizAnswers object to array format expected by backend
       const answersArray = [];
-      currentQuiz.questions.forEach((question, index) => {
-        const userAnswer = quizAnswers[question.question_number || index + 1] || "";
+      const questions = currentQuiz.questions || [];
+      
+      // Ensure answers are in the correct order based on question numbers
+      questions.forEach((question, index) => {
+        const questionKey = question.question_number || index + 1;
+        const userAnswer = quizAnswers[questionKey] || "";
         answersArray.push(userAnswer);
       });
       
       console.log('📤 Submitting quiz answers:', {
         quizId: currentQuiz.id,
+        quizIdForSubmission: currentQuiz.quiz_id || currentQuiz.id,
         answers: answersArray,
-        quizAnswersObject: quizAnswers
+        quizAnswersObject: quizAnswers,
+        questionsCount: questions.length,
+        answersCount: answersArray.length
       });
       
       // Try to submit to backend first
       try {
         const quizId = currentQuiz.quiz_id || currentQuiz.id;
         console.log('📤 Using quiz ID for submission:', quizId);
+        
+        // Call the backend API
         const result = await submitQuiz(quizId, answersArray);
-        if (result) {
+        if (result && result.score_percentage !== undefined) {
+          console.log('✅ Backend quiz submission successful:', result);
+          
+          // Add the result to our local results for immediate display
+          const updatedResults = [...quizResults, result];
+          setQuizResults(updatedResults);
+          // Save results to localStorage
+          const username = localStorage.getItem("username");
+          localStorage.setItem(`quizResults_${username}`, JSON.stringify(updatedResults));
+          
           setQuizResult(result);
           setShowQuizModal(false);
           setShowResultModal(true);
-          // Refresh quiz results
-          fetchQuizResults();
           setLoading(false);
           return;
         }
@@ -414,24 +430,72 @@ const QuizSystem = () => {
       }
       
       // Calculate score locally (in a real app, this would be done on the server)
-      const totalQuestions = currentQuiz.questions.length;
+      // questions variable is already declared above, reuse it
+      const totalQuestions = questions.length;
       let correctAnswers = 0;
       
       console.log('📊 Quiz scoring debug:', {
+        currentQuiz: currentQuiz,
+        questions: questions,
         totalQuestions,
         quizAnswers,
-        questions: currentQuiz.questions.map(q => ({
+        questionDetails: questions.map((q, index) => ({
+          index,
           questionNumber: q.question_number,
+          question: q.question,
           correctAnswer: q.correct_answer,
-          userAnswer: quizAnswers[q.question_number]
+          userAnswer: quizAnswers[q.question_number || index + 1],
+          type: q.type
         }))
       });
       
-      currentQuiz.questions.forEach((question, index) => {
+      // Early exit if no questions
+      if (totalQuestions === 0) {
+        console.error('❌ No questions found in quiz!');
+        setError('Quiz has no questions. Please contact support.');
+        setLoading(false);
+        return;
+      }
+      
+      // Validate each question has required properties
+      const validQuestions = currentQuiz.questions.filter(q => {
+        const hasQuestion = q.question && q.question.trim();
+        const hasCorrectAnswer = q.correct_answer !== undefined && q.correct_answer !== null;
+        const isValid = hasQuestion && hasCorrectAnswer;
+        
+        if (!isValid) {
+          console.warn('⚠️ Invalid question detected:', {
+            question: q.question,
+            correct_answer: q.correct_answer,
+            hasQuestion,
+            hasCorrectAnswer
+          });
+        }
+        
+        return isValid;
+      });
+      
+      console.log('✅ Valid questions after filtering:', validQuestions.length, 'out of', currentQuiz.questions.length);
+      
+      if (validQuestions.length === 0) {
+        console.error('❌ No valid questions found after filtering!');
+        setError('Quiz contains no valid questions. Please contact support.');
+        setLoading(false);
+        return;
+      }
+      
+      validQuestions.forEach((question, index) => {
         const questionKey = question.question_number || index + 1;
         const userAnswer = quizAnswers[questionKey];
         const correctAnswer = question.correct_answer;
         const questionType = question.type || 'mcq';
+        
+        console.log(`🔍 Processing question ${questionKey}:`, {
+          question: question.question,
+          userAnswer,
+          correctAnswer,
+          questionType
+        });
         
         let isCorrect = false;
         
@@ -440,7 +504,7 @@ const QuizSystem = () => {
             // For short answer questions, use a more flexible matching
             // Check if user answer contains key concepts from correct answer
             const userAnswerLower = userAnswer.toLowerCase().trim();
-            const correctAnswerLower = correctAnswer.toLowerCase().trim();
+            const correctAnswerLower = correctAnswer.toString().toLowerCase().trim();
             
             // Simple keyword matching - if user answer contains main concepts
             const correctWords = correctAnswerLower.split(/\s+/).filter(word => word.length > 3);
@@ -469,26 +533,95 @@ const QuizSystem = () => {
         }
       });
       
-      // Calculate score percentage with safeguards
-      const scorePercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+      // Update totalQuestions to reflect only valid questions
+      const finalTotalQuestions = validQuestions.length;
+      
+      // Calculate score percentage with safeguards using validated question count
+      const scorePercentage = finalTotalQuestions > 0 ? (correctAnswers / finalTotalQuestions) * 100 : 0;
       
       console.log('🏆 Final scoring summary:', {
         correctAnswers,
-        totalQuestions,
+        originalTotalQuestions: totalQuestions,
+        finalTotalQuestions,
         scorePercentage: `${scorePercentage.toFixed(1)}%`,
         isValidScore: !isNaN(scorePercentage)
       });
       
-      // Create result object with validated data
+      // Create detailed answer review for each valid question
+      const answerReview = validQuestions.map((question, index) => {
+        const questionKey = question.question_number || index + 1;
+        const userAnswer = quizAnswers[questionKey];
+        const correctAnswer = question.correct_answer;
+        const questionType = question.type || 'mcq';
+        
+        console.log(`🔍 Creating review for question ${questionKey}:`, {
+          question: question.question,
+          userAnswer,
+          correctAnswer,
+          questionType
+        });
+        
+        let isCorrect = false;
+        let feedback = '';
+        
+        if (userAnswer && userAnswer.trim()) {
+          if (questionType === 'short_answer') {
+            const userAnswerLower = userAnswer.toLowerCase().trim();
+            const correctAnswerLower = correctAnswer.toString().toLowerCase().trim();
+            const correctWords = correctAnswerLower.split(/\s+/).filter(word => word.length > 3);
+            const matchingWords = correctWords.filter(word => userAnswerLower.includes(word));
+            isCorrect = matchingWords.length >= Math.max(1, Math.floor(correctWords.length * 0.3));
+            
+            if (isCorrect) {
+              feedback = 'Your answer covers the key concepts correctly!';
+            } else {
+              feedback = `Your answer is partially correct but missing some key points.`;
+            }
+          } else {
+            isCorrect = userAnswer.toString().trim() === correctAnswer.toString().trim();
+            feedback = isCorrect ? 'Correct!' : 'Incorrect answer.';
+          }
+        } else {
+          feedback = 'No answer provided.';
+        }
+        
+        return {
+          questionNumber: questionKey,
+          question: question.question,
+          type: questionType,
+          options: question.options || [],
+          userAnswer: userAnswer || 'No answer',
+          correctAnswer: correctAnswer,
+          explanation: question.explanation || 'No explanation available.',
+          isCorrect,
+          feedback
+        };
+      });
+      
+      console.log('📋 Created answer review:', answerReview);
+      
+      // Create result object with validated data and answer review
       const result = {
         id: `result_${Date.now()}`,
         quiz_id: currentQuiz.id,
         quiz_title: currentQuiz.title,
-        score_percentage: isNaN(scorePercentage) ? 0 : Math.round(scorePercentage * 100) / 100, // Round to 2 decimal places
+        score_percentage: isNaN(scorePercentage) ? 0 : Math.round(scorePercentage * 100) / 100,
         correct_answers: correctAnswers || 0,
-        total_questions: totalQuestions || 0,
-        submitted_at: new Date().toISOString()
+        total_questions: finalTotalQuestions || 0, // Use validated question count
+        submitted_at: new Date().toISOString(),
+        answerReview: answerReview // Add detailed review
       };
+      
+      console.log('📋 Final quiz result object:', {
+        ...result,
+        answerReviewCount: answerReview?.length || 0,
+        debugInfo: {
+          originalTotalQuestions: totalQuestions,
+          finalTotalQuestions,
+          validQuestionsCount: validQuestions.length,
+          allQuestions: currentQuiz.questions?.length || 0
+        }
+      });
       
       // Add to results
       const updatedResults = [...quizResults, result];
@@ -923,12 +1056,22 @@ const QuizSystem = () => {
           <Modal.Body>
             {quizResult && (
               <div className="quiz-result-content">
+                {/* Debug quiz result */}
+                {console.log('🔍 DEBUG: Quiz result object:', quizResult)}
+                
                 <div className="result-summary">
                   <div className="score-display">
                     <Award size={48} className="score-icon" />
                     <div className="score-text">
-                      <h2>{Math.round(quizResult.score_percentage)}%</h2>
-                      <p>{quizResult.correct_answers} out of {quizResult.total_questions} correct</p>
+                      <h2>
+                        {quizResult.score_percentage !== undefined && !isNaN(quizResult.score_percentage) 
+                          ? `${Math.round(quizResult.score_percentage)}%`
+                          : '0%'
+                        }
+                      </h2>
+                      <p>
+                        {quizResult.correct_answers || 0} out of {quizResult.total_questions || 0} correct
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -936,12 +1079,131 @@ const QuizSystem = () => {
                 <div className="detailed-results">
                   <h5>Performance Summary</h5>
                   <p>
-                    {quizResult.score_percentage >= 80 
-                      ? "Excellent work! You have a strong understanding of this topic." 
-                      : quizResult.score_percentage >= 60
-                      ? "Good job! You're on the right track with room for improvement."
-                      : "Keep practicing! Review the material and try again."}
+                    {quizResult.score_percentage !== undefined && !isNaN(quizResult.score_percentage) 
+                      ? (
+                          quizResult.score_percentage >= 80 
+                            ? "🎉 Excellent work! You have a strong understanding of this topic." 
+                            : quizResult.score_percentage >= 60
+                            ? "👍 Good job! You're on the right track with room for improvement."
+                            : "📚 Keep practicing! Review the material and try again."
+                        )
+                      : "📊 Score calculation completed. Please review your answers below."
+                    }
                   </p>
+                  
+                  {/* Detailed Answer Review */}
+                  {quizResult.answerReview && (
+                    <div className="answer-review mt-4">
+                      <h5 className="mb-3">📋 Answer Review</h5>
+                      <div className="accordion" id="answerAccordion">
+                        {quizResult.answerReview.map((review, index) => (
+                          <div key={`answer_${review.questionNumber}`} className="accordion-item">
+                            <h2 className="accordion-header" id={`heading${index}`}>
+                              <button 
+                                className="accordion-button collapsed d-flex align-items-center" 
+                                type="button" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target={`#collapse${index}`}
+                                aria-expanded="false" 
+                                aria-controls={`collapse${index}`}
+                              >
+                                <div className="question-header w-100">
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <span className="fw-bold">Question {review.questionNumber}</span>
+                                    <Badge 
+                                      bg={review.isCorrect ? "success" : "danger"}
+                                      className="ms-2"
+                                    >
+                                      {review.isCorrect ? (
+                                        <><CheckCircle size={12} className="me-1" />Correct</>
+                                      ) : (
+                                        <><XCircle size={12} className="me-1" />Incorrect</>
+                                      )}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-muted small mt-1">
+                                    {review.question.length > 60 
+                                      ? review.question.substring(0, 60) + '...' 
+                                      : review.question}
+                                  </div>
+                                </div>
+                              </button>
+                            </h2>
+                            <div 
+                              id={`collapse${index}`} 
+                              className="accordion-collapse collapse" 
+                              aria-labelledby={`heading${index}`}
+                              data-bs-parent="#answerAccordion"
+                            >
+                              <div className="accordion-body">
+                                <div className="question-detail">
+                                  <h6 className="mb-2">📝 Question:</h6>
+                                  <p className="question-text">{review.question}</p>
+                                  
+                                  {/* Show options for MCQ/True-False */}
+                                  {review.type !== 'short_answer' && review.options.length > 0 && (
+                                    <div className="mb-3">
+                                      <h6>Options:</h6>
+                                      <ul className="list-unstyled">
+                                        {review.options.map((option, optIndex) => (
+                                          <li key={optIndex} className="mb-1">
+                                            <span className={`option-item ${
+                                              option.includes(review.correctAnswer) ? 'correct-option' : ''
+                                            } ${
+                                              option.includes(review.userAnswer) && !review.isCorrect ? 'incorrect-option' : ''
+                                            }`}>
+                                              {option}
+                                            </span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="answer-comparison">
+                                    <div className="row">
+                                      <div className="col-md-6">
+                                        <h6 className="text-primary">👤 Your Answer:</h6>
+                                        <div className={`answer-box ${
+                                          review.isCorrect ? 'correct-answer' : 'incorrect-answer'
+                                        }`}>
+                                          {review.userAnswer || 'No answer provided'}
+                                        </div>
+                                      </div>
+                                      <div className="col-md-6">
+                                        <h6 className="text-success">✅ Correct Answer:</h6>
+                                        <div className="answer-box correct-answer">
+                                          {review.correctAnswer}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="feedback mt-3">
+                                    <h6 className="text-info">💡 Feedback:</h6>
+                                    <div className={`feedback-box ${
+                                      review.isCorrect ? 'success-feedback' : 'improvement-feedback'
+                                    }`}>
+                                      {review.feedback}
+                                    </div>
+                                  </div>
+                                  
+                                  {review.explanation && review.explanation !== 'No explanation available.' && (
+                                    <div className="explanation mt-3">
+                                      <h6 className="text-warning">📖 Explanation:</h6>
+                                      <div className="explanation-box">
+                                        {review.explanation}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

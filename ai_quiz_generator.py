@@ -248,37 +248,88 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
             raise HTTPException(status_code=404, detail="Quiz not found")
         
         # Prepare data for scoring
-        quiz_info = quiz_data["quiz_json"]["quiz_data"]
+        quiz_json = quiz_data["quiz_json"]
+        logger.info(f"🔍 Quiz JSON structure: {json.dumps(quiz_json, indent=2)}")
         
-        # Create prompt for score calculation
-        prompt = SCORE_CALCULATION_PROMPT.format(
-            quiz_data=json.dumps(quiz_info),
-            user_answers=json.dumps(request.answers)
-        )
+        # Handle both AI-generated and fallback quiz structures
+        if "quiz_data" in quiz_json:
+            quiz_info = quiz_json["quiz_data"]
+            logger.info(f"📋 Using nested quiz_data structure")
+        else:
+            quiz_info = quiz_json
+            logger.info(f"📋 Using direct quiz structure")
         
-        # Generate AI response for scoring
-        ai_response = generate_ai_response(prompt)
-        score_json = extract_json_from_response(ai_response)
+        questions = quiz_info.get("questions", [])
+        logger.info(f"📊 Found {len(questions)} questions in quiz data")
         
-        if not score_json:
-            # Fallback scoring
-            score_json = calculate_fallback_score(quiz_info, request.answers)
+        # Calculate score using fallback method (more reliable)
+        total_questions = len(questions)
+        correct_answers = 0
+        detailed_results = []
         
-        # Store result in chat history
-        store_quiz_message(request.username, score_json)
+        logger.info(f"📊 Scoring quiz with {total_questions} questions and {len(request.answers)} answers")
         
-        # Update quiz status
-        chats_collection.update_one(
-            {"username": request.username, "active_quizzes.quiz_id": request.quiz_id},
-            {"$set": {"active_quizzes.$.status": "completed"}}
-        )
+        for i, question in enumerate(questions):
+            user_answer = request.answers[i] if i < len(request.answers) else ""
+            correct_answer = question.get("correct_answer", "")
+            question_type = question.get("type", "mcq")
+            
+            logger.info(f"Question {i+1}: User='{user_answer}', Correct='{correct_answer}', Type={question_type}")
+            
+            is_correct = False
+            
+            if user_answer and user_answer.strip():
+                if question_type == "mcq":
+                    # For MCQ, compare the letter (A, B, C, D)
+                    is_correct = user_answer.strip().upper() == correct_answer.strip().upper()
+                elif question_type == "true_false":
+                    is_correct = user_answer.strip().lower() == correct_answer.strip().lower()
+                elif question_type == "short_answer":
+                    # Simple keyword matching for short answers
+                    user_words = set(user_answer.lower().split())
+                    correct_words = set(correct_answer.lower().split())
+                    # Consider correct if at least 50% of keywords match
+                    match_ratio = len(user_words.intersection(correct_words)) / len(correct_words) if correct_words else 0
+                    is_correct = match_ratio >= 0.5
+            
+            if is_correct:
+                correct_answers += 1
+            
+            detailed_results.append({
+                "question_number": question.get("question_number", i + 1),
+                "question": question.get("question", ""),
+                "type": question_type,
+                "options": question.get("options", []),
+                "user_answer": user_answer,
+                "correct_answer": correct_answer,
+                "is_correct": is_correct,
+                "explanation": question.get("explanation", ""),
+                "feedback": "Correct!" if is_correct else "Incorrect answer."
+            })
         
-        # Store quiz result
+        # Calculate percentage
+        score_percentage = round((correct_answers / total_questions) * 100, 1) if total_questions > 0 else 0
+        
+        # Create frontend-compatible result
+        frontend_result = {
+            "id": f"result_{int(datetime.datetime.utcnow().timestamp())}",
+            "quiz_id": request.quiz_id,
+            "quiz_title": f"{quiz_info.get('topic', 'Quiz')} Quiz",
+            "score_percentage": score_percentage,
+            "correct_answers": correct_answers,
+            "total_questions": total_questions,
+            "submitted_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "answerReview": detailed_results  # Frontend expects this key
+        }
+        
+        logger.info(f"📊 Final quiz result: {correct_answers}/{total_questions} = {score_percentage}%")
+        
+        # Store result in frontend format for compatibility
         result_data = {
             "quiz_id": request.quiz_id,
             "username": request.username,
             "answers": request.answers,
-            "score_json": score_json,
+            "result": frontend_result,
             "submitted_at": datetime.datetime.utcnow()
         }
         
@@ -288,7 +339,13 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
             upsert=True
         )
         
-        return score_json
+        # Update quiz status
+        chats_collection.update_one(
+            {"username": request.username, "active_quizzes.quiz_id": request.quiz_id},
+            {"$set": {"active_quizzes.$.status": "completed"}}
+        )
+        
+        return frontend_result
         
     except Exception as e:
         logger.error(f"Error submitting quiz: {e}")
