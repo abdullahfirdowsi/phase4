@@ -31,6 +31,7 @@ const QuizSystem = () => {
   const [error, setError] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [topic, setTopic] = useState("");
+  const [expandedAccordion, setExpandedAccordion] = useState(null);
 
   // Form state for creating quiz
   const [formData, setFormData] = useState({
@@ -1100,40 +1101,47 @@ const QuizSystem = () => {
                           <div key={`answer_${review.questionNumber}`} className="accordion-item">
                             <h2 className="accordion-header" id={`heading${index}`}>
                               <button 
-                                className="accordion-button collapsed d-flex align-items-center" 
+                                className={`accordion-button ${expandedAccordion === index ? '' : 'collapsed'}`}
                                 type="button" 
-                                data-bs-toggle="collapse" 
-                                data-bs-target={`#collapse${index}`}
-                                aria-expanded="false" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('🖱️ Accordion button clicked for index:', index);
+                                  console.log('🔍 Current expandedAccordion:', expandedAccordion);
+                                  const newIndex = expandedAccordion === index ? null : index;
+                                  console.log('🔄 Setting expandedAccordion to:', newIndex);
+                                  setExpandedAccordion(newIndex);
+                                }}
+                                aria-expanded={expandedAccordion === index}
                                 aria-controls={`collapse${index}`}
+                                style={{ cursor: 'pointer', userSelect: 'none' }}
                               >
-                                <div className="question-header w-100">
-                                  <div className="d-flex justify-content-between align-items-center">
+                                <div className="d-flex justify-content-between align-items-center w-100">
+                                  <div className="d-flex flex-column align-items-start">
                                     <span className="fw-bold">Question {review.questionNumber}</span>
-                                    <Badge 
-                                      bg={review.isCorrect ? "success" : "danger"}
-                                      className="ms-2"
-                                    >
-                                      {review.isCorrect ? (
-                                        <><CheckCircle size={12} className="me-1" />Correct</>
-                                      ) : (
-                                        <><XCircle size={12} className="me-1" />Incorrect</>
-                                      )}
-                                    </Badge>
+                                    <div className="text-muted small mt-1">
+                                      {review.question.length > 60 
+                                        ? review.question.substring(0, 60) + '...' 
+                                        : review.question}
+                                    </div>
                                   </div>
-                                  <div className="text-muted small mt-1">
-                                    {review.question.length > 60 
-                                      ? review.question.substring(0, 60) + '...' 
-                                      : review.question}
-                                  </div>
+                                  <Badge 
+                                    bg={review.isCorrect ? "success" : "danger"}
+                                    className="ms-2"
+                                  >
+                                    {review.isCorrect ? (
+                                      <><CheckCircle size={12} className="me-1" />Correct</>
+                                    ) : (
+                                      <><XCircle size={12} className="me-1" />Incorrect</>
+                                    )}
+                                  </Badge>
                                 </div>
                               </button>
                             </h2>
                             <div 
                               id={`collapse${index}`} 
-                              className="accordion-collapse collapse" 
+                              className={`accordion-collapse collapse ${expandedAccordion === index ? 'show' : ''}`}
                               aria-labelledby={`heading${index}`}
-                              data-bs-parent="#answerAccordion"
                             >
                               <div className="accordion-body">
                                 <div className="question-detail">
@@ -1188,11 +1196,21 @@ const QuizSystem = () => {
                                     </div>
                                   </div>
                                   
-                                  {review.explanation && review.explanation.trim() !== '' && (
+                                  {review.explanation && review.explanation.trim() !== '' && review.explanation !== 'No explanation available.' && (
                                     <div className="explanation mt-3">
                                       <h6 className="text-warning">📖 Explanation:</h6>
                                       <div className="explanation-box">
                                         {review.explanation}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Show fallback message if no explanation */}
+                                  {(!review.explanation || review.explanation.trim() === '' || review.explanation === 'No explanation available.') && (
+                                    <div className="explanation mt-3">
+                                      <h6 className="text-muted">📖 Explanation:</h6>
+                                      <div className="explanation-box text-muted">
+                                        <em>No detailed explanation available for this question.</em>
                                       </div>
                                     </div>
                                   )}
