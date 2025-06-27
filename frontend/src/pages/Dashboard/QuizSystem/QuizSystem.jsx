@@ -238,7 +238,13 @@ const QuizSystem = () => {
       if (storedResults) {
         try {
           const parsedResults = JSON.parse(storedResults);
-          setQuizResults(parsedResults);
+          // Sort stored results by submission date (newest first)
+          const sortedResults = parsedResults.sort((a, b) => {
+            const dateA = new Date(a.submitted_at || 0);
+            const dateB = new Date(b.submitted_at || 0);
+            return dateB - dateA; // Descending order (newest first)
+          });
+          setQuizResults(sortedResults);
           return;
         } catch (parseError) {
           console.log("Error parsing stored quiz results, will fetch fresh data");
@@ -251,9 +257,17 @@ const QuizSystem = () => {
         if (response.ok) {
           const data = await response.json();
           const results = data.quiz_history || [];
-          setQuizResults(results);
+          
+          // Sort results by submission date (newest first)
+          const sortedResults = results.sort((a, b) => {
+            const dateA = new Date(a.submitted_at || 0);
+            const dateB = new Date(b.submitted_at || 0);
+            return dateB - dateA; // Descending order (newest first)
+          });
+          
+          setQuizResults(sortedResults);
           // Save to localStorage
-          localStorage.setItem(`quizResults_${username}`, JSON.stringify(results));
+          localStorage.setItem(`quizResults_${username}`, JSON.stringify(sortedResults));
         } else {
           console.log("Quiz results API returned non-JSON response, creating sample results");
           // Create sample quiz results since the API is not available
@@ -414,7 +428,7 @@ const QuizSystem = () => {
           console.log('✅ Backend quiz submission successful:', result);
           
           // Add the result to our local results for immediate display
-          const updatedResults = [...quizResults, result];
+          const updatedResults = [result, ...quizResults]; // Add new result at the beginning
           setQuizResults(updatedResults);
           // Save results to localStorage
           const username = localStorage.getItem("username");
@@ -624,8 +638,8 @@ const QuizSystem = () => {
         }
       });
       
-      // Add to results
-      const updatedResults = [...quizResults, result];
+      // Add to results (newest first)
+      const updatedResults = [result, ...quizResults]; // Add new result at the beginning
       setQuizResults(updatedResults);
       // Save results to localStorage
       const username = localStorage.getItem("username");

@@ -287,8 +287,20 @@ async def get_quiz_results(username: str = Query(...)):
 
         results = chat_session.get("quiz_results", [])
         
-        # Sort by submission date (newest first)
-        results.sort(key=lambda x: x.get("submitted_at", ""), reverse=True)
+        # Sort by submission date (newest first) with proper datetime parsing
+        def get_datetime(result):
+            submitted_at = result.get("submitted_at", "")
+            if submitted_at:
+                try:
+                    # Try to parse ISO format datetime
+                    from datetime import datetime
+                    return datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
+                except:
+                    # Fallback to string comparison
+                    return submitted_at
+            return datetime.datetime.min
+        
+        results.sort(key=get_datetime, reverse=True)
 
         return {"results": results}
     except Exception as e:
