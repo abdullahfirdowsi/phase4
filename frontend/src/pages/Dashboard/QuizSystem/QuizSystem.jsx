@@ -1188,7 +1188,7 @@ const QuizSystem = () => {
                                     </div>
                                   </div>
                                   
-                                  {review.explanation && review.explanation !== 'No explanation available.' && (
+                                  {review.explanation && review.explanation.trim() !== '' && (
                                     <div className="explanation mt-3">
                                       <h6 className="text-warning">📖 Explanation:</h6>
                                       <div className="explanation-box">
