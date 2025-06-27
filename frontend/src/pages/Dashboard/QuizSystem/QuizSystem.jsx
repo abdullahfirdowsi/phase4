@@ -51,10 +51,14 @@ const QuizSystem = () => {
     try {
       // Try to fetch quizzes from backend
       try {
-        const response = await fetch(`http://localhost:8000/quiz/list?username=${localStorage.getItem("username")}`);
+        const response = await fetch(`http://localhost:8000/quiz/active-quizzes?username=${localStorage.getItem("username")}`);
         if (response.ok) {
           const data = await response.json();
-          setQuizzes(data.quizzes || []);
+          // Sort quizzes by creation time (latest first)
+          const sortedQuizzes = (data.active_quizzes || []).sort((a, b) => {
+            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+          });
+          setQuizzes(sortedQuizzes);
         } else {
           console.log("Quiz API returned non-JSON response, using empty quiz list");
           // Create sample quizzes since the API is not available
@@ -132,10 +136,10 @@ const QuizSystem = () => {
     try {
       // Try to fetch quiz results from backend
       try {
-        const response = await fetch(`http://localhost:8000/quiz/results?username=${localStorage.getItem("username")}`);
+        const response = await fetch(`http://localhost:8000/quiz/quiz-history?username=${localStorage.getItem("username")}`);
         if (response.ok) {
           const data = await response.json();
-          setQuizResults(data.results || []);
+          setQuizResults(data.quiz_history || []);
         } else {
           console.log("Quiz results API returned non-JSON response, using empty results list");
           // Create sample quiz results since the API is not available
@@ -219,9 +223,18 @@ const QuizSystem = () => {
       const quiz = quizzes.find(q => q.id === quizId);
       
       if (quiz) {
-        setCurrentQuiz(quiz);
+        // Ensure the quiz has a proper ID for submission
+        const quizWithId = {
+          ...quiz,
+          id: quiz.id || `quiz_${Date.now()}`,
+          quiz_id: quiz.quiz_id || quiz.id || `quiz_${Date.now()}`
+        };
+        
+        console.log('🎯 Starting quiz:', quizWithId);
+        
+        setCurrentQuiz(quizWithId);
         setQuizAnswers({});
-        setTimeRemaining(quiz.time_limit * 60); // Convert to seconds
+        setTimeRemaining((quiz.time_limit || 10) * 60); // Convert to seconds
         setShowQuizModal(true);
       } else {
         setError("Failed to load quiz");
@@ -236,9 +249,24 @@ const QuizSystem = () => {
     try {
       setLoading(true);
       
+      // Convert quizAnswers object to array format expected by backend
+      const answersArray = [];
+      currentQuiz.questions.forEach((question, index) => {
+        const userAnswer = quizAnswers[question.question_number || index + 1] || "";
+        answersArray.push(userAnswer);
+      });
+      
+      console.log('📤 Submitting quiz answers:', {
+        quizId: currentQuiz.id,
+        answers: answersArray,
+        quizAnswersObject: quizAnswers
+      });
+      
       // Try to submit to backend first
       try {
-        const result = await submitQuiz(currentQuiz.id, quizAnswers);
+        const quizId = currentQuiz.quiz_id || currentQuiz.id;
+        console.log('📤 Using quiz ID for submission:', quizId);
+        const result = await submitQuiz(quizId, answersArray);
         if (result) {
           setQuizResult(result);
           setShowQuizModal(false);
@@ -249,7 +277,7 @@ const QuizSystem = () => {
           return;
         }
       } catch (error) {
-        console.log("Quiz submission API failed, using local calculation");
+        console.log("Quiz submission API failed, using local calculation:", error);
       }
       
       // Calculate score locally (in a real app, this would be done on the server)
@@ -306,15 +334,19 @@ const QuizSystem = () => {
         // Add the generated quiz to our quizzes
         const newQuiz = {
           id: result.quiz_data.quiz_id || `quiz_${Date.now()}`,
+          quiz_id: result.quiz_data.quiz_id, // Backend quiz ID for submission
           title: `${topic} Quiz`,
           description: `Test your knowledge about ${topic}`,
           subject: topic,
           difficulty: result.quiz_data.difficulty || "medium",
           time_limit: result.quiz_data.time_limit || 10,
-          questions: result.quiz_data.questions || []
+          questions: result.quiz_data.questions || [],
+          created_at: new Date().toISOString() // For sorting
         };
         
-        setQuizzes(prev => [...prev, newQuiz]);
+        console.log('✅ Generated quiz:', newQuiz);
+        
+        setQuizzes(prev => [newQuiz, ...prev]); // Add new quiz at the beginning
         setTopic("");
         setError(null);
       } else {
@@ -602,7 +634,7 @@ const QuizSystem = () => {
             {currentQuiz && (
               <div className="quiz-content">
                 {currentQuiz.questions?.map((question, index) => (
-                  <Card key={question.id || index} className="question-card mb-3">
+                  <Card key={question.id || `question_${question.question_number || index + 1}`} className="question-card mb-3">
                     <Card.Body>
                       <h6 className="question-title">
                         Question {question.question_number || index + 1}: {question.question}

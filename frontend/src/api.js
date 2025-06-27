@@ -1015,17 +1015,22 @@ export const generateQuiz = async (topic, difficulty = "medium", questionCount =
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
+    const requestBody = {
+      username,
+      topic,
+      difficulty,
+      question_count: questionCount
+    };
+    
+    console.log('📤 Sending quiz generation request:', requestBody);
+    
     const data = await apiRequest(`${API_BASE_URL}/quiz/generate`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        username,
-        topic,
-        difficulty,
-        question_count: questionCount
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     return data;
@@ -1046,6 +1051,7 @@ export const submitQuiz = async (quizId, answers) => {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         username,
