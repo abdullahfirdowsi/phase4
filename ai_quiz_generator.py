@@ -296,13 +296,13 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
                 correct_answers += 1
             
             detailed_results.append({
-                "question_number": question.get("question_number", i + 1),
+                "questionNumber": question.get("question_number", i + 1),
                 "question": question.get("question", ""),
                 "type": question_type,
                 "options": question.get("options", []),
-                "user_answer": user_answer,
-                "correct_answer": correct_answer,
-                "is_correct": is_correct,
+                "userAnswer": user_answer,
+                "correctAnswer": correct_answer,
+                "isCorrect": is_correct,
                 "explanation": question.get("explanation", ""),
                 "feedback": "Correct!" if is_correct else "Incorrect answer."
             })
@@ -332,6 +332,9 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
             "result": frontend_result,
             "submitted_at": datetime.datetime.utcnow()
         }
+        
+        # Debug: Log the exact structure being sent to frontend
+        logger.info(f"🔍 Frontend result structure: {json.dumps(frontend_result, indent=2)}")
         
         chats_collection.update_one(
             {"username": request.username},
@@ -478,12 +481,20 @@ async def get_quiz_history(username: str):
         # Format results for display
         history = []
         for result in quiz_results:
-            score_data = result["score_json"]["score_data"]
+            # Handle different result structures
+            if "score_json" in result and "score_data" in result["score_json"]:
+                score_data = result["score_json"]["score_data"]
+            elif "result" in result:
+                score_data = result["result"]
+            else:
+                # Skip malformed results
+                continue
+                
             history.append({
                 "quiz_id": result["quiz_id"],
                 "submitted_at": result["submitted_at"],
-                "score": f"{score_data['correct_answers']}/{score_data['total_questions']}",
-                "percentage": score_data["score_percentage"],
+                "score": f"{score_data.get('correct_answers', 0)}/{score_data.get('total_questions', 0)}",
+                "percentage": score_data.get("score_percentage", 0),
                 "topic": result.get("topic", "General")
             })
         
