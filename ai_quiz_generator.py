@@ -105,7 +105,7 @@ User Answers: {user_answers}
 
 Return ONLY a valid JSON object in this format:
 {{
-    "response": "Quiz completed! Here are your results:\\n\\nScore: X/Y ({percentage}%)\\n\\nDetailed Results:\\n{detailed_results}\\n\\nGreat job! {feedback}",
+    "response": "Quiz completed! Here are your results:\\n\\nScore: X/Y (XX%)\\n\\nDetailed Results:\\n[detailed results here]\\n\\nGreat job! [feedback here]",
     "type": "quiz_result",
     "score_data": {{
         "total_questions": Y,
