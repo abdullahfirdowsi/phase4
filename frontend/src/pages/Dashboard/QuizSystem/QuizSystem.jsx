@@ -417,9 +417,24 @@ const QuizSystem = () => {
       const totalQuestions = currentQuiz.questions.length;
       let correctAnswers = 0;
       
-      currentQuiz.questions.forEach(question => {
-        const userAnswer = quizAnswers[question.question_number];
-        if (userAnswer === question.correct_answer) {
+      console.log('📊 Quiz scoring debug:', {
+        totalQuestions,
+        quizAnswers,
+        questions: currentQuiz.questions.map(q => ({
+          questionNumber: q.question_number,
+          correctAnswer: q.correct_answer,
+          userAnswer: quizAnswers[q.question_number]
+        }))
+      });
+      
+      currentQuiz.questions.forEach((question, index) => {
+        const questionKey = question.question_number || index + 1;
+        const userAnswer = quizAnswers[questionKey];
+        const correctAnswer = question.correct_answer;
+        
+        console.log(`Question ${questionKey}: User=${userAnswer}, Correct=${correctAnswer}, Match=${userAnswer === correctAnswer}`);
+        
+        if (userAnswer === correctAnswer) {
           correctAnswers++;
         }
       });
@@ -793,10 +808,16 @@ const QuizSystem = () => {
                                    option.startsWith('B) ') ? 'B' : 
                                    option.startsWith('C) ') ? 'C' : 
                                    option.startsWith('D) ') ? 'D' : option}
-                            onChange={(e) => setQuizAnswers({
-                              ...quizAnswers,
-                              [question.question_number || index + 1]: e.target.value
-                            })}
+                            onChange={(e) => {
+                              const questionKey = question.question_number || index + 1;
+                              const newAnswers = {
+                                ...quizAnswers,
+                                [questionKey]: e.target.value
+                              };
+                              console.log(`📝 Answer changed for question ${questionKey}: ${e.target.value}`);
+                              console.log('📝 Current answers object:', newAnswers);
+                              setQuizAnswers(newAnswers);
+                            }}
                             checked={quizAnswers[question.question_number || index + 1] === 
                                     (option.startsWith('A) ') ? 'A' : 
                                      option.startsWith('B) ') ? 'B' : 
@@ -818,9 +839,16 @@ const QuizSystem = () => {
             <Button 
               variant="primary" 
               onClick={handleSubmitQuiz}
-              disabled={Object.keys(quizAnswers).length < (currentQuiz?.questions?.length || 0)}
+              disabled={loading}
             >
-              Submit Quiz
+              {loading ? (
+                <>
+                  <Spinner size="sm" animation="border" className="me-2" />
+                  Submitting...
+                </>
+              ) : (
+                `Submit Quiz (${Object.keys(quizAnswers).length}/${currentQuiz?.questions?.length || 0} answered)`
+              )}
             </Button>
           </Modal.Footer>
         </Modal>
