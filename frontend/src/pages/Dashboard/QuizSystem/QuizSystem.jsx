@@ -43,29 +43,109 @@ const QuizSystem = () => {
   });
 
   useEffect(() => {
+    // Add debugging to understand the loading sequence
+    console.log('🚀 QuizSystem component mounting...');
+    console.log('🔍 Available localStorage keys:', Object.keys(localStorage));
+    console.log('🔍 localStorage contents:', {
+      username: localStorage.getItem('username'),
+      token: localStorage.getItem('token') ? 'exists' : 'missing',
+      isAdmin: localStorage.getItem('isAdmin'),
+      name: localStorage.getItem('name')
+    });
+    
     fetchQuizzes();
     fetchQuizResults();
   }, []);
 
   const fetchQuizzes = async () => {
     try {
+      // First, try to load from localStorage
+      const username = localStorage.getItem("username");
+      console.log('🔍 DEBUG: Username from localStorage:', username);
+      const storedQuizzes = localStorage.getItem(`quizzes_${username}`);
+      console.log('🔍 DEBUG: Stored quizzes key:', `quizzes_${username}`);
+      console.log('🔍 DEBUG: Stored quizzes data:', storedQuizzes);
+      
+      if (storedQuizzes) {
+        try {
+          const parsedQuizzes = JSON.parse(storedQuizzes);
+          console.log('✅ DEBUG: Successfully loaded quizzes from localStorage:', parsedQuizzes);
+          
+          // Transform backend quiz format to frontend format
+          const transformedQuizzes = parsedQuizzes.map(quiz => {
+            // Check if it's backend format (has quiz_json) or frontend format
+            if (quiz.quiz_json && quiz.quiz_json.quiz_data) {
+              const quizData = quiz.quiz_json.quiz_data;
+              return {
+                id: quiz.quiz_id || `quiz_${Date.now()}`,
+                quiz_id: quiz.quiz_id, // Keep backend ID for submission
+                title: `${quizData.topic || 'Unknown'} Quiz`,
+                description: `Test your knowledge about ${quizData.topic || 'this topic'}`,
+                subject: quizData.topic || 'General',
+                difficulty: quizData.difficulty || 'medium',
+                time_limit: quizData.time_limit || 10,
+                questions: quizData.questions || [],
+                created_at: quiz.created_at || new Date().toISOString()
+              };
+            }
+            // If it's already in frontend format, return as-is
+            return quiz;
+          });
+          
+          console.log('🔄 DEBUG: Transformed quizzes:', transformedQuizzes);
+          setQuizzes(transformedQuizzes);
+          setLoading(false);
+          return;
+        } catch (parseError) {
+          console.log("❌ Error parsing stored quizzes, will fetch fresh data:", parseError);
+        }
+      } else {
+        console.log('ℹ️ DEBUG: No stored quizzes found in localStorage');
+      }
+      
       // Try to fetch quizzes from backend
       try {
-        const response = await fetch(`http://localhost:8000/quiz/active-quizzes?username=${localStorage.getItem("username")}`);
+        const response = await fetch(`http://localhost:8000/quiz/active-quizzes?username=${username}`);
         if (response.ok) {
           const data = await response.json();
+          // Transform backend quiz format to frontend format
+          const backendQuizzes = data.active_quizzes || [];
+          const transformedQuizzes = backendQuizzes.map(quiz => {
+            // Check if it's backend format (has quiz_json) or frontend format
+            if (quiz.quiz_json && quiz.quiz_json.quiz_data) {
+              const quizData = quiz.quiz_json.quiz_data;
+              return {
+                id: quiz.quiz_id || `quiz_${Date.now()}`,
+                quiz_id: quiz.quiz_id, // Keep backend ID for submission
+                title: `${quizData.topic || 'Unknown'} Quiz`,
+                description: `Test your knowledge about ${quizData.topic || 'this topic'}`,
+                subject: quizData.topic || 'General',
+                difficulty: quizData.difficulty || 'medium',
+                time_limit: quizData.time_limit || 10,
+                questions: quizData.questions || [],
+                created_at: quiz.created_at || new Date().toISOString()
+              };
+            }
+            // If it's already in frontend format, return as-is
+            return quiz;
+          });
+          
           // Sort quizzes by creation time (latest first)
-          const sortedQuizzes = (data.active_quizzes || []).sort((a, b) => {
+          const sortedQuizzes = transformedQuizzes.sort((a, b) => {
             return new Date(b.created_at || 0) - new Date(a.created_at || 0);
           });
+          
+          console.log('🔄 DEBUG: Transformed backend quizzes:', sortedQuizzes);
           setQuizzes(sortedQuizzes);
+          // Save to localStorage
+          localStorage.setItem(`quizzes_${username}`, JSON.stringify(sortedQuizzes));
         } else {
-          console.log("Quiz API returned non-JSON response, using empty quiz list");
+          console.log("Quiz API returned non-JSON response, creating sample quizzes");
           // Create sample quizzes since the API is not available
           createSampleQuizzes();
         }
       } catch (error) {
-        console.log("Quiz API returned non-JSON response, using empty quiz list");
+        console.log("Quiz API returned non-JSON response, creating sample quizzes");
         // Create sample quizzes since the API is not available
         createSampleQuizzes();
       }
@@ -78,6 +158,20 @@ const QuizSystem = () => {
   };
 
   const createSampleQuizzes = () => {
+    const username = localStorage.getItem("username");
+    const existingQuizzes = localStorage.getItem(`quizzes_${username}`);
+    
+    // Only create sample quizzes if none exist in localStorage
+    if (existingQuizzes) {
+      try {
+        const parsedQuizzes = JSON.parse(existingQuizzes);
+        setQuizzes(parsedQuizzes);
+        return;
+      } catch (error) {
+        console.log("Error parsing existing quizzes, creating fresh samples");
+      }
+    }
+    
     const sampleQuizzes = [
       {
         id: "quiz_1",
@@ -130,23 +224,42 @@ const QuizSystem = () => {
     ];
     
     setQuizzes(sampleQuizzes);
+    // Save sample quizzes to localStorage
+    localStorage.setItem(`quizzes_${username}`, JSON.stringify(sampleQuizzes));
   };
 
   const fetchQuizResults = async () => {
     try {
+      // First, try to load from localStorage
+      const username = localStorage.getItem("username");
+      const storedResults = localStorage.getItem(`quizResults_${username}`);
+      
+      if (storedResults) {
+        try {
+          const parsedResults = JSON.parse(storedResults);
+          setQuizResults(parsedResults);
+          return;
+        } catch (parseError) {
+          console.log("Error parsing stored quiz results, will fetch fresh data");
+        }
+      }
+      
       // Try to fetch quiz results from backend
       try {
-        const response = await fetch(`http://localhost:8000/quiz/quiz-history?username=${localStorage.getItem("username")}`);
+        const response = await fetch(`http://localhost:8000/quiz/quiz-history?username=${username}`);
         if (response.ok) {
           const data = await response.json();
-          setQuizResults(data.quiz_history || []);
+          const results = data.quiz_history || [];
+          setQuizResults(results);
+          // Save to localStorage
+          localStorage.setItem(`quizResults_${username}`, JSON.stringify(results));
         } else {
-          console.log("Quiz results API returned non-JSON response, using empty results list");
+          console.log("Quiz results API returned non-JSON response, creating sample results");
           // Create sample quiz results since the API is not available
           createSampleQuizResults();
         }
       } catch (error) {
-        console.log("Quiz results API returned non-JSON response, using empty results list");
+        console.log("Quiz results API returned non-JSON response, creating sample results");
         // Create sample quiz results since the API is not available
         createSampleQuizResults();
       }
@@ -157,6 +270,20 @@ const QuizSystem = () => {
   };
 
   const createSampleQuizResults = () => {
+    const username = localStorage.getItem("username");
+    const existingResults = localStorage.getItem(`quizResults_${username}`);
+    
+    // Only create sample results if none exist in localStorage
+    if (existingResults) {
+      try {
+        const parsedResults = JSON.parse(existingResults);
+        setQuizResults(parsedResults);
+        return;
+      } catch (error) {
+        console.log("Error parsing existing quiz results, creating fresh samples");
+      }
+    }
+    
     // Create sample quiz results since the API is not available
     const sampleResults = [
       {
@@ -180,6 +307,8 @@ const QuizSystem = () => {
     ];
     
     setQuizResults(sampleResults);
+    // Save sample results to localStorage
+    localStorage.setItem(`quizResults_${username}`, JSON.stringify(sampleResults));
   };
 
   const handleCreateQuiz = async () => {
@@ -202,7 +331,11 @@ const QuizSystem = () => {
         }))
       };
       
-      setQuizzes(prev => [...prev, newQuiz]);
+      const updatedQuizzes = [...quizzes, newQuiz];
+      setQuizzes(updatedQuizzes);
+      // Save to localStorage
+      const username = localStorage.getItem("username");
+      localStorage.setItem(`quizzes_${username}`, JSON.stringify(updatedQuizzes));
       setShowCreateModal(false);
       setFormData({
         title: "",
@@ -305,7 +438,11 @@ const QuizSystem = () => {
       };
       
       // Add to results
-      setQuizResults(prev => [...prev, result]);
+      const updatedResults = [...quizResults, result];
+      setQuizResults(updatedResults);
+      // Save results to localStorage
+      const username = localStorage.getItem("username");
+      localStorage.setItem(`quizResults_${username}`, JSON.stringify(updatedResults));
       setQuizResult(result);
       setShowQuizModal(false);
       setShowResultModal(true);
@@ -346,7 +483,11 @@ const QuizSystem = () => {
         
         console.log('✅ Generated quiz:', newQuiz);
         
-        setQuizzes(prev => [newQuiz, ...prev]); // Add new quiz at the beginning
+        const updatedQuizzes = [newQuiz, ...quizzes]; // Add new quiz at the beginning
+        setQuizzes(updatedQuizzes);
+        // Save to localStorage
+        const username = localStorage.getItem("username");
+        localStorage.setItem(`quizzes_${username}`, JSON.stringify(updatedQuizzes));
         setTopic("");
         setError(null);
       } else {
@@ -634,7 +775,7 @@ const QuizSystem = () => {
             {currentQuiz && (
               <div className="quiz-content">
                 {currentQuiz.questions?.map((question, index) => (
-                  <Card key={question.id || `question_${question.question_number || index + 1}`} className="question-card mb-3">
+                  <Card key={`${currentQuiz.id}_question_${question.question_number || index + 1}_${question.question?.substring(0, 20)?.replace(/\s/g, '') || index}`} className="question-card mb-3">
                     <Card.Body>
                       <h6 className="question-title">
                         Question {question.question_number || index + 1}: {question.question}
@@ -643,7 +784,7 @@ const QuizSystem = () => {
                       <div className="question-options">
                         {question.options?.map((option, optIndex) => (
                           <Form.Check
-                            key={optIndex}
+                            key={`${question.question_number || index + 1}_${optIndex}_${option.substring(0, 10)}`}
                             type="radio"
                             id={`question_${question.question_number || index + 1}_option_${optIndex}`}
                             name={`question_${question.question_number || index + 1}`}
