@@ -327,42 +327,66 @@ const QuizSystem = () => {
   };
 
   const handleCreateQuiz = async () => {
+    if (!formData.title.trim() || !formData.subject.trim()) {
+      setError("Please fill in all required fields");
+      return;
+    }
+    
+    setIsGenerating(true);
+    setError(null);
+    
     try {
-      // Since the API is not available, we'll add the quiz to our local state
-      const newQuiz = {
-        id: `quiz_${Date.now()}`,
-        title: formData.title,
-        description: formData.description,
-        subject: formData.subject,
-        difficulty: formData.difficulty,
-        time_limit: formData.time_limit,
-        questions: formData.questions.length > 0 ? formData.questions : Array(5).fill().map((_, i) => ({
-          id: `q_${i+1}`,
-          question_number: i+1,
-          question: `Sample question ${i+1} for ${formData.title}`,
-          type: "mcq",
-          options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-          correct_answer: "A"
-        }))
-      };
+      console.log('🚀 Creating quiz with AI generation:', formData);
       
-      const updatedQuizzes = [...quizzes, newQuiz];
-      setQuizzes(updatedQuizzes);
-      // Save to localStorage
-      const username = localStorage.getItem("username");
-      localStorage.setItem(`quizzes_${username}`, JSON.stringify(updatedQuizzes));
-      setShowCreateModal(false);
-      setFormData({
-        title: "",
-        description: "",
-        subject: "",
-        difficulty: "medium",
-        time_limit: 10,
-        questions: []
-      });
+      // Use AI to generate real questions based on the subject and difficulty
+      const result = await generateQuiz(
+        formData.subject, 
+        formData.difficulty, 
+        5 // Default to 5 questions
+      );
+      
+      if (result && result.quiz_data) {
+        // Create new quiz with form data and AI-generated questions
+        const newQuiz = {
+          id: result.quiz_data.quiz_id || `quiz_${Date.now()}`,
+          quiz_id: result.quiz_data.quiz_id, // Backend quiz ID for submission
+          title: formData.title,
+          description: formData.description,
+          subject: formData.subject,
+          difficulty: formData.difficulty,
+          time_limit: formData.time_limit,
+          questions: result.quiz_data.questions || [],
+          created_at: new Date().toISOString()
+        };
+        
+        console.log('✅ Created quiz with AI questions:', newQuiz);
+        
+        const updatedQuizzes = [newQuiz, ...quizzes]; // Add new quiz at the beginning
+        setQuizzes(updatedQuizzes);
+        // Save to localStorage
+        const username = localStorage.getItem("username");
+        localStorage.setItem(`quizzes_${username}`, JSON.stringify(updatedQuizzes));
+        
+        // Reset form and close modal
+        setShowCreateModal(false);
+        setFormData({
+          title: "",
+          description: "",
+          subject: "",
+          difficulty: "medium",
+          time_limit: 10,
+          questions: []
+        });
+        
+        setError(null);
+      } else {
+        setError("Failed to generate quiz questions. Please try again.");
+      }
     } catch (error) {
       console.error("Error creating quiz:", error);
-      setError("Failed to create quiz");
+      setError("Failed to create quiz. Please check your connection and try again.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 

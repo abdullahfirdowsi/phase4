@@ -3,10 +3,9 @@
 
 .dashboard-container {
   display: flex;
-  height: calc(100vh - #{v.$navbar-height});
+  min-height: calc(100vh - #{v.$navbar-height});
   background: var(--bg-primary);
   position: relative;
-  overflow: hidden;
 }
 
 .dashboard-main {
@@ -16,7 +15,8 @@
   background: var(--bg-primary);
   position: relative;
   min-width: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
   &.sidebar-collapsed {

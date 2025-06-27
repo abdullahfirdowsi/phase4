@@ -7,6 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import os
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables at startup
+load_dotenv()
 
 # Configure logging first
 logging.basicConfig(
