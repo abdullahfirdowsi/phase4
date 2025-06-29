@@ -110,6 +110,44 @@ const AIChat = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Ensure scroll to bottom after initial load and DOM rendering
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Use setTimeout to ensure DOM is fully rendered
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length > 0]);
+
+  // Add window focus event listener to scroll to bottom when returning to page
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (messages.length > 0) {
+        // When user returns to the page, scroll to bottom after a short delay
+        setTimeout(() => {
+          scrollToBottom();
+        }, 200);
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('visibilitychange', () => {
+      if (!document.hidden && messages.length > 0) {
+        setTimeout(() => {
+          scrollToBottom();
+        }, 200);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('visibilitychange', handleWindowFocus);
+    };
+  }, [messages.length]);
+
   const loadChatHistory = async () => {
     try {
       setError(null);
@@ -171,7 +209,30 @@ const AIChat = () => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    if (messagesEndRef.current) {
+      // Try multiple methods to ensure scrolling works
+      try {
+        // Method 1: scrollIntoView with smooth behavior for better UX
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'end',
+          inline: 'nearest'
+        });
+        
+        // Method 2: Also scroll the parent container to bottom as fallback
+        const chatMessagesContainer = messagesEndRef.current.closest('.chat-messages');
+        if (chatMessagesContainer) {
+          chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+        }
+      } catch (error) {
+        // Fallback method if scrollIntoView fails
+        console.warn('ScrollIntoView failed, using fallback:', error);
+        const chatMessagesContainer = messagesEndRef.current.closest('.chat-messages');
+        if (chatMessagesContainer) {
+          chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+        }
+      }
+    }
   };
 
   const handleInputChange = (e) => {
