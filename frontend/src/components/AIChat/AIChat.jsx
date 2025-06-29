@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
-import { fetchChatHistory, askQuestion, clearChat } from '../../api';
+import { fetchChatHistory, askQuestion, clearChat, generateQuiz } from '../../api';
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -206,19 +206,47 @@ const AIChat = () => {
       timestamp: new Date().toISOString()
     };
     
-    // Always create a temporary AI message placeholder
-    const tempAIMessage = {
-      role: 'assistant',
-      content: '',
-      type: isLearningPath ? 'learning_path' : 'content',
-      timestamp: new Date().toISOString()
-    };
-    
-    // Update messages with both user message and empty AI message
-    setMessages(prevMessages => [...prevMessages, newUserMessage, tempAIMessage]);
+    // Update messages with user message
+    setMessages(prevMessages => [...prevMessages, newUserMessage]);
     setIsGenerating(true);
     
     try {
+      // Handle quiz mode differently - use proper quiz generation API
+      if (isQuiz) {
+        console.log('🎯 Quiz mode detected, using generateQuiz API');
+        
+        const result = await generateQuiz(messageToSend.trim(), 'medium', 5);
+        
+        if (result && result.quiz_data) {
+          // Create a proper quiz message
+          const quizMessage = {
+            role: 'assistant',
+            content: result,
+            type: 'quiz',
+            timestamp: new Date().toISOString()
+          };
+          
+          setMessages(prevMessages => [...prevMessages, quizMessage]);
+          console.log('✅ Quiz generated successfully:', result);
+        } else {
+          throw new Error('Failed to generate quiz');
+        }
+        
+        setIsGenerating(false);
+        return;
+      }
+      
+      // Always create a temporary AI message placeholder for non-quiz messages
+      const tempAIMessage = {
+        role: 'assistant',
+        content: '',
+        type: isLearningPath ? 'learning_path' : 'content',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Update messages with temp AI message
+      setMessages(prevMessages => [...prevMessages, tempAIMessage]);
+      
       let accumulatedResponse = '';
       
         await askQuestion(
@@ -268,7 +296,7 @@ const AIChat = () => {
             setIsGenerating(false);
             // No chat history reload to prevent duplication
           },
-          isQuiz,
+          false, // Don't pass isQuiz to askQuestion since we handle it separately
           isLearningPath
         );
     } catch (err) {

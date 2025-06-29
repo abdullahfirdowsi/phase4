@@ -221,6 +221,20 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
             upsert=True
         )
         
+        # Store as a chat message for AI Chat integration
+        quiz_message = {
+            "role": "assistant",
+            "content": quiz_json,
+            "type": "quiz",
+            "timestamp": datetime.datetime.utcnow()
+        }
+        
+        chats_collection.update_one(
+            {"username": request.username},
+            {"$push": {"messages": quiz_message}},
+            upsert=True
+        )
+        
         return quiz_json
         
     except Exception as e:

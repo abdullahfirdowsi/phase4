@@ -109,6 +109,48 @@ def update_user_stats(username, stat_type, increment=1):
     except Exception as e:
         logger.error(f"Error updating user stats: {e}")
 
+def is_quiz_response(content):
+    """Detect if AI response contains quiz content"""
+    if not content or not isinstance(content, str):
+        return False
+    
+    content_lower = content.lower()
+    
+    # Check for quiz indicators
+    quiz_indicators = [
+        'quiz_data',
+        'quiz_id',
+        'question_number',
+        'correct_answer',
+        'total_questions'
+    ]
+    
+    # Check for JSON structure with quiz content
+    if content.strip().startswith('{') and content.strip().endswith('}'):
+        try:
+            import json
+            parsed = json.loads(content)
+            
+            # Check for quiz structure in JSON
+            if (parsed.get('type') == 'quiz' or 
+                'quiz_data' in parsed or 
+                ('questions' in parsed and isinstance(parsed['questions'], list))):
+                return True
+                
+        except json.JSONDecodeError:
+            pass
+    
+    # Check for multiple quiz indicators
+    indicator_count = sum(1 for indicator in quiz_indicators if indicator in content_lower)
+    
+    # If we have quiz keywords and JSON structure, likely a quiz
+    if (indicator_count >= 2 and 
+        ('question' in content_lower) and 
+        ('{' in content and '}' in content)):
+        return True
+    
+    return False
+
 @chat_router.post("/ask")
 async def chat(
     user_prompt: str = Body(...),
@@ -192,10 +234,16 @@ async def chat(
                     yield token
 
             response_timestamp = datetime.datetime.utcnow()
+            
+            # Detect if the response is a quiz
+            message_type = "content"
+            if isQuiz or is_quiz_response(response_content):
+                message_type = "quiz"
+            
             response_message = {
                 "role": "assistant",
                 "content": response_content,
-                "type": "content",
+                "type": message_type,
                 "timestamp": response_timestamp
             }
             store_chat_history(username, response_message)

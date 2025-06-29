@@ -114,32 +114,89 @@ const QuizSystem = () => {
         console.log('ℹ️ DEBUG: No stored quizzes found in localStorage');
       }
       
-      // Try to fetch quizzes from backend
+      // Try to fetch quizzes from backend (both active quizzes and chat messages)
       try {
-        const response = await fetch(`http://localhost:8000/quiz/active-quizzes?username=${username}`);
-        if (response.ok) {
-          const data = await response.json();
-          // Transform backend quiz format to frontend format
-          const backendQuizzes = data.active_quizzes || [];
-          const transformedQuizzes = backendQuizzes.map(quiz => {
-            // Check if it's backend format (has quiz_json) or frontend format
+        const [activeQuizzesResponse, chatHistoryResponse] = await Promise.all([
+          fetch(`http://localhost:8000/quiz/active-quizzes?username=${username}`),
+          fetch(`http://localhost:8000/chat/history?username=${username}`)
+        ]);
+        
+        let transformedQuizzes = [];
+        
+        // Process active quizzes
+        if (activeQuizzesResponse.ok) {
+          const activeData = await activeQuizzesResponse.json();
+          const backendQuizzes = activeData.active_quizzes || [];
+          transformedQuizzes = backendQuizzes.map(quiz => {
             if (quiz.quiz_json && quiz.quiz_json.quiz_data) {
               const quizData = quiz.quiz_json.quiz_data;
               return {
                 id: quiz.quiz_id || `quiz_${Date.now()}`,
-                quiz_id: quiz.quiz_id, // Keep backend ID for submission
+                quiz_id: quiz.quiz_id,
                 title: `${quizData.topic || 'Unknown'} Quiz`,
                 description: `Test your knowledge about ${quizData.topic || 'this topic'}`,
                 subject: quizData.topic || 'General',
                 difficulty: quizData.difficulty || 'medium',
                 time_limit: quizData.time_limit || 10,
                 questions: quizData.questions || [],
-                created_at: quiz.created_at || new Date().toISOString()
+                created_at: quiz.created_at || new Date().toISOString(),
+                source: 'ai_quiz_system'
               };
             }
-            // If it's already in frontend format, return as-is
             return quiz;
           });
+        }
+        
+        // Process chat history for quiz messages
+        if (chatHistoryResponse.ok) {
+          const chatData = await chatHistoryResponse.json();
+          const messages = chatData.history || [];
+          
+          const chatQuizzes = messages
+            .filter(msg => msg.type === 'quiz' && msg.role === 'assistant')
+            .map(msg => {
+              try {
+                let quizContent;
+                if (typeof msg.content === 'string') {
+                  const jsonMatch = msg.content.match(/\{[\s\S]*\}/);
+                  if (jsonMatch) {
+                    quizContent = JSON.parse(jsonMatch[0]);
+                  }
+                } else {
+                  quizContent = msg.content;
+                }
+                
+                if (quizContent && quizContent.quiz_data) {
+                  const quizData = quizContent.quiz_data;
+                  return {
+                    id: quizData.quiz_id || `chat_quiz_${Date.now()}`,
+                    quiz_id: quizData.quiz_id,
+                    title: `${quizData.topic || 'Chat'} Quiz`,
+                    description: `Quiz created from AI Chat about ${quizData.topic || 'various topics'}`,
+                    subject: quizData.topic || 'General',
+                    difficulty: quizData.difficulty || 'medium',
+                    time_limit: quizData.time_limit || 10,
+                    questions: quizData.questions || [],
+                    created_at: msg.timestamp || new Date().toISOString(),
+                    source: 'ai_chat',
+                    chat_message_id: msg.id
+                  };
+                }
+              } catch (e) {
+                console.error('Error parsing chat quiz:', e);
+              }
+              return null;
+            })
+            .filter(quiz => quiz !== null);
+          
+          // Combine both sources, removing duplicates
+          const allQuizzes = [...transformedQuizzes, ...chatQuizzes];
+          const uniqueQuizzes = allQuizzes.filter((quiz, index, self) => 
+            index === self.findIndex(q => q.quiz_id === quiz.quiz_id)
+          );
+          
+          transformedQuizzes = uniqueQuizzes;
+        }
           
           // Sort quizzes by creation time (latest first)
           const sortedQuizzes = transformedQuizzes.sort((a, b) => {
@@ -150,11 +207,6 @@ const QuizSystem = () => {
           setQuizzes(sortedQuizzes);
           // Save to localStorage
           localStorage.setItem(`quizzes_${username}`, JSON.stringify(sortedQuizzes));
-        } else {
-          console.log("Quiz API returned non-JSON response, creating sample quizzes");
-          // Create sample quizzes since the API is not available
-          createSampleQuizzes();
-        }
       } catch (error) {
         console.log("Quiz API returned non-JSON response, creating sample quizzes");
         // Create sample quizzes since the API is not available
