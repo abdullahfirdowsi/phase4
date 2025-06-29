@@ -17,8 +17,8 @@ const AIChat = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isLearningPath, setIsLearningPath] = useState(false);
-  const [isQuiz, setIsQuiz] = useState(false);
+  // Use a single state to track the active mode - ensures mutual exclusivity
+  const [activeMode, setActiveMode] = useState('none'); // 'none', 'learning_path', 'quiz'
   const [error, setError] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
@@ -70,9 +70,14 @@ const AIChat = () => {
     return false;
   };
   
+  // Derived states for backward compatibility and cleaner code
+  const isLearningPath = activeMode === 'learning_path';
+  const isQuiz = activeMode === 'quiz';
+  
   console.log('💬 AIChat current state:', {
     messagesCount: messages.length,
     isGenerating,
+    activeMode,
     isLearningPath,
     isQuiz,
     error
@@ -336,13 +341,13 @@ const AIChat = () => {
   };
 
   const handleToggleLearningPath = () => {
-    setIsLearningPath(prev => !prev);
-    setIsQuiz(false);
+    // Toggle learning path mode - if already active, deactivate; otherwise activate
+    setActiveMode(prev => prev === 'learning_path' ? 'none' : 'learning_path');
   };
 
   const handleToggleQuiz = () => {
-    setIsQuiz(prev => !prev);
-    setIsLearningPath(false);
+    // Toggle quiz mode - if already active, deactivate; otherwise activate
+    setActiveMode(prev => prev === 'quiz' ? 'none' : 'quiz');
   };
 
   const handleQuickAction = async (prompt) => {
@@ -510,7 +515,7 @@ const AIChat = () => {
                   <button 
                     className="quick-action-btn"
                     onClick={() => {
-                      setIsLearningPath(true);
+                      setActiveMode('learning_path');
                       setInputMessage("Create a learning path for Python programming");
                     }}
                   >
@@ -521,7 +526,7 @@ const AIChat = () => {
                   <button 
                     className="quick-action-btn"
                     onClick={() => {
-                      setIsQuiz(true);
+                      setActiveMode('quiz');
                       setInputMessage("Generate a quiz about world history");
                     }}
                   >

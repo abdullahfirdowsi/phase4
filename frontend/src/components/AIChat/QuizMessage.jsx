@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Form, Badge, ProgressBar, Modal, Alert } from 'react-bootstrap';
+import { Card, Button, Modal, Form, ProgressBar, Badge, Alert } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import { 
   PlayCircleFill, 
   Clock, 
@@ -14,6 +15,7 @@ import { submitQuiz } from '../../api';
 import './QuizMessage.scss';
 
 const QuizMessage = ({ message, onQuizComplete, username }) => {
+  const navigate = useNavigate();
   const [quizData, setQuizData] = useState(null);
   const [isActive, setIsActive] = useState(false);
   const [answers, setAnswers] = useState({});
@@ -389,7 +391,7 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
                   onClick={() => {
                     setShowResult(false);
                     // Navigate to Quiz System to see detailed results
-                    window.location.href = '/dashboard/quiz-system?tab=results';
+                    navigate('/dashboard/quiz-system?tab=results');
                   }}
                   className="me-2"
                 >

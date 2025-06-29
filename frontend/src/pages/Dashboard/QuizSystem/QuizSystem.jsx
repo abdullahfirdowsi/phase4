@@ -66,6 +66,20 @@ const QuizSystem = () => {
       name: localStorage.getItem('name')
     });
     
+    // Check URL parameters for tab navigation
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+      console.log('🔗 Navigation: Setting tab from URL parameter:', tabParam);
+      if (tabParam === 'results') {
+        setActiveTab('results');
+      } else if (tabParam === 'available') {
+        setActiveTab('available');
+      }
+      // Clean up URL after setting tab
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
     fetchQuizzes();
     fetchQuizResults();
   }, []);
