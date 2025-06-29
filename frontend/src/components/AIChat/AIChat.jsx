@@ -191,6 +191,14 @@ const AIChat = () => {
     
     if (!messageToSend.trim() || isGenerating) return;
 
+    // DEBUG: Log current mode state
+    console.log('🔍 SEND MESSAGE DEBUG:', {
+      isQuiz,
+      isLearningPath,
+      messageToSend: messageToSend.trim(),
+      willUseQuizAPI: isQuiz
+    });
+
     setInputMessage('');
     
     // Reset textarea height
@@ -214,6 +222,7 @@ const AIChat = () => {
       // Handle quiz mode differently - use proper quiz generation API
       if (isQuiz) {
         console.log('🎯 Quiz mode detected, using generateQuiz API');
+        console.log('📞 About to call generateQuiz with topic:', messageToSend.trim());
         
         const result = await generateQuiz(messageToSend.trim(), 'medium', 5);
         
