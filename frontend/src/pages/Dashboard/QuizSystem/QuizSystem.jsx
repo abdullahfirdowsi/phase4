@@ -40,7 +40,17 @@ const QuizSystem = () => {
     subject: "",
     difficulty: "medium",
     time_limit: 10,
+    question_count: 10, // Default to 10 questions
+    question_types: ["mcq", "true_false", "short_answer"], // Mix of question types
     questions: []
+  });
+
+  // Quick generate state
+  const [quickGenerate, setQuickGenerate] = useState({
+    topic: "",
+    difficulty: "medium",
+    question_count: 10,
+    question_types: ["mcq", "true_false"]
   });
 
   useEffect(() => {
@@ -342,7 +352,7 @@ const QuizSystem = () => {
       const result = await generateQuiz(
         formData.subject, 
         formData.difficulty, 
-        5 // Default to 5 questions
+        formData.question_count // Use dynamic question count from form
       );
       
       if (result && result.quiz_data) {
@@ -375,6 +385,8 @@ const QuizSystem = () => {
           subject: "",
           difficulty: "medium",
           time_limit: 10,
+          question_count: 10, // Reset to default
+          question_types: ["mcq", "true_false", "short_answer"],
           questions: []
         });
         
@@ -690,7 +702,12 @@ const QuizSystem = () => {
     setError(null);
     
     try {
-      const result = await generateQuiz(topic, "medium", 5);
+      // Use dynamic values from quickGenerate state
+      const result = await generateQuiz(
+        topic, 
+        quickGenerate.difficulty, 
+        quickGenerate.question_count
+      );
       
       if (result && result.quiz_data) {
         // Add the generated quiz to our quizzes
@@ -792,41 +809,81 @@ const QuizSystem = () => {
             </p>
           </div>
           <div className="header-actions">
-            <div className="input-group">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Enter a topic for a quiz..."
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                disabled={isGenerating}
-              />
-              <Button 
-                variant="primary" 
-                onClick={handleGenerateQuiz}
-                disabled={isGenerating || !topic.trim()}
-              >
-                {isGenerating ? (
-                  <>
-                    <Spinner size="sm" animation="border" className="me-2" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Bullseye size={16} className="me-2" />
-                    Generate Quiz
-                  </>
-                )}
-              </Button>
+            <div className="quick-generate-section">
+              <div className="input-group mb-2">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter a topic for a quiz..."
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  disabled={isGenerating}
+                />
+                <Button 
+                  variant="primary" 
+                  onClick={handleGenerateQuiz}
+                  disabled={isGenerating || !topic.trim()}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Spinner size="sm" animation="border" className="me-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Bullseye size={16} className="me-2" />
+                      Generate Quiz
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {/* Quick Generate Options */}
+              <div className="quick-options d-flex gap-2 align-items-center flex-wrap">
+                <div className="option-group">
+                  <label className="form-label small mb-1">Questions:</label>
+                  <select 
+                    className="form-select form-select-sm" 
+                    style={{width: 'auto', minWidth: '80px'}}
+                    value={quickGenerate.question_count}
+                    onChange={(e) => setQuickGenerate({...quickGenerate, question_count: parseInt(e.target.value)})}
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                    <option value={20}>20</option>
+                    <option value={25}>25</option>
+                    <option value={30}>30</option>
+                  </select>
+                </div>
+                
+                <div className="option-group">
+                  <label className="form-label small mb-1">Difficulty:</label>
+                  <select 
+                    className="form-select form-select-sm" 
+                    style={{width: 'auto', minWidth: '120px'}}
+                    value={quickGenerate.difficulty}
+                    onChange={(e) => setQuickGenerate({...quickGenerate, difficulty: e.target.value})}
+                  >
+                    <option value="beginner">Beginner</option>
+                    <option value="medium">Intermediate</option>
+                    <option value="hard">Advanced</option>
+                  </select>
+                </div>
+                
+                <div className="option-group">
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm"
+                    className="ms-2"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    <Plus size={14} className="me-1" />
+                    Create Custom
+                  </Button>
+                </div>
+              </div>
             </div>
-            <Button 
-              variant="outline-primary" 
-              className="create-btn ms-2"
-              onClick={() => setShowCreateModal(true)}
-            >
-              <Plus size={16} className="me-2" />
-              Create Quiz
-            </Button>
           </div>
         </div>
 
@@ -1315,7 +1372,7 @@ const QuizSystem = () => {
               </Form.Group>
 
               <Row>
-                <Col md={6}>
+                <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Difficulty</Form.Label>
                     <Form.Select
@@ -1328,16 +1385,36 @@ const QuizSystem = () => {
                     </Form.Select>
                   </Form.Group>
                 </Col>
-                <Col md={6}>
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Number of Questions</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.question_count}
+                      onChange={(e) => setFormData({ ...formData, question_count: parseInt(e.target.value) || 5 })}
+                      min={1}
+                      max={50}
+                      placeholder="5-50 questions"
+                    />
+                    <Form.Text className="text-muted">
+                      Choose between 1-50 questions
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Time Limit (minutes)</Form.Label>
                     <Form.Control
                       type="number"
                       value={formData.time_limit}
-                      onChange={(e) => setFormData({ ...formData, time_limit: parseInt(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, time_limit: parseInt(e.target.value) || 10 })}
                       min={1}
-                      max={60}
+                      max={120}
+                      placeholder="1-120 minutes"
                     />
+                    <Form.Text className="text-muted">
+                      Recommended: {Math.ceil(formData.question_count * 1.5)} min
+                    </Form.Text>
                   </Form.Group>
                 </Col>
               </Row>
