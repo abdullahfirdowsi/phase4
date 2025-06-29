@@ -229,7 +229,75 @@ const AIChat = () => {
         console.log('🎯 Quiz mode detected, using generateQuiz API');
         console.log('📞 About to call generateQuiz with topic:', messageToSend.trim());
         
-        const result = await generateQuiz(messageToSend.trim(), 'medium', 5);
+        // Extract number of questions from user message
+        const extractQuestionCount = (message) => {
+          const msg = message.toLowerCase();
+          
+          // Look for patterns like "15 questions", "10 quiz", "5 MCQ", etc.
+          const patterns = [
+            /(?:with|for|about|generate|create)\s+(?:a\s+)?(?:quiz\s+(?:with\s+)?)?(?:of\s+)?(?:total\s+)?(?:exactly\s+)?(\d+)\s+(?:questions?|quiz|mcq|q)/i,
+            /(\d+)\s+(?:questions?|quiz|mcq|q)/i,
+            /(?:questions?)\s*[=:]?\s*(\d+)/i,
+            /\b(\d+)\s*[\-–—]?\s*(?:questions?|quiz|mcq|q)/i
+          ];
+          
+          for (const pattern of patterns) {
+            const match = msg.match(pattern);
+            if (match) {
+              const count = parseInt(match[1]);
+              if (count >= 1 && count <= 50) { // Reasonable range
+                console.log(`📊 Extracted ${count} questions from: "${message}"`);
+                return count;
+              }
+            }
+          }
+          
+          // Default to 10 questions if not specified
+          console.log('📊 No question count specified, defaulting to 10 questions');
+          return 10;
+        };
+        
+        // Extract difficulty from user message
+        const extractDifficulty = (message) => {
+          const msg = message.toLowerCase();
+          
+          if (msg.includes('easy') || msg.includes('beginner') || msg.includes('basic') || msg.includes('simple')) {
+            return 'easy';
+          } else if (msg.includes('hard') || msg.includes('difficult') || msg.includes('advanced') || msg.includes('expert') || msg.includes('challenging')) {
+            return 'hard';
+          } else {
+            return 'medium';
+          }
+        };
+        
+        // Extract topic from user message (remove question count and difficulty modifiers)
+        const extractTopic = (message) => {
+          let topic = message.trim();
+          
+          // Remove common quiz-related phrases
+          topic = topic.replace(/(?:create|generate|make|build)\s+(?:a\s+|an\s+)?(?:quiz|test)\s+(?:about|on|for)?\s*/gi, '');
+          topic = topic.replace(/(?:quiz|test)\s+(?:about|on|for)\s*/gi, '');
+          topic = topic.replace(/\b\d+\s+(?:questions?|quiz|mcq|q)\b/gi, '');
+          topic = topic.replace(/\b(?:easy|medium|hard|difficult|advanced|beginner|basic|simple|expert|challenging)\b/gi, '');
+          topic = topic.replace(/\b(?:with|for|about)\s+/gi, '');
+          topic = topic.trim();
+          
+          // If topic is empty after cleaning, use a default
+          if (!topic) {
+            topic = 'General Knowledge';
+          }
+          
+          console.log(`🎯 Extracted topic: "${topic}" from: "${message}"`);
+          return topic;
+        };
+        
+        const questionCount = extractQuestionCount(messageToSend);
+        const difficulty = extractDifficulty(messageToSend);
+        const topic = extractTopic(messageToSend);
+        
+        console.log(`📊 Quiz parameters: topic="${topic}", difficulty="${difficulty}", questions=${questionCount}`);
+        
+        const result = await generateQuiz(topic, difficulty, questionCount);
         
         if (result && result.quiz_data) {
           // Create a proper quiz message
