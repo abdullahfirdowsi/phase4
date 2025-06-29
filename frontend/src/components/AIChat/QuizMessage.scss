@@ -1,23 +1,38 @@
 .quiz-message {
-  margin: 1rem 0;
+  margin: 0; // Remove margin since it's handled by ai-message-container
   max-width: 100%;
 
   .quiz-card {
-    border: 2px solid #e3f2fd;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 18px 18px 18px 4px; // Match AI message style
+    box-shadow: var(--shadow);
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+
+    // Add the same accent border as AI messages
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+      z-index: 1;
+    }
 
     &:hover {
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-1px); // Subtle lift like AI messages
     }
 
     .quiz-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-bottom: none;
-      padding: 1rem 1.5rem;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-light);
+      padding: 1.25rem 1.5rem;
+      margin-left: 4px; // Account for the accent border
 
       .quiz-title-section {
         display: flex;
@@ -32,6 +47,11 @@
           align-items: center;
           font-weight: 600;
           font-size: 1.2rem;
+          color: var(--primary-color);
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
 
         .quiz-badges {
@@ -43,13 +63,14 @@
       }
 
       .quiz-timer {
-        background: rgba(255, 255, 255, 0.2);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-light);
         padding: 0.5rem 1rem;
         border-radius: 20px;
         display: flex;
         align-items: center;
         margin-top: 0.5rem;
-        backdrop-filter: blur(10px);
+        color: var(--text-primary);
 
         span {
           font-weight: 600;
@@ -61,10 +82,11 @@
     .quiz-start {
       text-align: center;
       padding: 2rem 1rem;
+      margin-left: 4px; // Account for the accent border
 
       .quiz-description {
         font-size: 1.1rem;
-        color: #666;
+        color: var(--text-secondary);
         margin-bottom: 2rem;
         line-height: 1.6;
       }
@@ -86,11 +108,14 @@
     }
 
     .quiz-questions {
+      margin-left: 4px; // Account for the accent border
+      
       .quiz-progress {
-        background: #f8f9fa;
+        background: var(--bg-secondary);
         padding: 1rem;
         border-radius: 8px;
         margin-bottom: 1.5rem;
+        border: 1px solid var(--border-light);
 
         .progress {
           height: 8px;
@@ -99,21 +124,24 @@
       }
 
       .question-card {
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
+        background: var(--card-bg);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
         transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
 
         &:hover {
-          border-color: #667eea;
-          box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+          border-color: var(--primary-color);
+          box-shadow: var(--shadow);
+          transform: translateY(-1px);
         }
 
         .question-title {
-          color: #333;
+          color: var(--text-primary);
           font-weight: 600;
           margin-bottom: 1rem;
           padding-bottom: 0.5rem;
-          border-bottom: 1px solid #e9ecef;
+          border-bottom: 1px solid var(--border-light);
         }
 
         .question-options {
@@ -122,34 +150,44 @@
             padding: 0.75rem;
             border-radius: 6px;
             transition: all 0.2s ease;
+            border: 1px solid transparent;
 
             &:hover {
-              background-color: #f8f9fa;
+              background-color: var(--bg-secondary);
+              border-color: var(--border-light);
             }
 
             .form-check-input:checked {
-              background-color: #667eea;
-              border-color: #667eea;
+              background-color: var(--primary-color);
+              border-color: var(--primary-color);
             }
 
             .form-check-label {
               font-weight: 500;
               cursor: pointer;
               margin-left: 0.5rem;
+              color: var(--text-primary);
             }
           }
 
           textarea.form-control {
-            border: 2px solid #e9ecef;
+            background: var(--card-bg);
+            border: 2px solid var(--border-light);
             border-radius: 8px;
             padding: 1rem;
             font-size: 1rem;
             line-height: 1.5;
             transition: border-color 0.3s ease;
+            color: var(--text-primary);
 
             &:focus {
-              border-color: #667eea;
-              box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+              border-color: var(--primary-color);
+              box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+              background: var(--card-bg);
+            }
+
+            &::placeholder {
+              color: var(--text-tertiary);
             }
           }
         }
@@ -158,7 +196,7 @@
       .quiz-actions {
         text-align: center;
         padding-top: 1rem;
-        border-top: 1px solid #e9ecef;
+        border-top: 1px solid var(--border-light);
 
         .submit-quiz-btn {
           background: linear-gradient(135deg, #28a745 0%, #20c997 100%);

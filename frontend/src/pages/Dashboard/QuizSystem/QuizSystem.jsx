@@ -24,6 +24,8 @@ const QuizSystem = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showDetailedResultModal, setShowDetailedResultModal] = useState(false);
+  const [detailedResult, setDetailedResult] = useState(null);
   const [currentQuiz, setCurrentQuiz] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizResult, setQuizResult] = useState(null);
@@ -744,6 +746,12 @@ const QuizSystem = () => {
     }
   };
 
+  const handleViewDetailedResult = (result) => {
+    console.log('👁️ Viewing detailed result:', result);
+    setDetailedResult(result);
+    setShowDetailedResultModal(true);
+  };
+
   const handleGenerateQuiz = async () => {
     if (!topic.trim()) {
       setError("Please enter a topic for the quiz");
@@ -1074,6 +1082,17 @@ const QuizSystem = () => {
                           <small className="text-muted">
                             {formatLocalDate(result.submitted_at)}
                           </small>
+                        </div>
+                        
+                        <div className="result-actions mt-3">
+                          <Button 
+                            variant="outline-primary" 
+                            size="sm"
+                            onClick={() => handleViewDetailedResult(result)}
+                          >
+                            <Eye size={14} className="me-1" />
+                            View Details
+                          </Button>
                         </div>
                       </Card.Body>
                     </Card>
@@ -1486,6 +1505,244 @@ const QuizSystem = () => {
               disabled={!formData.title || !formData.subject}
             >
               Create Quiz
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Detailed Result Modal */}
+        <Modal 
+          show={showDetailedResultModal} 
+          onHide={() => setShowDetailedResultModal(false)} 
+          size="xl"
+          scrollable
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <BarChart className="me-2" />
+              Quiz Results - {detailedResult?.quiz_title}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {detailedResult && (
+              <div className="detailed-result-content">
+                {/* Score Summary */}
+                <div className="score-summary-card mb-4">
+                  <Row className="align-items-center">
+                    <Col md={4} className="text-center">
+                      <div className="score-circle">
+                        <h1 className="score-percentage">
+                          {Math.round(detailedResult.score_percentage || 0)}%
+                        </h1>
+                        <p className="score-label">Final Score</p>
+                      </div>
+                    </Col>
+                    <Col md={4}>
+                      <div className="score-stats">
+                        <div className="stat-item">
+                          <CheckCircle className="text-success me-2" size={20} />
+                          <span className="stat-label">Correct:</span>
+                          <span className="stat-value">{detailedResult.correct_answers || 0}</span>
+                        </div>
+                        <div className="stat-item">
+                          <XCircle className="text-danger me-2" size={20} />
+                          <span className="stat-label">Incorrect:</span>
+                          <span className="stat-value">
+                            {(detailedResult.total_questions || 0) - (detailedResult.correct_answers || 0)}
+                          </span>
+                        </div>
+                        <div className="stat-item">
+                          <Trophy className="text-warning me-2" size={20} />
+                          <span className="stat-label">Total:</span>
+                          <span className="stat-value">{detailedResult.total_questions || 0}</span>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={4}>
+                      <div className="performance-badge">
+                        <Badge 
+                          bg={detailedResult.score_percentage >= 80 ? "success" : 
+                              detailedResult.score_percentage >= 60 ? "warning" : "danger"}
+                          className="performance-badge"
+                        >
+                          {detailedResult.score_percentage >= 80 ? "🏆 Excellent" : 
+                           detailedResult.score_percentage >= 60 ? "👍 Good" : "📚 Needs Practice"}
+                        </Badge>
+                        <div className="quiz-date mt-2">
+                          <small className="text-muted">
+                            Completed: {formatLocalDate(detailedResult.submitted_at)}
+                          </small>
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                  
+                  <div className="progress-section mt-3">
+                    <ProgressBar 
+                      now={detailedResult.score_percentage || 0}
+                      variant={detailedResult.score_percentage >= 80 ? "success" : 
+                              detailedResult.score_percentage >= 60 ? "warning" : "danger"}
+                      height={8}
+                      className="score-progress"
+                    />
+                  </div>
+                </div>
+
+                {/* Question-by-Question Review */}
+                {detailedResult.answerReview && detailedResult.answerReview.length > 0 ? (
+                  <div className="question-review-section">
+                    <h5 className="section-title mb-3">
+                      <Award className="me-2" />
+                      Question-by-Question Review
+                    </h5>
+                    
+                    <div className="questions-list">
+                      {detailedResult.answerReview.map((review, index) => (
+                        <Card key={`detailed_${review.questionNumber}`} className="question-review-card mb-3">
+                          <Card.Header className={`question-header ${
+                            review.isCorrect ? 'correct-header' : 'incorrect-header'
+                          }`}>
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div className="question-info">
+                                <h6 className="question-number mb-1">
+                                  Question {review.questionNumber}
+                                </h6>
+                                <Badge 
+                                  bg={review.isCorrect ? "success" : "danger"}
+                                  className="result-badge"
+                                >
+                                  {review.isCorrect ? (
+                                    <><CheckCircle size={12} className="me-1" />Correct</>
+                                  ) : (
+                                    <><XCircle size={12} className="me-1" />Incorrect</>
+                                  )}
+                                </Badge>
+                              </div>
+                              <div className="question-type">
+                                <Badge variant="secondary">
+                                  {review.type === 'mcq' ? 'Multiple Choice' : 
+                                   review.type === 'true_false' ? 'True/False' :
+                                   review.type === 'short_answer' ? 'Short Answer' : 'Question'}
+                                </Badge>
+                              </div>
+                            </div>
+                          </Card.Header>
+                          
+                          <Card.Body>
+                            <div className="question-content">
+                              <h6 className="question-text mb-3">{review.question}</h6>
+                              
+                              {/* Show options for MCQ/True-False */}
+                              {review.type !== 'short_answer' && review.options && review.options.length > 0 && (
+                                <div className="options-section mb-3">
+                                  <p className="options-label"><strong>Options:</strong></p>
+                                  <div className="options-list">
+                                    {review.options.map((option, optIndex) => (
+                                      <div 
+                                        key={optIndex} 
+                                        className={`option-item ${
+                                          option.includes(review.correctAnswer) ? 'correct-option' : ''
+                                        } ${
+                                          option.includes(review.userAnswer) && !review.isCorrect ? 'user-incorrect-option' : ''
+                                        } ${
+                                          option.includes(review.userAnswer) && review.isCorrect ? 'user-correct-option' : ''
+                                        }`}
+                                      >
+                                        {option}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Answer Comparison */}
+                              <Row className="answer-comparison">
+                                <Col md={6}>
+                                  <div className="answer-section user-answer">
+                                    <h6 className="answer-label">
+                                      <span className="answer-icon">👤</span>
+                                      Your Answer:
+                                    </h6>
+                                    <div className={`answer-box ${
+                                      review.isCorrect ? 'correct-answer' : 'incorrect-answer'
+                                    }`}>
+                                      {review.userAnswer || 'No answer provided'}
+                                    </div>
+                                  </div>
+                                </Col>
+                                <Col md={6}>
+                                  <div className="answer-section correct-answer">
+                                    <h6 className="answer-label">
+                                      <span className="answer-icon">✅</span>
+                                      Correct Answer:
+                                    </h6>
+                                    <div className="answer-box correct-answer">
+                                      {review.correctAnswer}
+                                    </div>
+                                  </div>
+                                </Col>
+                              </Row>
+                              
+                              {/* Feedback */}
+                              <div className="feedback-section mt-3">
+                                <h6 className="feedback-label">
+                                  <span className="feedback-icon">💡</span>
+                                  Feedback:
+                                </h6>
+                                <div className={`feedback-box ${
+                                  review.isCorrect ? 'success-feedback' : 'improvement-feedback'
+                                }`}>
+                                  {review.feedback || 'No feedback available.'}
+                                </div>
+                              </div>
+                              
+                              {/* Explanation */}
+                              {review.explanation && review.explanation.trim() !== '' && 
+                               review.explanation !== 'No explanation available.' && (
+                                <div className="explanation-section mt-3">
+                                  <h6 className="explanation-label">
+                                    <span className="explanation-icon">📖</span>
+                                    Explanation:
+                                  </h6>
+                                  <div className="explanation-box">
+                                    {review.explanation}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="no-review-available">
+                    <Alert variant="info">
+                      <Award className="me-2" />
+                      <strong>Detailed review not available for this quiz.</strong>
+                      <br />This might be an older quiz result. Future quizzes will include detailed question-by-question reviews.
+                    </Alert>
+                  </div>
+                )}
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowDetailedResultModal(false)}
+            >
+              Close
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                // Navigate back to available quizzes to retake
+                setShowDetailedResultModal(false);
+                setActiveTab('available');
+              }}
+            >
+              <Trophy className="me-1" size={14} />
+              Take More Quizzes
             </Button>
           </Modal.Footer>
         </Modal>
