@@ -56,7 +56,14 @@ const LearningPaths = () => {
       const data = await response.json();
       
       if (response.ok) {
-        setLearningPaths(data.learning_paths || []);
+        const paths = data.learning_paths || [];
+        // Sort by created_at date (newest first) as backup
+        paths.sort((a, b) => {
+          const dateA = new Date(a.created_at || '1970-01-01');
+          const dateB = new Date(b.created_at || '1970-01-01');
+          return dateB - dateA; // Descending order (newest first)
+        });
+        setLearningPaths(paths);
       } else {
         setError(data.detail || "Failed to fetch learning paths");
       }

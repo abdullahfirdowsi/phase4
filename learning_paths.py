@@ -129,6 +129,9 @@ async def list_learning_paths(
                     "tags": plan.get("tags", [])
                 })
 
+        # Sort learning paths by created_at date (newest first)
+        learning_paths.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
         return {"learning_paths": learning_paths}
     except Exception as e:
         print(f"Error listing learning paths: {e}")
