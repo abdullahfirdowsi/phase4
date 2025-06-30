@@ -87,8 +87,25 @@ const LearningPaths = () => {
         
         console.log('🔍 Current user:', localStorage.getItem('username'));
         
-        // Backend already sorts the data, so we just use it directly
-        setLearningPaths(paths);
+        // Backend already sorts the data (newest first), but let's double-check the order in frontend
+        console.log('🔍 Before setting state - paths order:');
+        paths.forEach((p, i) => {
+          console.log(`  Frontend-${i + 1}. "${p.name}" - ${p.created_at}`);
+        });
+        
+        // Ensure the array is properly sorted newest first
+        const sortedPaths = paths.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0);
+          const dateB = new Date(b.created_at || 0);
+          return dateB.getTime() - dateA.getTime(); // newest first
+        });
+        
+        console.log('🔍 After frontend sorting - paths order:');
+        sortedPaths.forEach((p, i) => {
+          console.log(`  Sorted-${i + 1}. "${p.name}" - ${p.created_at}`);
+        });
+        
+        setLearningPaths(sortedPaths);
       } else {
         setError(data.detail || "Failed to fetch learning paths");
       }
