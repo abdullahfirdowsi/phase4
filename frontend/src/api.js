@@ -219,18 +219,80 @@ export const getAdminInfo = async () => {
 
 export const fetchChatHistory = async () => {
   const username = localStorage.getItem("username");
-  if (!username) throw new Error("No username found. Please log in.");
+  const token = localStorage.getItem("token");
+  
+  if (!username) {
+    console.warn("User not authenticated - missing username");
+    throw new Error("Please log in to view chat history");
+  }
+  
+  if (!token) {
+    console.warn("User not authenticated - missing token");
+    // Don't throw error for missing token, try without authentication
+    console.log("Attempting to fetch chat history without token...");
+  }
+
+  console.log(`📚 Fetching chat history for user: ${username}`);
 
   try {
+    // Use the working legacy endpoint first (this is where messages are actually stored)
+    const headers = {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    };
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
     const data = await apiRequest(
-      `${API_BASE_URL}/chat/history?username=${encodeURIComponent(username)}`,
-      { method: "GET" }
+      `${API_BASE_URL}/chat/history?username=${encodeURIComponent(username)}&limit=100`,
+      { 
+        method: "GET",
+        headers: headers
+      }
     );
 
+    console.log('📚 Fetched chat history from working API:', {
+      success: true,
+      messageCount: data.history?.length || 0,
+      data: data
+    });
     return data.history || [];
   } catch (error) {
-    console.error("Error fetching chat history:", error);
-    throw new Error(error.message || "Failed to fetch chat history");
+    console.error("Error fetching chat history from working API:", error);
+    
+    // Fallback to new endpoint if legacy fails
+    try {
+      const headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const data = await apiRequest(
+        `${API_BASE_URL}/api/chat/history?username=${encodeURIComponent(username)}&limit=100`,
+        { 
+          method: "GET",
+          headers: headers
+        }
+      );
+      
+      console.log('📚 Fetched chat history from fallback API:', {
+        success: true,
+        messageCount: data.history?.length || 0,
+        data: data
+      });
+      return data.history || [];
+    } catch (fallbackError) {
+      console.error("Fallback chat history fetch also failed:", fallbackError);
+      // Return empty array instead of throwing to prevent UI crashes
+      console.warn("Returning empty chat history due to API failures");
+      return [];
+    }
   }
 };
 
@@ -366,17 +428,35 @@ export const clearChat = async () => {
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
-    const data = await apiRequest(
-      `${API_BASE_URL}/chat/clear?username=${encodeURIComponent(username)}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
-
-    return data;
+    // Use the working legacy endpoint first (this is where messages are actually stored)
+    try {
+      const data = await apiRequest(
+        `${API_BASE_URL}/chat/clear?username=${encodeURIComponent(username)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      console.log('🗑️ Chat cleared using working API:', data);
+      return data;
+    } catch (workingApiError) {
+      console.warn('⚠️ Working API failed, trying new endpoint:', workingApiError.message);
+      
+      // Fallback to new endpoint
+      const data = await apiRequest(
+        `${API_BASE_URL}/api/chat/clear?username=${encodeURIComponent(username)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      console.log('🗑️ Chat cleared using fallback API:', data);
+      return data;
+    }
   } catch (error) {
     console.error("Error clearing chat history:", error);
     throw error;

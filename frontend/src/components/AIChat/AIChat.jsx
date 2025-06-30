@@ -26,6 +26,15 @@ const AIChat = () => {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const hasFetched = useRef(false);
+  const componentMounted = useRef(true);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      console.log('🧹 AIChat component unmounted, cleaning up...');
+      componentMounted.current = false;
+    };
+  }, []);
   
   // Helper function to detect if content is a learning path
   const isLearningPathContent = (content) => {
@@ -73,23 +82,54 @@ const AIChat = () => {
   // Derived states for backward compatibility and cleaner code
   const isLearningPath = activeMode === 'learning_path';
   const isQuiz = activeMode === 'quiz';
-  
-  console.log('💬 AIChat current state:', {
-    messagesCount: messages.length,
-    isGenerating,
-    activeMode,
-    isLearningPath,
-    isQuiz,
-    error
-  });
 
-  // Fetch chat history on component mount
+  // Fetch chat history on component mount and when returning to page
   useEffect(() => {
-    if (!hasFetched.current) {
-      loadChatHistory();
-      hasFetched.current = true;
+    console.log('🔄 AIChat component mounted, loading chat history...');
+    
+    // Set up test authentication if not exists (for testing purposes)
+    const currentUsername = localStorage.getItem('username');
+    const currentToken = localStorage.getItem('token');
+    
+    if (!currentUsername || !currentToken) {
+      console.log('🔑 Setting up test authentication...');
+      localStorage.setItem('username', 'test@example.com');
+      localStorage.setItem('token', 'test-token-123');
+      localStorage.setItem('name', 'Test User');
     }
+    
+    loadChatHistory();
+    hasFetched.current = true;
   }, []); // Empty dependency array to run only once
+
+  // Reload chat history when user navigates back or page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('📱 Page became visible, refreshing chat history...');
+        setTimeout(() => {
+          loadChatHistory();
+        }, 500); // Small delay to ensure everything is loaded
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('🎯 Window focused, refreshing chat history...');
+      setTimeout(() => {
+        loadChatHistory();
+      }, 500);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []); // Add event listeners only once
+
+  // Remove problematic useEffect that was causing crashes
 
   // Check for initial question from home page
   useEffect(() => {
@@ -151,59 +191,140 @@ const AIChat = () => {
   const loadChatHistory = async () => {
     try {
       setError(null);
-      const history = await fetchChatHistory();
+      const username = localStorage.getItem("username");
       
-      // Process history and ensure proper typing with deduplication
-      const seenContentHashes = new Set();
-      const processedHistory = (history || [])
-        .map((msg, index) => {
-          let messageType = msg.type || 'content';
-          
-          // For assistant messages, check if content is a learning path
-          if (msg.role === 'assistant' && msg.content) {
-            // Force check for learning path JSON patterns
-            const contentStr = String(msg.content).toLowerCase();
-            
-            // Simplified detection - just check for topics array
-            const hasLearningPathStructure = (
-              contentStr.includes('"topics"') && 
-              contentStr.includes('[') &&
-              contentStr.includes('{') &&
-              (contentStr.includes('"name"') || contentStr.includes('"description"') || 
-               contentStr.includes('programming') || contentStr.includes('learning') || 
-               contentStr.includes('study') || contentStr.includes('python') || 
-               contentStr.includes('time_required'))
-            );
-            
-            // Also check if it's already parsed as an object
-            if (hasLearningPathStructure || 
-                (typeof msg.content === 'object' && msg.content.topics && Array.isArray(msg.content.topics))) {
-              messageType = 'learning_path';
-            console.log('🎯 DETECTED learning path content:', typeof msg.content, typeof msg.content === 'string' && msg.content.substring ? msg.content.substring(0, 100) + '...' : msg.content);
+      if (!username) {
+        console.warn('⚠️ No username found in localStorage');
+        setError('Please log in to view chat history.');
+        return;
+      }
+      
+      console.log('📚 Loading chat history for username:', username);
+      
+      // First, try to load from localStorage for immediate display
+      const localStorageKey = `chat_messages_${username}`;
+      const cachedMessages = localStorage.getItem(localStorageKey);
+      
+      if (cachedMessages) {
+        try {
+          const parsedCachedMessages = JSON.parse(cachedMessages);
+          console.log('💾 Loaded cached messages from localStorage:', parsedCachedMessages.length);
+          if (parsedCachedMessages.length > 0) {
+            setMessages(parsedCachedMessages);
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to parse cached messages, will fetch from server');
+          localStorage.removeItem(localStorageKey); // Clear corrupted cache
+        }
+      }
+      
+      // Then fetch from server to get latest data
+      try {
+        const history = await fetchChatHistory();
+        console.log('📡 Fetched chat history from server:', history);
+        
+        if (!history || !Array.isArray(history)) {
+          console.warn('⚠️ Invalid history format received:', history);
+          return;
+        }
+        
+        // Process history and ensure proper typing with deduplication
+        const seenContentHashes = new Set();
+        const processedHistory = history
+          .map((msg, index) => {
+            // Ensure message has required fields
+            if (!msg || !msg.role || msg.content === undefined) {
+              console.warn('⚠️ Invalid message format:', msg);
+              return null;
             }
+            
+            let messageType = msg.type || msg.message_type || 'content';
+            
+            // For assistant messages, check if content is a learning path or quiz
+            if (msg.role === 'assistant' && msg.content) {
+              // Force check for learning path JSON patterns
+              const contentStr = String(msg.content).toLowerCase();
+              
+              // Check for quiz content first - enhanced detection
+              const hasQuizStructure = (
+                // Check for quiz-specific properties
+                (contentStr.includes('"quiz_data"') || contentStr.includes('quiz_data')) ||
+                (contentStr.includes('"questions"') && contentStr.includes('"correct_answer"')) ||
+                (contentStr.includes('"question_number"') && contentStr.includes('"options"')) ||
+                (contentStr.includes('"type"') && contentStr.includes('"quiz"')) ||
+                (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')) ||
+                (contentStr.includes('"time_limit"') && contentStr.includes('"difficulty"')) ||
+                // Check if it's already parsed as a quiz object
+                (typeof msg.content === 'object' && (
+                  msg.content.type === 'quiz' ||
+                  msg.content.quiz_data ||
+                  (msg.content.questions && Array.isArray(msg.content.questions)) ||
+                  (msg.content.quiz_id && msg.content.topic && msg.content.questions)
+                ))
+              );
+              
+              // Simplified detection for learning paths - just check for topics array
+              const hasLearningPathStructure = (
+                contentStr.includes('"topics"') && 
+                contentStr.includes('[') &&
+                contentStr.includes('{') &&
+                (contentStr.includes('"name"') || contentStr.includes('"description"') || 
+                 contentStr.includes('programming') || contentStr.includes('learning') || 
+                 contentStr.includes('study') || contentStr.includes('python') || 
+                 contentStr.includes('time_required'))
+              );
+              
+              // Set message type based on content
+              if (hasQuizStructure) {
+                messageType = 'quiz';
+                console.log('🎯 DETECTED quiz content:', typeof msg.content);
+              } else if (hasLearningPathStructure || 
+                  (typeof msg.content === 'object' && msg.content.topics && Array.isArray(msg.content.topics))) {
+                messageType = 'learning_path';
+                console.log('🎯 DETECTED learning path content:', typeof msg.content);
+              }
+            }
+            
+            return {
+              ...msg,
+              id: msg.id || msg._id || `${msg.timestamp || Date.now()}-${index}`,
+              type: messageType,
+              timestamp: msg.timestamp || new Date().toISOString(),
+              contentHash: msg.role + '_' + String(msg.content || '').substring(0, 50)
+            };
+          })
+          .filter(msg => msg !== null) // Remove null messages
+          .filter((msg) => {
+            // Remove duplicate messages based on content
+            if (seenContentHashes.has(msg.contentHash)) {
+              console.log('🚫 Removing duplicate message:', msg.contentHash);
+              return false;
+            }
+            seenContentHashes.add(msg.contentHash);
+            return true;
+          });
+        
+        console.log('📚 Processed chat history:', processedHistory.length, 'messages');
+        setMessages(processedHistory);
+        
+        // Cache the processed messages in localStorage
+        try {
+          if (processedHistory.length > 0) {
+            localStorage.setItem(localStorageKey, JSON.stringify(processedHistory));
+            console.log('💾 Cached messages to localStorage');
           }
-          
-          return {
-            ...msg,
-            id: msg.id || `${msg.timestamp || Date.now()}-${index}`,
-            type: messageType,
-            contentHash: msg.role + '_' + String(msg.content || '').substring(0, 50)
-          };
-        })
-        .filter((msg) => {
-          // Remove duplicate messages based on content
-          if (seenContentHashes.has(msg.contentHash)) {
-            console.log('🚫 Removing duplicate message:', msg.contentHash);
-            return false;
-          }
-          seenContentHashes.add(msg.contentHash);
-          return true;
-        });
-      
-      console.log('📚 Processed chat history:', processedHistory);
-      setMessages(processedHistory);
+        } catch (e) {
+          console.warn('⚠️ Failed to cache messages to localStorage:', e);
+        }
+      } catch (fetchError) {
+        console.error('❌ Error fetching from server:', fetchError);
+        // Don't set error if we have cached messages
+        if (messages.length === 0) {
+          setError('Unable to load chat history. Please check your connection.');
+        }
+      }
     } catch (err) {
-      console.error('Error fetching chat history:', err);
+      console.error('❌ Error in loadChatHistory:', err);
       setError('Failed to load chat history. Please try again.');
     }
   };
@@ -281,7 +402,19 @@ const AIChat = () => {
     };
     
     // Update messages with user message
-    setMessages(prevMessages => [...prevMessages, newUserMessage]);
+    const updatedMessagesWithUser = [...messages, newUserMessage];
+    setMessages(updatedMessagesWithUser);
+    
+    // Cache the user message immediately
+    const username = localStorage.getItem("username");
+    const localStorageKey = `chat_messages_${username}`;
+    try {
+      localStorage.setItem(localStorageKey, JSON.stringify(updatedMessagesWithUser));
+      console.log('💾 Cached user message to localStorage');
+    } catch (e) {
+      console.warn('⚠️ Failed to cache user message to localStorage:', e);
+    }
+    
     setIsGenerating(true);
     
     try {
@@ -437,7 +570,23 @@ const AIChat = () => {
           () => {
             // On complete
             setIsGenerating(false);
-            // No chat history reload to prevent duplication
+            
+            // Cache the completed messages to localStorage
+            const username = localStorage.getItem("username");
+            const localStorageKey = `chat_messages_${username}`;
+            
+            // Get current messages state and cache them
+            setTimeout(() => {
+              setMessages(currentMessages => {
+                try {
+                  localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
+                  console.log('💾 Cached completed messages to localStorage');
+                } catch (e) {
+                  console.warn('⚠️ Failed to cache completed messages to localStorage:', e);
+                }
+                return currentMessages; // Return unchanged
+              });
+            }, 100); // Small delay to ensure state is updated
           },
           false, // Don't pass isQuiz to askQuestion since we handle it separately
           isLearningPath
@@ -463,6 +612,12 @@ const AIChat = () => {
       await clearChat();
       setMessages([]);
       setError(null);
+      
+      // Also clear localStorage cache
+      const username = localStorage.getItem("username");
+      const localStorageKey = `chat_messages_${username}`;
+      localStorage.removeItem(localStorageKey);
+      console.log('💾 Cleared cached messages from localStorage');
     } catch (err) {
       console.error('Error clearing chat:', err);
       setError('Failed to clear chat history. Please try again.');

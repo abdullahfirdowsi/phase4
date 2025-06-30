@@ -14,14 +14,25 @@ const AIMessage = memo(({ message }) => {
     return null;
   }
 
-  // Simplified quiz detection - check message type and content structure
+  // Enhanced quiz detection - check message type and content structure
   const isQuizContent = (content) => {
     try {
       // If content is already an object with quiz structure
       if (typeof content === 'object' && content !== null) {
         return (content.type === 'quiz' || 
                 content.quiz_data || 
-                (content.questions && Array.isArray(content.questions)));
+                (content.questions && Array.isArray(content.questions)) ||
+                // Also check if it has typical quiz properties
+                (content.quiz_id && content.topic && content.questions));
+      }
+      
+      // If content is a string, check if it contains quiz-like JSON
+      if (typeof content === 'string') {
+        const contentStr = content.toLowerCase();
+        return (contentStr.includes('"quiz_data"') || 
+                contentStr.includes('quiz_data') ||
+                (contentStr.includes('"questions"') && contentStr.includes('"correct_answer"')) ||
+                (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')));
       }
       
       return false;
@@ -30,8 +41,41 @@ const AIMessage = memo(({ message }) => {
     }
   };
 
+  // Enhanced quiz detection and logging
+  const shouldRenderAsQuiz = type === 'quiz' || isQuizContent(content);
+  
+  // Enhanced debug logging for quiz detection
+  if (typeof content === 'string' && (content.includes('quiz') || content.includes('Quiz'))) {
+    console.log('🔍 AIMessage Quiz Debug (string content):', {
+      messageType: type,
+      contentType: typeof content,
+      isQuizContent: isQuizContent(content),
+      shouldRenderAsQuiz,
+      contentPreview: content.substring(0, 300) + '...',
+      hasQuizData: content.includes('quiz_data'),
+      hasQuestions: content.includes('questions'),
+      hasCorrectAnswer: content.includes('correct_answer')
+    });
+  } else if (typeof content === 'object' && content !== null) {
+    const hasQuizProps = content.type === 'quiz' || content.quiz_data || (content.questions && Array.isArray(content.questions));
+    if (hasQuizProps) {
+      console.log('🔍 AIMessage Quiz Debug (object content):', {
+        messageType: type,
+        contentType: typeof content,
+        isQuizContent: isQuizContent(content),
+        shouldRenderAsQuiz,
+        contentKeys: Object.keys(content),
+        hasType: !!content.type,
+        hasQuizData: !!content.quiz_data,
+        hasQuestions: !!content.questions,
+        typeValue: content.type
+      });
+    }
+  }
+  
   // If this is a quiz message, render with QuizMessage component
-  if (type === 'quiz' || isQuizContent(content)) {
+  if (shouldRenderAsQuiz) {
+    console.log('✅ Rendering as quiz component');
     return (
       <div className="ai-message-container">
         <div className="ai-avatar">

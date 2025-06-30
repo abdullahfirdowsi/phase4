@@ -159,7 +159,7 @@ def extract_json_from_response(response: str) -> Dict[str, Any]:
     return None
 
 def store_quiz_message(username: str, content: Dict[str, Any]):
-    """Store quiz message in chat history"""
+    """Store quiz message in chat history using old system for compatibility"""
     try:
         message = {
             "role": "assistant",
@@ -173,6 +173,9 @@ def store_quiz_message(username: str, content: Dict[str, Any]):
             {"$push": {"messages": message}},
             upsert=True
         )
+        
+        logger.info(f"✅ Stored quiz message for user: {username}")
+        
     except Exception as e:
         logger.error(f"Error storing quiz message: {e}")
 
@@ -203,10 +206,17 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
             # Fallback to manual quiz generation
             quiz_json = create_fallback_quiz(request, quiz_id)
         
-        # Store in chat history
+        # Store user message first
+        store_quiz_message(request.username, {
+            "role": "user",
+            "content": f"Generate a {request.difficulty} quiz about {request.topic} with {request.num_questions} questions",
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        })
+        
+        # Store quiz response
         store_quiz_message(request.username, quiz_json)
         
-        # Store quiz data for later scoring
+        # Store quiz data for later reference and scoring
         quiz_data = {
             "quiz_id": quiz_id,
             "username": request.username,
@@ -215,23 +225,23 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
             "status": "active"
         }
         
+        # Store in common collection so both AI Chat and Quiz System can access
         chats_collection.update_one(
             {"username": request.username},
             {"$push": {"active_quizzes": quiz_data}},
             upsert=True
         )
         
-        # Store as a chat message for AI Chat integration
-        quiz_message = {
-            "role": "assistant",
-            "content": quiz_json,
-            "type": "quiz",
-            "timestamp": datetime.datetime.utcnow()
+        quiz_result_data = {
+            "quiz_id": quiz_id,
+            "submitted_at": datetime.datetime.utcnow(),
+            "results": None,  # Results will be calculated on submission
+            "source": "ai_chat"
         }
-        
+
         chats_collection.update_one(
             {"username": request.username},
-            {"$push": {"messages": quiz_message}},
+            {"$push": {"quiz_results": quiz_result_data}},
             upsert=True
         )
         

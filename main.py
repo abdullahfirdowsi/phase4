@@ -253,6 +253,96 @@ async def get_all_goals_legacy(username: str):
         logger.error(f"Learning goals error: {e}")
         return {"learning_goals": []}
 
+# Additional compatibility endpoint for frontend
+@app.get("/api/chat/history")
+async def get_chat_history_api(username: str):
+    """Get chat history with quiz message processing for frontend compatibility"""
+    try:
+        from database import chats_collection
+        import datetime
+        
+        logger.info(f"🔍 Fetching chat history for username: {username}")
+        
+        chat_session = chats_collection.find_one({"username": username})
+        
+        if not chat_session:
+            logger.info(f"⚠️ No chat session found for username: {username}")
+            return {"history": []}
+        
+        messages = chat_session.get("messages", [])
+        logger.info(f"📚 Found {len(messages)} messages in database")
+        
+        # Process messages to ensure proper quiz type detection and format
+        processed_messages = []
+        for idx, msg in enumerate(messages):
+            # Convert datetime to string if needed
+            if isinstance(msg.get("timestamp"), datetime.datetime):
+                msg["timestamp"] = msg["timestamp"].isoformat()
+            
+            # Enhanced quiz detection
+            msg_content = msg.get("content", "")
+            msg_type = msg.get("type", "content")
+            
+            # Check if it's a quiz message
+            is_quiz = False
+            if msg_type == "quiz":
+                is_quiz = True
+            elif isinstance(msg_content, dict) and msg_content.get("type") == "quiz":
+                is_quiz = True
+            elif isinstance(msg_content, str):
+                content_lower = msg_content.lower()
+                is_quiz = (
+                    "quiz_data" in content_lower or
+                    ("questions" in content_lower and "correct_answer" in content_lower) or
+                    ("quiz_id" in content_lower and "topic" in content_lower)
+                )
+            
+            # Set the type based on detection
+            if is_quiz:
+                msg["type"] = "quiz"
+                logger.debug(f"🎯 Detected quiz message at index {idx}")
+            
+            # Add a unique ID if not present
+            if "id" not in msg:
+                msg["id"] = f"{msg.get('timestamp', datetime.datetime.utcnow().isoformat())}-{idx}"
+            
+            processed_messages.append(msg)
+        
+        logger.info(f"✅ Returning {len(processed_messages)} processed messages")
+        return {"history": processed_messages}
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching chat history: {e}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        return {"history": []}
+
+@app.delete("/api/chat/clear")
+async def clear_chat_history_api(username: str):
+    """Clear chat history for frontend compatibility"""
+    try:
+        from database import chats_collection
+        
+        logger.info(f"🗑️ Clearing chat history for username: {username}")
+        
+        result = chats_collection.update_one(
+            {"username": username},
+            {"$set": {"messages": []}}
+        )
+        
+        if result.matched_count == 0:
+            logger.info(f"⚠️ No chat history found for username: {username}")
+            return {"message": "No chat history found for this user."}
+        
+        logger.info(f"✅ Chat history cleared successfully for username: {username}")
+        return {"message": "Chat history cleared successfully."}
+        
+    except Exception as e:
+        logger.error(f"❌ Error clearing chat history: {e}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Failed to clear chat history")
+
 # Mount frontend build directory (after API routes)
 FRONTEND_BUILD_DIR = os.path.join(os.getcwd(), "frontend", "dist")
 

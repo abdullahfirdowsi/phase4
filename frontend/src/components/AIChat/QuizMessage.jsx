@@ -30,25 +30,57 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
     try {
       let parsedContent;
       
+      console.log('🔍 QuizMessage received content:', {
+        type: typeof message.content, 
+        content: message.content,
+        messageType: message.type,
+        isString: typeof message.content === 'string',
+        isObject: typeof message.content === 'object'
+      });
+      
       if (typeof message.content === 'string') {
+        console.log('📝 Processing string content');
         // Try to extract JSON from string content
         const jsonMatch = message.content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
+          console.log('📝 Found JSON match:', jsonMatch[0].substring(0, 200) + '...');
           parsedContent = JSON.parse(jsonMatch[0]);
+        } else {
+          console.log('❌ No JSON found in string content');
         }
       } else if (typeof message.content === 'object') {
+        console.log('📝 Using object content directly');
         parsedContent = message.content;
       }
 
+      console.log('🔍 Parsed content result:', {
+        parsedContent,
+        hasQuizData: parsedContent && parsedContent.quiz_data,
+        hasType: parsedContent && parsedContent.type,
+        hasQuestions: parsedContent && parsedContent.questions,
+        hasQuizId: parsedContent && parsedContent.quiz_id
+      });
+
+      // Multiple ways to extract quiz data
       if (parsedContent && parsedContent.quiz_data) {
         setQuizData(parsedContent.quiz_data);
-        console.log('📝 Parsed quiz data:', parsedContent.quiz_data);
+        console.log('📝 Using nested quiz_data:', parsedContent.quiz_data);
       } else if (parsedContent && parsedContent.type === 'quiz') {
         setQuizData(parsedContent);
-        console.log('📝 Direct quiz data:', parsedContent);
+        console.log('📝 Using direct quiz data (type=quiz):', parsedContent);
+      } else if (parsedContent && parsedContent.questions && Array.isArray(parsedContent.questions)) {
+        // Direct quiz structure without nested quiz_data
+        setQuizData(parsedContent);
+        console.log('📝 Using direct quiz structure:', parsedContent);
+      } else if (parsedContent && parsedContent.quiz_id && parsedContent.topic) {
+        // Quiz structure with quiz_id and topic but no type field
+        setQuizData(parsedContent);
+        console.log('📝 Using quiz structure with quiz_id:', parsedContent);
+      } else {
+        console.warn('❌ Could not extract quiz data from content:', parsedContent);
       }
     } catch (error) {
-      console.error('Error parsing quiz data:', error);
+      console.error('❌ Error parsing quiz data:', error);
     }
   }, [message.content]);
 
