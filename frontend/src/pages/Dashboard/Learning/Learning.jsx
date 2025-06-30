@@ -38,7 +38,20 @@ const Learning = () => {
       
       // Fetch user's learning paths
       const learningGoals = await getAllLearningGoals();
-      setMyLearningPaths(learningGoals || []);
+      
+      // Sort learning paths by created_at date (newest first)
+      const sortedLearningPaths = (learningGoals || []).sort((a, b) => {
+        const dateA = new Date(a.created_at || 0);
+        const dateB = new Date(b.created_at || 0);
+        return dateB.getTime() - dateA.getTime(); // newest first
+      });
+      
+      console.log('📋 Learning paths in Learning component (sorted newest first):');
+      sortedLearningPaths.forEach((p, i) => {
+        console.log(`  ${i + 1}. "${p.name}" - ${p.created_at}`);
+      });
+      
+      setMyLearningPaths(sortedLearningPaths);
       
       // Try to fetch lessons from backend
       try {

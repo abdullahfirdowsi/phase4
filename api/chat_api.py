@@ -292,6 +292,64 @@ async def get_chat_history(username: str = Query(...), limit: int = Query(50)):
         logger.error(f"History error: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch chat history")
 
+@chat_router.post("/store-quiz")
+async def store_quiz_messages(
+    request: Request,
+    username: str = Body(...),
+    user_message: dict = Body(...),
+    quiz_message: dict = Body(...)
+):
+    """Store quiz messages directly to chat history for persistence"""
+    try:
+        logger.info(f"💾 Storing quiz messages for user: {username}")
+        
+        # Get client info for session
+        client_ip = request.client.host
+        user_agent = request.headers.get("user-agent", "Unknown")
+        
+        # Create or get session
+        session_id = await chat_service.create_session(username, client_ip, user_agent)
+        
+        # Store user message first
+        user_result = await chat_service.store_message(
+            username=username,
+            session_id=session_id,
+            role=user_message.get("role", "user"),
+            content=user_message.get("content", ""),
+            message_type=MessageType.CONTENT
+        )
+        
+        if not user_result.success:
+            logger.error(f"Failed to store user message: {user_result.message}")
+            raise HTTPException(status_code=500, detail="Failed to store user message")
+        
+        # Store quiz message with proper type
+        quiz_result = await chat_service.store_message(
+            username=username,
+            session_id=session_id,
+            role=quiz_message.get("role", "assistant"),
+            content=quiz_message.get("content", {}),
+            message_type=MessageType.QUIZ
+        )
+        
+        if not quiz_result.success:
+            logger.error(f"Failed to store quiz message: {quiz_result.message}")
+            raise HTTPException(status_code=500, detail="Failed to store quiz message")
+        
+        logger.info(f"✅ Successfully stored quiz messages for user: {username}")
+        return {
+            "success": True,
+            "message": "Quiz messages stored successfully",
+            "user_message_id": user_result.data.get("message_id"),
+            "quiz_message_id": quiz_result.data.get("message_id")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Store quiz messages error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to store quiz messages")
+
 @chat_router.delete("/clear")
 async def clear_chat_history(username: str = Query(...)):
     """Clear chat history for user"""

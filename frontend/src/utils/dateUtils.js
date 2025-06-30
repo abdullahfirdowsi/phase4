@@ -17,7 +17,26 @@ export const utcToIST = (utcTimestamp) => {
   }
   
   // Parse UTC timestamp string to Date object
-  const utcDate = new Date(utcTimestamp);
+  let utcDate;
+  
+  if (typeof utcTimestamp === 'string') {
+    // Handle different timestamp formats
+    if (utcTimestamp.includes('T') && !utcTimestamp.endsWith('Z')) {
+      // If it's ISO format but doesn't end with Z, assume it's UTC
+      utcDate = new Date(utcTimestamp + 'Z');
+    } else {
+      // Standard ISO format or other formats
+      utcDate = new Date(utcTimestamp);
+    }
+  } else {
+    utcDate = new Date(utcTimestamp);
+  }
+  
+  // Validate the date
+  if (isNaN(utcDate.getTime())) {
+    console.warn('Invalid timestamp provided to utcToIST:', utcTimestamp);
+    return new Date(); // Return current time as fallback
+  }
   
   return utcDate;
 };
@@ -76,10 +95,27 @@ export const formatLocalDateTime = (utcTimestamp, options = {}) => {
  * @returns {string} Relative time string
  */
 export const formatRelativeTime = (utcTimestamp) => {
-  const localDate = utcToIST(utcTimestamp);
-  if (!localDate) return '';
+  console.log('🕐 formatRelativeTime called with:', {
+    timestamp: utcTimestamp,
+    type: typeof utcTimestamp
+  });
   
-  return formatDistanceToNow(localDate, { addSuffix: true });
+  const localDate = utcToIST(utcTimestamp);
+  if (!localDate) {
+    console.warn('🕐 formatRelativeTime: No valid date returned from utcToIST');
+    return '';
+  }
+  
+  const result = formatDistanceToNow(localDate, { addSuffix: true });
+  
+  console.log('🕐 formatRelativeTime result:', {
+    originalTimestamp: utcTimestamp,
+    convertedDate: localDate,
+    localTimeString: localDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    relativeTime: result
+  });
+  
+  return result;
 };
 
 /**

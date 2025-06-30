@@ -1,7 +1,10 @@
 /venv/*
-__pycache__/* 
-__pycache__/chat.cpython-312.pyc
-__pycache__/constants.cpython-312.pyc
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 
 .env
 .vercel/*

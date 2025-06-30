@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
-import { fetchChatHistory, askQuestion, clearChat, generateQuiz } from '../../api';
+import { fetchChatHistory, askQuestion, clearChat, generateQuiz, storeQuizMessage } from '../../api';
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -254,12 +254,16 @@ const AIChat = () => {
                 (contentStr.includes('"type"') && contentStr.includes('"quiz"')) ||
                 (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')) ||
                 (contentStr.includes('"time_limit"') && contentStr.includes('"difficulty"')) ||
+                // Check for more quiz patterns
+                (contentStr.includes('"total_questions"') && contentStr.includes('"difficulty"')) ||
+                (contentStr.includes('"correct_answer"') && contentStr.includes('"explanation"')) ||
                 // Check if it's already parsed as a quiz object
                 (typeof msg.content === 'object' && (
                   msg.content.type === 'quiz' ||
                   msg.content.quiz_data ||
                   (msg.content.questions && Array.isArray(msg.content.questions)) ||
-                  (msg.content.quiz_id && msg.content.topic && msg.content.questions)
+                  (msg.content.quiz_id && msg.content.topic && msg.content.questions) ||
+                  (msg.content.response && msg.content.quiz_data)
                 ))
               );
               
@@ -285,12 +289,57 @@ const AIChat = () => {
               }
             }
             
+            // Debug and fix timestamp processing
+            let processedTimestamp = msg.timestamp;
+            console.log('🕐 Processing timestamp for message:', {
+              originalTimestamp: msg.timestamp,
+              timestampType: typeof msg.timestamp,
+              messageRole: msg.role,
+              messageContent: typeof msg.content === 'string' ? msg.content.substring(0, 50) + '...' : typeof msg.content
+            });
+            
+            if (!processedTimestamp) {
+              processedTimestamp = new Date().toISOString();
+              console.log('🕐 No timestamp found, using current time:', processedTimestamp);
+            } else if (typeof processedTimestamp === 'string') {
+              // Ensure timestamp is in ISO format for consistent parsing
+              try {
+                // If timestamp doesn't end with Z and has T, assume it's UTC and add Z
+                if (processedTimestamp.includes('T') && !processedTimestamp.endsWith('Z')) {
+                  const originalTimestamp = processedTimestamp;
+                  processedTimestamp = processedTimestamp + 'Z';
+                  console.log('🕐 Added Z to timestamp:', { original: originalTimestamp, processed: processedTimestamp });
+                }
+                // Validate by creating a Date object
+                const testDate = new Date(processedTimestamp);
+                if (isNaN(testDate.getTime())) {
+                  console.warn('🕐 Invalid timestamp detected, using current time:', processedTimestamp);
+                  processedTimestamp = new Date().toISOString();
+                } else {
+                  console.log('🕐 Timestamp validation successful:', {
+                    processed: processedTimestamp,
+                    asDate: testDate,
+                    localTime: testDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                  });
+                }
+              } catch (e) {
+                console.warn('🕐 Error processing timestamp, using current time:', e);
+                processedTimestamp = new Date().toISOString();
+              }
+            } else {
+              // If timestamp is not a string, convert to ISO string
+              const originalTimestamp = processedTimestamp;
+              processedTimestamp = new Date(processedTimestamp).toISOString();
+              console.log('🕐 Converted non-string timestamp:', { original: originalTimestamp, processed: processedTimestamp });
+            }
+            
             return {
               ...msg,
-              id: msg.id || msg._id || `${msg.timestamp || Date.now()}-${index}`,
+              id: msg.id || msg._id || `${processedTimestamp}-${index}`,
               type: messageType,
-              timestamp: msg.timestamp || new Date().toISOString(),
-              contentHash: msg.role + '_' + String(msg.content || '').substring(0, 50)
+              timestamp: processedTimestamp,
+              // Enhanced content hash that includes message type to prevent learning path deduplication
+              contentHash: `${msg.role}_${messageType}_${String(msg.content || '').substring(0, 50)}`
             };
           })
           .filter(msg => msg !== null) // Remove null messages
@@ -393,12 +442,19 @@ const AIChat = () => {
       textareaRef.current.style.height = 'auto';
     }
 
-    // Add user message to chat
+    // Add user message to chat with proper timestamp
+    const currentTimestamp = new Date().toISOString();
+    console.log('🕐 Creating user message with timestamp:', {
+      timestamp: currentTimestamp,
+      localTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      utcTime: new Date().toUTCString()
+    });
+    
     const newUserMessage = {
       role: 'user',
       content: messageToSend.trim(),
       type: 'content',
-      timestamp: new Date().toISOString()
+      timestamp: currentTimestamp
     };
     
     // Update messages with user message
@@ -494,16 +550,48 @@ const AIChat = () => {
         const result = await generateQuiz(topic, difficulty, questionCount);
         
         if (result && result.quiz_data) {
-          // Create a proper quiz message
+          // Create a proper quiz message with debugging
+          const quizTimestamp = new Date().toISOString();
+          console.log('🕐 Creating quiz message with timestamp:', {
+            timestamp: quizTimestamp,
+            localTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            utcTime: new Date().toUTCString()
+          });
+          
           const quizMessage = {
             role: 'assistant',
             content: result,
             type: 'quiz',
-            timestamp: new Date().toISOString()
+            timestamp: quizTimestamp
           };
           
           setMessages(prevMessages => [...prevMessages, quizMessage]);
           console.log('✅ Quiz generated successfully:', result);
+          
+          // IMPORTANT: Store quiz messages to backend database for persistence
+          try {
+            console.log('💾 Storing quiz messages to backend database...');
+            await storeQuizMessage(newUserMessage, quizMessage);
+            console.log('✅ Quiz messages successfully stored to backend database');
+          } catch (storeError) {
+            console.warn('⚠️ Failed to store quiz to backend database:', storeError);
+            // Don't throw error as quiz is already generated and shown to user
+          }
+          
+          // Cache the quiz messages to localStorage as backup
+          const username = localStorage.getItem("username");
+          const localStorageKey = `chat_messages_${username}`;
+          setTimeout(() => {
+            setMessages(currentMessages => {
+              try {
+                localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
+                console.log('💾 Cached quiz messages to localStorage');
+              } catch (e) {
+                console.warn('⚠️ Failed to cache quiz messages to localStorage:', e);
+              }
+              return currentMessages;
+            });
+          }, 100);
         } else {
           throw new Error('Failed to generate quiz');
         }
@@ -775,7 +863,7 @@ const AIChat = () => {
                       
                       return shouldShowLearningPath ? (
                         <LearningPathDisplayComponent 
-                          message={message.content} 
+                          message={message} 
                         />
                       ) : (
                         <AIMessage message={message} />

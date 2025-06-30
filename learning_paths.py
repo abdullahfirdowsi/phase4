@@ -129,6 +129,78 @@ async def list_learning_paths(
                     "tags": plan.get("tags", [])
                 })
 
+        # Sort learning paths by created_at date (newest first)
+        # Enhanced sorting with comprehensive datetime handling for both old and new data patterns
+        def get_sort_date(path):
+            # First priority: created_at from the path itself (from learning goal)
+            created_at = path.get("created_at", "")
+            
+            # Second priority: extract timestamp from path ID if available
+            if not created_at:
+                path_id = path.get("id", "")
+                if path_id and "path_" in path_id:
+                    try:
+                        timestamp = float(path_id.replace("path_", ""))
+                        return datetime.datetime.fromtimestamp(timestamp)
+                    except (ValueError, TypeError):
+                        pass
+                # If no valid timestamp found, return epoch for consistent sorting
+                return datetime.datetime.min
+                
+            # Parse the created_at timestamp
+            try:
+                if isinstance(created_at, str):
+                    # Remove Z suffix for fromisoformat compatibility
+                    if created_at.endswith('Z'):
+                        date_str = created_at[:-1]
+                    else:
+                        date_str = created_at
+                    
+                    # Try fromisoformat first
+                    try:
+                        return datetime.datetime.fromisoformat(date_str)
+                    except ValueError:
+                        # Try other common formats
+                        try:
+                            from dateutil import parser
+                            return parser.parse(created_at)
+                        except ImportError:
+                            # Fallback to basic strptime for ISO format
+                            if 'T' in created_at and created_at.endswith('Z'):
+                                return datetime.datetime.strptime(created_at, '%Y-%m-%dT%H:%M:%S.%fZ')
+                            return datetime.datetime.min
+                        
+                elif isinstance(created_at, datetime.datetime):
+                    return created_at
+                else:
+                    return datetime.datetime.min
+                    
+            except (ValueError, TypeError):
+                # Final fallback: try to extract timestamp from path ID
+                path_id = path.get("id", "")
+                if path_id and "path_" in path_id:
+                    try:
+                        timestamp = float(path_id.replace("path_", ""))
+                        return datetime.datetime.fromtimestamp(timestamp)
+                    except (ValueError, TypeError):
+                        pass
+                return datetime.datetime.min
+        
+        # Sort with detailed logging for debugging
+        try:
+            learning_paths.sort(key=get_sort_date, reverse=True)
+            print(f"Successfully sorted {len(learning_paths)} learning paths")
+            
+            # Debug: print first few items after sorting
+            for i, path in enumerate(learning_paths[:3]):
+                created_date = get_sort_date(path)
+                print(f"  Path {i+1}: '{path.get('name', 'Unknown')}' - {created_date}")
+                
+        except Exception as e:
+            print(f"Error during sorting: {e}")
+            # Fallback: sort by name if datetime sorting fails
+            learning_paths.sort(key=lambda x: x.get("name", ""), reverse=True)
+        
         return {"learning_paths": learning_paths}
     except Exception as e:
         print(f"Error listing learning paths: {e}")
