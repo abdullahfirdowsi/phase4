@@ -57,10 +57,24 @@ const LearningPaths = () => {
       
       if (response.ok) {
         const paths = data.learning_paths || [];
-        // Sort by created_at date (newest first) as backup
+        // Sort by created_at date (newest first) - enhanced sorting for latest generated paths
         paths.sort((a, b) => {
-          const dateA = new Date(a.created_at || '1970-01-01');
-          const dateB = new Date(b.created_at || '1970-01-01');
+          // Helper function to parse date safely
+          const parseDate = (dateStr) => {
+            if (!dateStr) return new Date('1970-01-01');
+            try {
+              // Handle ISO format with Z suffix
+              if (dateStr.endsWith('Z')) {
+                return new Date(dateStr);
+              }
+              return new Date(dateStr);
+            } catch {
+              return new Date('1970-01-01');
+            }
+          };
+          
+          const dateA = parseDate(a.created_at);
+          const dateB = parseDate(b.created_at);
           return dateB - dateA; // Descending order (newest first)
         });
         setLearningPaths(paths);

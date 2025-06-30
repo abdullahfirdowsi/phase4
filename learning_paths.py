@@ -130,7 +130,20 @@ async def list_learning_paths(
                 })
 
         # Sort learning paths by created_at date (newest first)
-        learning_paths.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        # Use datetime parsing for more accurate sorting
+        def get_sort_date(path):
+            created_at = path.get("created_at", "")
+            if not created_at:
+                return datetime.datetime.min
+            try:
+                # Handle ISO format with Z suffix
+                if created_at.endswith('Z'):
+                    return datetime.datetime.fromisoformat(created_at[:-1])
+                return datetime.datetime.fromisoformat(created_at)
+            except (ValueError, TypeError):
+                return datetime.datetime.min
+        
+        learning_paths.sort(key=get_sort_date, reverse=True)
         
         return {"learning_paths": learning_paths}
     except Exception as e:
