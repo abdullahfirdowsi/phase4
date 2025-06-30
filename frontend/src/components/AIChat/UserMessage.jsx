@@ -11,7 +11,9 @@ const UserMessage = memo(({ message }) => {
       <div className="user-message-bubble">
         <div className="message-content">{content}</div>
         {timeAgo && (
-          <div className="message-time">{timeAgo}</div>
+          <div className="message-time" title={`Created: ${new Date(timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`}>
+            {timeAgo}
+          </div>
         )}
       </div>
     </div>

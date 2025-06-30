@@ -94,7 +94,9 @@ const AIMessage = memo(({ message }) => {
           <div className="ai-header">
             <span className="ai-label">AI Tutor</span>
             {timeAgo && (
-              <small className="message-time">{timeAgo}</small>
+              <small className="message-time" title={`Created: ${new Date(timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`}>
+                {timeAgo}
+              </small>
             )}
           </div>
           
@@ -160,7 +162,9 @@ const AIMessage = memo(({ message }) => {
         <div className="ai-header">
           <span className="ai-label">AI Tutor</span>
           {timeAgo && (
-            <small className="message-time">{timeAgo}</small>
+            <small className="message-time" title={`Created: ${new Date(timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`}>
+              {timeAgo}
+            </small>
           )}
         </div>
         

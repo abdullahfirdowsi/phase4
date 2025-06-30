@@ -289,11 +289,55 @@ const AIChat = () => {
               }
             }
             
+            // Debug and fix timestamp processing
+            let processedTimestamp = msg.timestamp;
+            console.log('🕐 Processing timestamp for message:', {
+              originalTimestamp: msg.timestamp,
+              timestampType: typeof msg.timestamp,
+              messageRole: msg.role,
+              messageContent: typeof msg.content === 'string' ? msg.content.substring(0, 50) + '...' : typeof msg.content
+            });
+            
+            if (!processedTimestamp) {
+              processedTimestamp = new Date().toISOString();
+              console.log('🕐 No timestamp found, using current time:', processedTimestamp);
+            } else if (typeof processedTimestamp === 'string') {
+              // Ensure timestamp is in ISO format for consistent parsing
+              try {
+                // If timestamp doesn't end with Z and has T, assume it's UTC and add Z
+                if (processedTimestamp.includes('T') && !processedTimestamp.endsWith('Z')) {
+                  const originalTimestamp = processedTimestamp;
+                  processedTimestamp = processedTimestamp + 'Z';
+                  console.log('🕐 Added Z to timestamp:', { original: originalTimestamp, processed: processedTimestamp });
+                }
+                // Validate by creating a Date object
+                const testDate = new Date(processedTimestamp);
+                if (isNaN(testDate.getTime())) {
+                  console.warn('🕐 Invalid timestamp detected, using current time:', processedTimestamp);
+                  processedTimestamp = new Date().toISOString();
+                } else {
+                  console.log('🕐 Timestamp validation successful:', {
+                    processed: processedTimestamp,
+                    asDate: testDate,
+                    localTime: testDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                  });
+                }
+              } catch (e) {
+                console.warn('🕐 Error processing timestamp, using current time:', e);
+                processedTimestamp = new Date().toISOString();
+              }
+            } else {
+              // If timestamp is not a string, convert to ISO string
+              const originalTimestamp = processedTimestamp;
+              processedTimestamp = new Date(processedTimestamp).toISOString();
+              console.log('🕐 Converted non-string timestamp:', { original: originalTimestamp, processed: processedTimestamp });
+            }
+            
             return {
               ...msg,
-              id: msg.id || msg._id || `${msg.timestamp || Date.now()}-${index}`,
+              id: msg.id || msg._id || `${processedTimestamp}-${index}`,
               type: messageType,
-              timestamp: msg.timestamp || new Date().toISOString(),
+              timestamp: processedTimestamp,
               contentHash: msg.role + '_' + String(msg.content || '').substring(0, 50)
             };
           })
@@ -397,12 +441,19 @@ const AIChat = () => {
       textareaRef.current.style.height = 'auto';
     }
 
-    // Add user message to chat
+    // Add user message to chat with proper timestamp
+    const currentTimestamp = new Date().toISOString();
+    console.log('🕐 Creating user message with timestamp:', {
+      timestamp: currentTimestamp,
+      localTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      utcTime: new Date().toUTCString()
+    });
+    
     const newUserMessage = {
       role: 'user',
       content: messageToSend.trim(),
       type: 'content',
-      timestamp: new Date().toISOString()
+      timestamp: currentTimestamp
     };
     
     // Update messages with user message
@@ -498,12 +549,19 @@ const AIChat = () => {
         const result = await generateQuiz(topic, difficulty, questionCount);
         
         if (result && result.quiz_data) {
-          // Create a proper quiz message
+          // Create a proper quiz message with debugging
+          const quizTimestamp = new Date().toISOString();
+          console.log('🕐 Creating quiz message with timestamp:', {
+            timestamp: quizTimestamp,
+            localTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            utcTime: new Date().toUTCString()
+          });
+          
           const quizMessage = {
             role: 'assistant',
             content: result,
             type: 'quiz',
-            timestamp: new Date().toISOString()
+            timestamp: quizTimestamp
           };
           
           setMessages(prevMessages => [...prevMessages, quizMessage]);
