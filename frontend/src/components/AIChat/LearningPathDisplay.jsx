@@ -10,6 +10,7 @@ const LearningPathDisplay = memo(({ message }) => {
   const [parsedContent, setParsedContent] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [hasBeenSaved, setHasBeenSaved] = useState(false);
 
   // Only log in development mode
   if (process.env.NODE_ENV === 'development') {
@@ -20,6 +21,20 @@ const LearningPathDisplay = memo(({ message }) => {
   const content = useMemo(() => {
     return message?.content || message;
   }, [message]);
+
+  // Check if this learning path already exists when component mounts
+  useEffect(() => {
+    const checkExistingPath = async () => {
+      if (parsedContent) {
+        const alreadySaved = await checkIfAlreadySaved();
+        if (alreadySaved) {
+          setHasBeenSaved(true);
+        }
+      }
+    };
+    
+    checkExistingPath();
+  }, [parsedContent]);
 
   // Process content with useEffect to handle async parsing and loading states
   useEffect(() => {
@@ -98,8 +113,41 @@ const LearningPathDisplay = memo(({ message }) => {
     return null;
   }
 
+  // Check if this learning path has already been saved
+  const checkIfAlreadySaved = async () => {
+    try {
+      const username = localStorage.getItem("username");
+      if (!username) return false;
+
+      // Fetch current learning paths
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/learning-paths/list?username=${username}`);
+      const data = await response.json();
+      
+      if (response.ok && data.learning_paths) {
+        // Check if a path with the same name already exists
+        const pathName = parsedContent.name || parsedContent.topic || "Learning Path";
+        const existingPath = data.learning_paths.find(path => 
+          path.name && path.name.toLowerCase() === pathName.toLowerCase()
+        );
+        
+        return !!existingPath;
+      }
+      
+      return false;
+    } catch (error) {
+      console.warn('Could not check for existing paths:', error);
+      return false;
+    }
+  };
+
   // Save learning path function
   const handleSaveLearningPath = async () => {
+    // Prevent duplicate saves
+    if (hasBeenSaved) {
+      setError('This learning path has already been saved.');
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
     
@@ -116,6 +164,12 @@ const LearningPathDisplay = memo(({ message }) => {
       
       if (!username || !token) {
         throw new Error('You must be logged in to save learning paths');
+      }
+
+      // Check if already saved
+      const alreadySaved = await checkIfAlreadySaved();
+      if (alreadySaved) {
+        throw new Error('A learning path with this name already exists in your collection.');
       }
       
       console.log('📊 Parsed Content Structure:', parsedContent);
@@ -163,11 +217,12 @@ const LearningPathDisplay = memo(({ message }) => {
       
       await saveLearningPath(pathData);
       setIsSaved(true);
+      setHasBeenSaved(true); // Mark as permanently saved
       
-      // Show success message briefly
+      // Keep success message visible longer
       setTimeout(() => {
         setIsSaved(false);
-      }, 3000);
+      }, 5000);
     } catch (error) {
       console.error('Error saving learning path:', error);
       
@@ -337,16 +392,16 @@ const LearningPathDisplay = memo(({ message }) => {
               </Badge>
             </div>
             <div className="path-actions">
-              {isSaved ? (
+              {isSaved || hasBeenSaved ? (
                 <Button variant="success" disabled>
                   <FaCheck className="me-2" />
-                  Saved!
+                  {isSaved ? 'Saved!' : 'Already Saved'}
                 </Button>
               ) : (
                 <Button 
                   variant="primary" 
                   onClick={handleSaveLearningPath}
-                  disabled={isSaving}
+                  disabled={isSaving || hasBeenSaved}
                 >
                   {isSaving ? (
                     <>
