@@ -134,10 +134,19 @@ const AIChat = () => {
     const initialQuestion = sessionStorage.getItem("initialQuestion");
     if (initialQuestion) {
       console.log("Found initial question:", initialQuestion);
-      // Clear it from session storage to prevent reuse
-      sessionStorage.removeItem("initialQuestion");
       // Set the question in the input field
       setInputMessage(initialQuestion);
+      // Clear it from session storage to prevent reuse
+      sessionStorage.removeItem("initialQuestion");
+      
+      // Check if there's an initial mode set
+      const initialMode = sessionStorage.getItem("initialMode");
+      if (initialMode) {
+        console.log("Found initial mode:", initialMode);
+        setActiveMode(initialMode);
+        sessionStorage.removeItem("initialMode");
+      }
+      
       // Submit the question automatically after a short delay
       setTimeout(() => {
         handleSendMessage();

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Form, Button } from "react-bootstrap";
-import { SendFill } from "react-bootstrap-icons";
+import { SendFill, Book, QuestionCircle } from "react-bootstrap-icons";
 import "./DashboardHome.scss";
 
 const DashboardHome = () => {
@@ -9,7 +9,7 @@ const DashboardHome = () => {
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!message.trim()) return;
     
     // Store the message in sessionStorage to retrieve it in the chat page
@@ -17,6 +17,20 @@ const DashboardHome = () => {
     
     // Navigate to the chat page
     navigate("/dashboard/chat");
+  };
+
+  const handleSuggestionClick = (suggestion, mode) => {
+    setMessage(suggestion);
+    
+    // Store the message and mode in sessionStorage
+    sessionStorage.setItem("initialQuestion", suggestion);
+    
+    if (mode) {
+      sessionStorage.setItem("initialMode", mode);
+    }
+    
+    // Navigate to the chat page after a short delay
+    setTimeout(() => navigate("/dashboard/chat"), 100);
   };
 
   return (
@@ -32,51 +46,53 @@ const DashboardHome = () => {
         </div>
         
         <Form className="chat-form" onSubmit={handleSubmit}>
-          <div className="input-container">
-            <Form.Control
-              type="text"
-              placeholder="Send a message..."
+          <div className="input-wrapper">
+            <textarea
+              placeholder="Message AI Tutor..."
+              className="chat-textarea"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="chat-input"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              rows={1}
             />
-            <Button 
-              type="submit" 
-              className="send-button"
-              disabled={!message.trim()}
-            >
-              <SendFill />
-            </Button>
+            
+            <div className="input-actions">
+              <Button 
+                type="submit" 
+                className={`send-btn ${!message.trim() ? 'disabled' : ''}`}
+                disabled={!message.trim()}
+              >
+                <SendFill />
+              </Button>
+            </div>
           </div>
         </Form>
         
         <div className="suggestion-chips">
           <button 
             className="suggestion-chip"
-            onClick={() => {
-              setMessage("Create a learning path for Python programming");
-              setTimeout(() => handleSubmit({ preventDefault: () => {} }), 100);
-            }}
+            onClick={() => handleSuggestionClick("Create a learning path for Python programming", "learning_path")}
           >
-            Create a Python learning path
+            <Book className="icon" />
+            <span>Create a Python learning path</span>
           </button>
           <button 
             className="suggestion-chip"
-            onClick={() => {
-              setMessage("Generate a quiz about world history");
-              setTimeout(() => handleSubmit({ preventDefault: () => {} }), 100);
-            }}
+            onClick={() => handleSuggestionClick("Generate a quiz about world history", "quiz")}
           >
-            Generate a history quiz
+            <QuestionCircle className="icon" />
+            <span>Generate a history quiz</span>
           </button>
           <button 
             className="suggestion-chip"
-            onClick={() => {
-              setMessage("Explain machine learning concepts");
-              setTimeout(() => handleSubmit({ preventDefault: () => {} }), 100);
-            }}
+            onClick={() => handleSuggestionClick("Explain machine learning concepts")}
           >
-            Explain machine learning
+            <span>Explain machine learning</span>
           </button>
         </div>
       </Container>
