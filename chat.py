@@ -174,8 +174,10 @@ async def chat(
             "timestamp": user_timestamp
         }
         
-        # Always store user messages regardless of quiz mode
-        store_chat_history(username, user_message)
+        # Store user message for non-learning-path requests only
+        # (Learning path requests will store their own user message with proper type below)
+        if not isLearningPath:
+            store_chat_history(username, user_message)
         prev_5_messages.append(user_message)
 
         # Only append CALCULATE_SCORE if this is actually a quiz submission, not a quiz generation request
@@ -209,6 +211,7 @@ async def chat(
                 "type": "learning_path",
                 "timestamp": user_timestamp
             }
+            logger.info(f"💾 Storing learning path user message: {user_message}")
             store_chat_history(username, user_message)
             result = await process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, prompt_with_preference)
             return JSONResponse(content=result)

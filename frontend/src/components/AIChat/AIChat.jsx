@@ -338,7 +338,8 @@ const AIChat = () => {
               id: msg.id || msg._id || `${processedTimestamp}-${index}`,
               type: messageType,
               timestamp: processedTimestamp,
-              contentHash: msg.role + '_' + String(msg.content || '').substring(0, 50)
+              // Enhanced content hash that includes message type to prevent learning path deduplication
+              contentHash: `${msg.role}_${messageType}_${String(msg.content || '').substring(0, 50)}`
             };
           })
           .filter(msg => msg !== null) // Remove null messages
