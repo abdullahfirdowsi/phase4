@@ -59,13 +59,6 @@ const Sidebar = ({
       icon: <FileEarmarkText size={20} />,
       screen: "user-lessons",
       path: "/dashboard/lessons"
-    },
-    {
-      id: "learning-path-quiz",
-      text: "Learning & Quiz",
-      icon: <Book size={20} />,
-      screen: "learning-path-quiz",
-      path: "/dashboard/learning-path-quiz"
     }
   ];
 

@@ -4,7 +4,6 @@ import Sidebar from './SideBar/Sidebar';
 import DashboardHome from "./DashboardHome/DashboardHome";
 import Learning from "./Learning/Learning";
 import QuizSystem from "./QuizSystem/QuizSystem";
-import LearningPathQuiz from "./LearningPathQuiz/LearningPathQuiz";
 import AdminDashboard from "./AdminDashboard/AdminDashboard";
 import UserLessons from "./UserLessons/UserLessons";
 import LessonView from "./LessonView/LessonView";
@@ -31,8 +30,6 @@ const Dashboard = () => {
       setActiveScreen('learning-paths');
     } else if (path.includes('/quiz-system')) {
       setActiveScreen('quiz-system');
-    } else if (path.includes('/learning-path-quiz')) {
-      setActiveScreen('learning-path-quiz');
     } else if (path.includes('/profile')) {
       setActiveScreen('profile');
     } else if (path.includes('/lessons')) {
@@ -72,11 +69,6 @@ const Dashboard = () => {
           <Route path="/quiz-system" element={
             <ErrorBoundary>
               <QuizSystem />
-            </ErrorBoundary>
-          } />
-          <Route path="/learning-path-quiz" element={
-            <ErrorBoundary>
-              <LearningPathQuiz />
             </ErrorBoundary>
           } />
           <Route path="/profile" element={
