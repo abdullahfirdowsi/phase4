@@ -7,7 +7,7 @@ from models.schemas import UserCreate, UserUpdate, UserProfile, APIResponse
 from services.user_service import user_service
 from services.chat_service import chat_service
 import bcrypt
-import jwt
+from jose import jwt
 import os
 from datetime import datetime, timedelta
 import logging
