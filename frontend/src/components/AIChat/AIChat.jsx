@@ -775,7 +775,7 @@ const AIChat = () => {
                       
                       return shouldShowLearningPath ? (
                         <LearningPathDisplayComponent 
-                          message={message.content} 
+                          message={message} 
                         />
                       ) : (
                         <AIMessage message={message} />
