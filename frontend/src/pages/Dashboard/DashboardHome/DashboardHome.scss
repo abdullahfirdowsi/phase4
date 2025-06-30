@@ -1,224 +1,141 @@
 @use "../../../styles/variables" as v;
 @use "../../../styles/themes";
 
-.clean-dashboard-home {
-  background: var(--bg-primary);
+.minimalist-home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-height: calc(100vh - #{v.$navbar-height});
-  overflow-y: auto;
-  padding: 3rem 0;
+  background: var(--bg-primary);
+  padding: 2rem 1rem;
   
-  .container-fluid {
-    max-width: 1400px;
-    margin: 0 auto;
+  .chat-container {
+    max-width: 768px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
   
-  // Hero Section
-  .hero-section {
-    margin-bottom: 4rem;
+  .welcome-section {
+    text-align: center;
+    margin-bottom: 2.5rem;
     
-    .hero-content {
-      padding: 2rem 1rem;
-      
-      @media (min-width: v.$breakpoint-tablet) {
-        padding: 2rem 3rem 2rem 0;
-      }
+    .brand-logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.5rem;
+      animation: float 6s ease-in-out infinite;
     }
     
-    .hero-title {
-      font-size: 2.5rem;
+    .welcome-message {
+      font-size: 2rem;
       font-weight: v.$font-weight-bold;
       color: var(--text-primary);
-      margin-bottom: 1.5rem;
+      margin: 0;
       background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      
-      @media (min-width: v.$breakpoint-tablet) {
-        font-size: 3rem;
-      }
-    }
-    
-    .hero-subtitle {
-      font-size: 1.125rem;
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-      line-height: 1.6;
-      
-      @media (min-width: v.$breakpoint-tablet) {
-        font-size: 1.25rem;
-      }
-    }
-    
-    .cta-button {
-      padding: 0.75rem 2rem;
-      font-weight: v.$font-weight-semibold;
-      font-size: 1.125rem;
-      border-radius: v.$border-radius-lg;
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      border: none;
-      transition: all 0.3s ease;
-      
-      &:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
-      }
-    }
-    
-    .hero-image {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 2rem;
-      
-      img {
-        max-width: 300px;
-        animation: float 6s ease-in-out infinite;
-      }
     }
   }
   
-  // Offerings Section
-  .offerings-section {
-    margin-bottom: 4rem;
-    padding: 0 1rem;
+  .chat-form {
+    width: 100%;
+    max-width: 650px;
+    margin-bottom: 2rem;
     
-    .section-title {
-      text-align: center;
-      font-size: 2rem;
-      font-weight: v.$font-weight-bold;
-      color: var(--text-primary);
-      margin-bottom: 2.5rem;
-    }
-    
-    .offering-card {
-      height: 100%;
-      border-radius: v.$border-radius-xl;
-      border: 1px solid var(--border-light);
-      background: var(--card-bg);
-      transition: all 0.3s ease;
-      padding: 1rem;
+    .input-container {
+      position: relative;
+      display: flex;
+      align-items: center;
       
-      &:hover {
-        transform: translateY(-10px);
-        box-shadow: var(--shadow-lg);
-        border-color: var(--primary-color);
+      .chat-input {
+        width: 100%;
+        padding: 1rem 3.5rem 1rem 1.5rem;
+        border-radius: v.$border-radius-xl;
+        border: 1px solid var(--border-light);
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow);
+        
+        &:focus {
+          border-color: var(--primary-color);
+          box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.1), var(--shadow-md);
+          outline: none;
+          transform: translateY(-2px);
+        }
+        
+        &::placeholder {
+          color: var(--text-tertiary);
+        }
       }
       
-      .offering-icon {
-        width: 60px;
-        height: 60px;
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      .send-button {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 2.5rem;
+        height: 2.5rem;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        border: none;
         color: white;
-        font-size: 1.5rem;
-      }
-      
-      .card-title {
-        font-size: 1.25rem;
-        font-weight: v.$font-weight-bold;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-      }
-      
-      .card-text {
-        color: var(--text-secondary);
-        margin-bottom: 1.5rem;
-        flex-grow: 1;
-      }
-      
-      .btn {
-        width: 100%;
-        border-radius: v.$border-radius-lg;
-        padding: 0.625rem 1rem;
-        font-weight: v.$font-weight-medium;
+        transition: all 0.3s ease;
         
-        &:hover {
-          transform: translateY(-2px);
+        &:hover:not(:disabled) {
+          transform: translateY(-50%) scale(1.05);
+          box-shadow: 0 0 15px rgba(76, 154, 255, 0.5);
+        }
+        
+        &:active:not(:disabled) {
+          transform: translateY(-50%) scale(0.95);
+        }
+        
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
       }
     }
   }
   
-  // Benefits Section
-  .benefits-section {
-    margin-bottom: 4rem;
-    padding: 3rem 1rem;
-    background: var(--bg-secondary);
+  .suggestion-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    max-width: 650px;
     
-    .section-title {
-      text-align: center;
-      font-size: 2rem;
-      font-weight: v.$font-weight-bold;
-      color: var(--text-primary);
-      margin-bottom: 2.5rem;
-    }
-    
-    .benefit-item {
-      text-align: center;
-      margin-bottom: 2rem;
-      
-      h3 {
-        font-size: 1.5rem;
-        font-weight: v.$font-weight-semibold;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-      }
-      
-      p {
-        color: var(--text-secondary);
-        font-size: 1.125rem;
-        line-height: 1.6;
-      }
-    }
-    
-    .main-cta {
-      padding: 0.875rem 2.5rem;
-      font-weight: v.$font-weight-semibold;
-      font-size: 1.125rem;
-      border-radius: v.$border-radius-lg;
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      border: none;
+    .suggestion-chip {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: v.$border-radius-full;
+      padding: 0.75rem 1.25rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
       transition: all 0.3s ease;
+      cursor: pointer;
       
       &:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        background: var(--bg-tertiary);
+        border-color: var(--primary-color);
+        color: var(--text-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
       }
-    }
-  }
-  
-  // Footer
-  .dashboard-footer {
-    text-align: center;
-    padding: 2rem 1rem;
-    border-top: 1px solid var(--border-light);
-    
-    .footer-links {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 2rem;
-      margin-bottom: 1.5rem;
       
-      a {
-        color: var(--text-secondary);
-        text-decoration: none;
-        transition: color 0.3s ease;
-        
-        &:hover {
-          color: var(--primary-color);
-        }
+      &:active {
+        transform: translateY(0);
       }
-    }
-    
-    .copyright {
-      color: var(--text-tertiary);
-      font-size: 0.875rem;
     }
   }
 }
@@ -229,79 +146,65 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-20px);
+    transform: translateY(-15px);
   }
 }
 
 // Responsive adjustments
 @media (max-width: v.$breakpoint-tablet) {
-  .clean-dashboard-home {
-    padding: 2rem 0;
-    
-    .hero-section {
-      text-align: center;
-      margin-bottom: 3rem;
-      
-      .hero-content {
-        padding: 1rem;
+  .minimalist-home {
+    .welcome-section {
+      .brand-logo {
+        width: 70px;
+        height: 70px;
       }
       
-      .hero-title {
-        font-size: 2.25rem;
-      }
-      
-      .hero-subtitle {
-        font-size: 1rem;
-      }
-    }
-    
-    .offerings-section {
-      margin-bottom: 3rem;
-      
-      .section-title {
+      .welcome-message {
         font-size: 1.75rem;
       }
     }
     
-    .benefits-section {
-      margin-bottom: 3rem;
-      padding: 2rem 1rem;
+    .suggestion-chips {
+      flex-direction: column;
+      align-items: center;
       
-      .section-title {
-        font-size: 1.75rem;
-      }
-      
-      .benefit-item {
-        h3 {
-          font-size: 1.25rem;
-        }
-        
-        p {
-          font-size: 1rem;
-        }
+      .suggestion-chip {
+        width: 100%;
+        text-align: center;
       }
     }
   }
 }
 
 @media (max-width: v.$breakpoint-mobile) {
-  .clean-dashboard-home {
-    padding: 1.5rem 0;
+  .minimalist-home {
+    padding: 1.5rem 1rem;
     
-    .hero-section {
-      .hero-title {
-        font-size: 2rem;
+    .welcome-section {
+      margin-bottom: 2rem;
+      
+      .brand-logo {
+        width: 60px;
+        height: 60px;
+        margin-bottom: 1rem;
       }
       
-      .hero-image img {
-        max-width: 200px;
+      .welcome-message {
+        font-size: 1.5rem;
       }
     }
     
-    .dashboard-footer {
-      .footer-links {
-        gap: 1rem;
-        flex-direction: column;
+    .chat-form {
+      .input-container {
+        .chat-input {
+          padding: 0.875rem 3rem 0.875rem 1.25rem;
+          font-size: 0.95rem;
+        }
+        
+        .send-button {
+          width: 2.25rem;
+          height: 2.25rem;
+        }
       }
     }
   }

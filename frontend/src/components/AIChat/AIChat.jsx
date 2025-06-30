@@ -129,8 +129,6 @@ const AIChat = () => {
     };
   }, []); // Add event listeners only once
 
-  // Remove problematic useEffect that was causing crashes
-
   // Check for initial question from home page
   useEffect(() => {
     const initialQuestion = sessionStorage.getItem("initialQuestion");
@@ -138,9 +136,11 @@ const AIChat = () => {
       console.log("Found initial question:", initialQuestion);
       // Clear it from session storage to prevent reuse
       sessionStorage.removeItem("initialQuestion");
+      // Set the question in the input field
+      setInputMessage(initialQuestion);
       // Submit the question automatically after a short delay
       setTimeout(() => {
-        handleSendMessage(initialQuestion);
+        handleSendMessage();
       }, 300);
     }
   }, []);
