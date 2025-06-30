@@ -46,37 +46,48 @@ const LearningPaths = () => {
     try {
       setLoading(true);
       const username = localStorage.getItem("username");
+      
+      // Enhanced cache-busting with multiple strategies
       const queryParams = new URLSearchParams({
         username,
         ...(filter.difficulty && { difficulty: filter.difficulty }),
-        ...(filter.tags && { tags: filter.tags })
+        ...(filter.tags && { tags: filter.tags }),
+        t: Date.now(), // Cache buster
+        r: Math.random().toString(36).substring(7) // Additional randomization
       });
 
-      const response = await fetch(`${API_BASE_URL}/learning-paths/list?${queryParams}`);
+      console.log('🔄 Fetching learning paths for user:', username);
+      console.log('🔄 Cache-busting params:', { t: Date.now(), r: Math.random().toString(36).substring(7) });
+      
+      const response = await fetch(`${API_BASE_URL}/learning-paths/list?${queryParams}`, {
+        method: 'GET',
+        cache: 'no-store', // Stronger cache prevention
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'If-Modified-Since': '0'
+        }
+      });
       const data = await response.json();
+      
+      console.log('📥 Raw API Response:', {
+        url: `${API_BASE_URL}/learning-paths/list?${queryParams}`,
+        status: response.status,
+        data: data
+      });
       
       if (response.ok) {
         const paths = data.learning_paths || [];
-        // Sort by created_at date (newest first) - enhanced sorting for latest generated paths
-        paths.sort((a, b) => {
-          // Helper function to parse date safely
-          const parseDate = (dateStr) => {
-            if (!dateStr) return new Date('1970-01-01');
-            try {
-              // Handle ISO format with Z suffix
-              if (dateStr.endsWith('Z')) {
-                return new Date(dateStr);
-              }
-              return new Date(dateStr);
-            } catch {
-              return new Date('1970-01-01');
-            }
-          };
-          
-          const dateA = parseDate(a.created_at);
-          const dateB = parseDate(b.created_at);
-          return dateB - dateA; // Descending order (newest first)
+        
+        console.log('📋 Learning paths from backend (already sorted newest first):');
+        paths.forEach((p, i) => {
+          console.log(`  ${i + 1}. "${p.name}" - ${p.created_at} (ID: ${p.id})`);
         });
+        
+        console.log('🔍 Current user:', localStorage.getItem('username'));
+        
+        // Backend already sorts the data, so we just use it directly
         setLearningPaths(paths);
       } else {
         setError(data.detail || "Failed to fetch learning paths");
@@ -173,6 +184,21 @@ const LearningPaths = () => {
     }
   };
 
+  const isRecentPath = (createdAt) => {
+    if (!createdAt) return false;
+    
+    try {
+      const created = new Date(createdAt);
+      const now = new Date();
+      const diffHours = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+      
+      // Consider paths created in the last 24 hours as "new"
+      return diffHours <= 24;
+    } catch (error) {
+      return false;
+    }
+  };
+
   if (loading) {
     return (
       <div className="learning-paths-page">
@@ -199,6 +225,14 @@ const LearningPaths = () => {
             <p className="page-subtitle">
               Your personalized learning content and study materials
             </p>
+            <div className="user-info">
+              <Badge bg="info" className="me-2">
+                User: {localStorage.getItem('username')}
+              </Badge>
+              <Badge bg="success">
+                {learningPaths.length} paths (sorted newest first)
+              </Badge>
+            </div>
           </div>
         </div>
 
@@ -213,15 +247,31 @@ const LearningPaths = () => {
         <div className="content-grid">
           {learningPaths.length > 0 ? (
             <Row className="g-4">
+              {/* Debug: Check order at render time */}
+              {(() => {
+                console.log('🎨 RENDER TIME - Array order in UI:');
+                learningPaths.forEach((p, i) => {
+                  console.log(`  UI-${i + 1}. "${p.name}" - ${p.created_at}`);
+                });
+                return null;
+              })()}
               {learningPaths.map((path) => (
                 <Col lg={4} md={6} key={path.id}>
                   <Card className="lesson-content-card">
                     <Card.Body>
                       <div className="content-header">
                         <h5 className="content-title">{path.name}</h5>
-                        <Badge bg={getDifficultyColor(path.difficulty)}>
-                          {path.difficulty}
-                        </Badge>
+                        <div className="badges-container">
+                          <Badge bg={getDifficultyColor(path.difficulty)}>
+                            {path.difficulty}
+                          </Badge>
+                          {/* Show NEW badge for paths created in the last 24 hours */}
+                          {path.created_at && isRecentPath(path.created_at) && (
+                            <Badge bg="danger" className="ms-1">
+                              NEW
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       
                       <p className="content-description">{path.description}</p>
@@ -235,6 +285,11 @@ const LearningPaths = () => {
                           <BookHalf size={14} />
                           <span>{path.topics_count} lessons</span>
                         </div>
+                        {path.created_at && (
+                          <div className="meta-item">
+                            <span className="text-muted small">Created: {formatLocalDate(path.created_at)}</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="progress-section">

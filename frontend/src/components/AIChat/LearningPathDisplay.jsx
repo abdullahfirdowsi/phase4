@@ -25,10 +25,16 @@ const LearningPathDisplay = memo(({ message }) => {
   // Check if this learning path already exists when component mounts
   useEffect(() => {
     const checkExistingPath = async () => {
-      if (parsedContent) {
-        const alreadySaved = await checkIfAlreadySaved();
-        if (alreadySaved) {
-          setHasBeenSaved(true);
+      if (parsedContent && parsedContent.name) {
+        try {
+          const alreadySaved = await checkIfAlreadySaved();
+          if (alreadySaved) {
+            console.log(`Learning path "${parsedContent.name}" already exists in user's collection`);
+            setHasBeenSaved(true);
+          }
+        } catch (error) {
+          console.warn('Error checking if path already saved:', error);
+          // Don't block the UI if check fails
         }
       }
     };
