@@ -9,3 +9,5 @@ __pycache__/constants.cpython-312.pyc
 /frontend/dist/*
 /.git_bak/*
 .DS_Store
+
+*/__pycache__/*
