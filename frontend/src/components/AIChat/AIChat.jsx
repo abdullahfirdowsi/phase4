@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Container, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
-import { fetchChatHistory, askQuestion, clearChat, generateQuiz } from '../../api';
+import { fetchChatHistory, askQuestion, clearChat, generateQuiz, storeQuizMessage } from '../../api';
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -254,12 +254,16 @@ const AIChat = () => {
                 (contentStr.includes('"type"') && contentStr.includes('"quiz"')) ||
                 (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')) ||
                 (contentStr.includes('"time_limit"') && contentStr.includes('"difficulty"')) ||
+                // Check for more quiz patterns
+                (contentStr.includes('"total_questions"') && contentStr.includes('"difficulty"')) ||
+                (contentStr.includes('"correct_answer"') && contentStr.includes('"explanation"')) ||
                 // Check if it's already parsed as a quiz object
                 (typeof msg.content === 'object' && (
                   msg.content.type === 'quiz' ||
                   msg.content.quiz_data ||
                   (msg.content.questions && Array.isArray(msg.content.questions)) ||
-                  (msg.content.quiz_id && msg.content.topic && msg.content.questions)
+                  (msg.content.quiz_id && msg.content.topic && msg.content.questions) ||
+                  (msg.content.response && msg.content.quiz_data)
                 ))
               );
               
@@ -504,6 +508,31 @@ const AIChat = () => {
           
           setMessages(prevMessages => [...prevMessages, quizMessage]);
           console.log('✅ Quiz generated successfully:', result);
+          
+          // IMPORTANT: Store quiz messages to backend database for persistence
+          try {
+            console.log('💾 Storing quiz messages to backend database...');
+            await storeQuizMessage(newUserMessage, quizMessage);
+            console.log('✅ Quiz messages successfully stored to backend database');
+          } catch (storeError) {
+            console.warn('⚠️ Failed to store quiz to backend database:', storeError);
+            // Don't throw error as quiz is already generated and shown to user
+          }
+          
+          // Cache the quiz messages to localStorage as backup
+          const username = localStorage.getItem("username");
+          const localStorageKey = `chat_messages_${username}`;
+          setTimeout(() => {
+            setMessages(currentMessages => {
+              try {
+                localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
+                console.log('💾 Cached quiz messages to localStorage');
+              } catch (e) {
+                console.warn('⚠️ Failed to cache quiz messages to localStorage:', e);
+              }
+              return currentMessages;
+            });
+          }, 100);
         } else {
           throw new Error('Failed to generate quiz');
         }

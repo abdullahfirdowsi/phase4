@@ -23,7 +23,9 @@ const AIMessage = memo(({ message }) => {
                 content.quiz_data || 
                 (content.questions && Array.isArray(content.questions)) ||
                 // Also check if it has typical quiz properties
-                (content.quiz_id && content.topic && content.questions));
+                (content.quiz_id && content.topic && content.questions) ||
+                // Check for nested quiz structure
+                (content.response && content.quiz_data));
       }
       
       // If content is a string, check if it contains quiz-like JSON
@@ -32,11 +34,14 @@ const AIMessage = memo(({ message }) => {
         return (contentStr.includes('"quiz_data"') || 
                 contentStr.includes('quiz_data') ||
                 (contentStr.includes('"questions"') && contentStr.includes('"correct_answer"')) ||
-                (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')));
+                (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')) ||
+                (contentStr.includes('"question_number"') && contentStr.includes('"options"')) ||
+                (contentStr.includes('"time_limit"') && contentStr.includes('"difficulty"')));
       }
       
       return false;
     } catch (error) {
+      console.warn('Error in quiz content detection:', error);
       return false;
     }
   };

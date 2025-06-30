@@ -174,8 +174,8 @@ async def chat(
             "timestamp": user_timestamp
         }
         
-        if not isQuiz: 
-            store_chat_history(username, user_message)
+        # Always store user messages regardless of quiz mode
+        store_chat_history(username, user_message)
         prev_5_messages.append(user_message)
 
         # Only append CALCULATE_SCORE if this is actually a quiz submission, not a quiz generation request
@@ -594,6 +594,37 @@ async def get_chat_analytics(username: str, days: int = 30):
     except Exception as e:
         logger.error(f"❌ Analytics error: {str(e)}")
         return {"analytics": []}
+
+@chat_router.post("/store-quiz")
+async def store_quiz_messages(
+    username: str = Body(...),
+    user_message: dict = Body(...),
+    quiz_message: dict = Body(...)
+):
+    """Store quiz messages directly to chat history for persistence"""
+    try:
+        logger.info(f"💾 Storing quiz messages for user: {username}")
+        
+        # Store user message first
+        store_chat_history(username, user_message)
+        
+        # Store quiz message with proper type
+        quiz_message_with_type = {
+            **quiz_message,
+            "type": "quiz",  # Ensure quiz type is set
+            "message_type": "quiz"  # Also set message_type for compatibility
+        }
+        store_chat_history(username, quiz_message_with_type)
+        
+        logger.info(f"✅ Successfully stored quiz messages for user: {username}")
+        return {
+            "success": True,
+            "message": "Quiz messages stored successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Store quiz messages error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to store quiz messages")
 
 @chat_router.get("/search")
 async def search_messages(username: str, query: str):

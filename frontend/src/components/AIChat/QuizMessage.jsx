@@ -26,7 +26,7 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Parse quiz data from message content
+    // Parse quiz data from message content with enhanced error handling
     try {
       let parsedContent;
       
@@ -40,15 +40,25 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
       
       if (typeof message.content === 'string') {
         console.log('📝 Processing string content');
-        // Try to extract JSON from string content
-        const jsonMatch = message.content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          console.log('📝 Found JSON match:', jsonMatch[0].substring(0, 200) + '...');
-          parsedContent = JSON.parse(jsonMatch[0]);
-        } else {
-          console.log('❌ No JSON found in string content');
+        // First try to parse the entire string as JSON
+        try {
+          parsedContent = JSON.parse(message.content);
+          console.log('📝 Parsed entire string as JSON successfully');
+        } catch (e) {
+          // If that fails, try to extract JSON from string content
+          const jsonMatch = message.content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            console.log('📝 Found JSON match:', jsonMatch[0].substring(0, 200) + '...');
+            try {
+              parsedContent = JSON.parse(jsonMatch[0]);
+            } catch (parseError) {
+              console.warn('⚠️ Failed to parse extracted JSON:', parseError);
+            }
+          } else {
+            console.log('❌ No JSON found in string content');
+          }
         }
-      } else if (typeof message.content === 'object') {
+      } else if (typeof message.content === 'object' && message.content !== null) {
         console.log('📝 Using object content directly');
         parsedContent = message.content;
       }
@@ -58,10 +68,11 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
         hasQuizData: parsedContent && parsedContent.quiz_data,
         hasType: parsedContent && parsedContent.type,
         hasQuestions: parsedContent && parsedContent.questions,
-        hasQuizId: parsedContent && parsedContent.quiz_id
+        hasQuizId: parsedContent && parsedContent.quiz_id,
+        hasResponse: parsedContent && parsedContent.response
       });
 
-      // Multiple ways to extract quiz data
+      // Multiple ways to extract quiz data with enhanced checks
       if (parsedContent && parsedContent.quiz_data) {
         setQuizData(parsedContent.quiz_data);
         console.log('📝 Using nested quiz_data:', parsedContent.quiz_data);
@@ -76,11 +87,22 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
         // Quiz structure with quiz_id and topic but no type field
         setQuizData(parsedContent);
         console.log('📝 Using quiz structure with quiz_id:', parsedContent);
+      } else if (parsedContent && parsedContent.response && parsedContent.quiz_data) {
+        // Nested structure with response wrapper
+        setQuizData(parsedContent.quiz_data);
+        console.log('📝 Using quiz_data from response wrapper:', parsedContent.quiz_data);
       } else {
         console.warn('❌ Could not extract quiz data from content:', parsedContent);
+        // Try a last resort - check if the content contains quiz keywords but failed parsing
+        const contentStr = String(message.content || '').toLowerCase();
+        if (contentStr.includes('quiz') && contentStr.includes('question')) {
+          console.warn('🚨 Content seems to contain quiz data but parsing failed. Raw content:', message.content);
+        }
       }
     } catch (error) {
       console.error('❌ Error parsing quiz data:', error);
+      // Log the raw content for debugging
+      console.error('❌ Raw message content that failed to parse:', message.content);
     }
   }, [message.content]);
 

@@ -1087,6 +1087,35 @@ export const updateLearningPathProgress = async (pathId, topicId, completed = tr
   }
 };
 
+// Store quiz message directly to chat history
+export const storeQuizMessage = async (userMessage, quizMessage) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/chat/store-quiz`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        user_message: userMessage,
+        quiz_message: quizMessage
+      }),
+    });
+
+    console.log('✅ Quiz message stored to backend successfully');
+    return data;
+  } catch (error) {
+    console.error("Error storing quiz message:", error);
+    throw error;
+  }
+};
+
 // Quiz System API Calls
 export const generateQuiz = async (topic, difficulty = "medium", questionCount = 5) => {
   const username = localStorage.getItem("username");
