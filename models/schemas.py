@@ -17,6 +17,8 @@ class DifficultyLevel(str, Enum):
     BEGINNER = "beginner"
     INTERMEDIATE = "intermediate"
     ADVANCED = "advanced"
+    EXPERT = "expert"
+    SENIOR = "senior"
 
 class ContentType(str, Enum):
     LESSON = "lesson"

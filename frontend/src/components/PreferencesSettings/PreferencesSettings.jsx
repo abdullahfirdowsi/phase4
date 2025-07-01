@@ -8,7 +8,7 @@ const PreferencesSettings = () => {
   const [preferences, setPreferences] = useState({
     language: 'en',
     user_role: 'student',
-    age_group: '10-12',
+    age_group: '5-12',
     time_value: 30,
     skill_level: 'beginner'
   });
@@ -30,17 +30,17 @@ const PreferencesSettings = () => {
   ];
 
   const ageGroupOptions = [
-    { value: '5-8', label: '5-8 years', description: 'Early elementary' },
-    { value: '9-12', label: '9-12 years', description: 'Late elementary' },
-    { value: '13-15', label: '13-15 years', description: 'Middle school' },
-    { value: '16-18', label: '16-18 years', description: 'High school' },
-    { value: '18+', label: '18+ years', description: 'Adult learner' }
+    { value: '5-12', label: '5-12 years', description: 'Elementary' },
+    { value: '13-18', label: '13-18 years', description: 'High school' },
+    { value: '18+', label: '18+ years', description: 'Adult' }
   ];
 
   const skillLevelOptions = [
     { value: 'beginner', label: 'Beginner', icon: '🌱', description: 'Just starting out' },
     { value: 'intermediate', label: 'Intermediate', icon: '🌿', description: 'Some experience' },
-    { value: 'advanced', label: 'Advanced', icon: '🌳', description: 'Highly experienced' }
+    { value: 'advanced', label: 'Advanced', icon: '🌳', description: 'Highly experienced' },
+    { value: 'expert', label: 'Expert', icon: '🏆', description: 'Professional level' },
+    { value: 'senior', label: 'Senior', icon: '👑', description: 'Senior professional/educator' }
   ];
 
   const timeValueOptions = [
@@ -62,7 +62,7 @@ const PreferencesSettings = () => {
       const currentPrefs = {
         language: profile.preferences?.language || 'en',
         user_role: profile.preferences?.user_role || 'student',
-        age_group: profile.preferences?.age_group || '10-12',
+        age_group: profile.preferences?.age_group || '5-12',
         time_value: profile.preferences?.time_value || 30,
         skill_level: profile.profile?.skill_level || 'beginner'
       };
