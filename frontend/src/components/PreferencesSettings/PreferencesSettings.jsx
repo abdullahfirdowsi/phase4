@@ -104,7 +104,11 @@ const PreferencesSettings = () => {
       
       // Update profile with skill level
       if (skill_level) {
-        await updateUserProfile({ skill_level: skill_level });
+        await updateUserProfile({
+          username: localStorage.getItem('username'),
+          name: null, // Don't update name
+          profile: { skill_level: skill_level }
+        });
       }
 
       setMessage('Preferences updated successfully! Your learning experience has been personalized.');

@@ -642,6 +642,33 @@ export const updateUserPreferences = async (preferencesData) => {
   }
 };
 
+// Update User Password API Call
+export const updatePassword = async (currentPassword, newPassword) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/profile/password`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ 
+        username,
+        current_password: currentPassword,
+        new_password: newPassword
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error updating password:", error);
+    throw error;
+  }
+};
+
 // Upload file to S3
 export const uploadFile = async (file, folder = "uploads") => {
   const username = localStorage.getItem("username");

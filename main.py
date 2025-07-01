@@ -198,6 +198,7 @@ async def api_info():
 # Import and include API routers
 try:
     from api.auth_api import auth_router
+    from api.profile_api import profile_router
     from api.chat_api import chat_router as new_chat_router  # Use new implementation with proper analytics
     from chat import chat_router as legacy_chat_router  # Keep legacy for backward compatibility
     from ai_quiz_generator import ai_quiz_router
@@ -207,6 +208,7 @@ try:
     from api.avatar_api import avatar_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+    app.include_router(profile_router, prefix="/profile", tags=["User Profile"])
     app.include_router(new_chat_router, prefix="/chat", tags=["Chat & Messaging Enhanced"])  # Use new implementation
     app.include_router(legacy_chat_router, prefix="/chat-legacy", tags=["Chat & Messaging Legacy"])  # Keep legacy for compatibility
     app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
@@ -381,7 +383,7 @@ if os.path.exists(FRONTEND_BUILD_DIR):
         from fastapi.responses import FileResponse
         
         # Skip API routes and static assets
-        if path.startswith(("api/", "auth/", "chat/", "upload/", "lessons/", "admin/", "docs", "health", "openapi.json", "static/")):
+        if path.startswith(("api/", "auth/", "profile/", "chat/", "upload/", "lessons/", "admin/", "docs", "health", "openapi.json", "static/")):
             raise HTTPException(status_code=404, detail="API endpoint not found")
         
         # Handle root path or empty path

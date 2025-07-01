@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Row, Col, Card, Form, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap';
 import { Person } from 'react-bootstrap-icons';
-import { getUserProfile, updateUserProfile } from '../../api';
+import { getUserProfile, updateUserProfile, updatePassword } from '../../api';
 import './UserProfile.scss';
 import PreferencesSettings from '../PreferencesSettings/PreferencesSettings';
 
@@ -183,9 +183,8 @@ console.log('Sending user data:', JSON.stringify(userData, null, 2));
         return;
       }
 
-      // In a real implementation, you would call an API to update the password
-      // For now, we'll simulate a successful password update
-      console.log('Would update password');
+      // Call the real password update API
+      await updatePassword(passwordData.currentPassword, passwordData.newPassword);
 
       setSuccess('Password updated successfully!');
       setPasswordData({
