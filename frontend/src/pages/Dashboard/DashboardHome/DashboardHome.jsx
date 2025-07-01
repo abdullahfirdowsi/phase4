@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Form, Button } from "react-bootstrap";
-import { SendFill, Book, QuestionCircle } from "react-bootstrap-icons";
+import { SendFill, Book, QuestionCircle, Lightbulb } from "react-bootstrap-icons";
 import "./DashboardHome.scss";
 
 const DashboardHome = () => {
@@ -20,8 +20,6 @@ const DashboardHome = () => {
   };
 
   const handleSuggestionClick = (suggestion, mode) => {
-    setMessage(suggestion);
-    
     // Store the message and mode in sessionStorage
     sessionStorage.setItem("initialQuestion", suggestion);
     
@@ -29,8 +27,8 @@ const DashboardHome = () => {
       sessionStorage.setItem("initialMode", mode);
     }
     
-    // Navigate to the chat page after a short delay
-    setTimeout(() => navigate("/dashboard/chat"), 100);
+    // Navigate to the chat page
+    navigate("/dashboard/chat");
   };
 
   return (
@@ -92,6 +90,7 @@ const DashboardHome = () => {
             className="suggestion-chip"
             onClick={() => handleSuggestionClick("Explain machine learning concepts")}
           >
+            <Lightbulb className="icon" />
             <span>Explain machine learning</span>
           </button>
         </div>
