@@ -17,24 +17,16 @@ const PreferencesSettings = () => {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
+  // Static English only for Phase 1 - Multi-language support in future phases
   const languageOptions = [
-    { value: 'en', label: 'English', flag: '🇺🇸' },
-    { value: 'hi', label: 'हिंदी (Hindi)', flag: '🇮🇳' },
-    { value: 'es', label: 'Español', flag: '🇪🇸' },
-    { value: 'fr', label: 'Français', flag: '🇫🇷' },
-    { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
-    { value: 'zh', label: '中文', flag: '🇨🇳' },
-    { value: 'ja', label: '日本語', flag: '🇯🇵' },
-    { value: 'ko', label: '한국어', flag: '🇰🇷' },
-    { value: 'pt', label: 'Português', flag: '🇵🇹' },
-    { value: 'ru', label: 'Русский', flag: '🇷🇺' }
+    { value: 'en', label: 'English', flag: '🇺🇸' }
   ];
 
   const userRoleOptions = [
     { value: 'student', label: 'Student', icon: '🎓', description: 'Learning new topics and concepts' },
     { value: 'parent', label: 'Parent', icon: '👨‍👩‍👧‍👦', description: 'Supporting my child\'s education' },
-    { value: 'teacher', label: 'Teacher', icon: '👩‍🏫', description: 'Creating educational content' },
-    { value: 'admin', label: 'Administrator', icon: '⚙️', description: 'Managing the platform' }
+    { value: 'teacher', label: 'Teacher', icon: '👩‍🏫', description: 'Creating educational content' }
+    // Admin role managed separately via dedicated admin email login
   ];
 
   const ageGroupOptions = [
@@ -99,16 +91,23 @@ const PreferencesSettings = () => {
       // Separate profile and preferences data
       const { skill_level, ...prefData } = preferences;
       
+      console.log('🔧 Updating preferences:', prefData);
+      console.log('🔧 Updating skill level:', skill_level);
+      
       // Save preferences
       await updateUserPreferences(prefData);
+      console.log('✅ Preferences updated successfully');
       
       // Update profile with skill level
       if (skill_level) {
-        await updateUserProfile({
+        const profileData = {
           username: localStorage.getItem('username'),
           name: null, // Don't update name
           profile: { skill_level: skill_level }
-        });
+        };
+        console.log('🔧 Updating profile with skill level:', profileData);
+        await updateUserProfile(profileData);
+        console.log('✅ Skill level updated successfully');
       }
 
       setMessage('Preferences updated successfully! Your learning experience has been personalized.');
@@ -119,8 +118,9 @@ const PreferencesSettings = () => {
       }, 5000);
 
     } catch (err) {
-      console.error('Error updating preferences:', err);
-      setError('Failed to update preferences. Please try again.');
+      console.error('❌ Error updating preferences:', err);
+      console.error('❌ Error details:', err.message);
+      setError(`Failed to update preferences: ${err.message}`);
     } finally {
       setSaving(false);
     }

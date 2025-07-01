@@ -298,16 +298,38 @@ async def check_admin_status(username: str = Query(...)):
 
 @auth_router.post("/update-preferences")
 async def update_user_preferences(
-    username: str = Body(...),
-    preferences: dict = Body(...),
+    request: Request,
     current_user: str = Depends(get_current_user)
 ):
     """Update user preferences"""
     try:
+        # Get the raw JSON body
+        request_data = await request.json()
+        
+        logger.info(f"RAW PREFERENCES REQUEST: {request_data}")
+        logger.info(f"PREFERENCES REQUEST TYPE: {type(request_data)}")
+        
+        # Extract data from request
+        username = request_data.get("username")
+        preferences = request_data.get("preferences")
+        
+        logger.info(f"Preferences update request: username={username}, preferences={preferences}")
+        
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+            
         if current_user != username:
             raise HTTPException(status_code=403, detail="Access denied")
+            
+        if not preferences:
+            raise HTTPException(status_code=400, detail="Preferences data is required")
         
-        update_data = UserUpdate(preferences=UserPreferencesUpdate(**preferences))
+        try:
+            update_data = UserUpdate(preferences=UserPreferencesUpdate(**preferences))
+        except Exception as pref_error:
+            logger.error(f"Preferences validation error: {pref_error}")
+            raise HTTPException(status_code=422, detail=f"Invalid preferences data: {pref_error}")
+            
         result = await user_service.update_user(username, update_data)
         
         if not result.success:
