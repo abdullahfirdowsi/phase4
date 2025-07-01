@@ -1,9 +1,9 @@
 """
 Enhanced Authentication API with new database structure
 """
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
+from fastapi import APIRouter, HTTPException, Depends, Query, Body, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from models.schemas import UserCreate, UserUpdate, UserProfile, APIResponse
+from models.schemas import UserCreate, UserUpdate, UserProfile, APIResponse, UserProfileUpdate, UserPreferencesUpdate
 from services.user_service import user_service
 from services.chat_service import chat_service
 import bcrypt
@@ -15,6 +15,7 @@ import requests
 import json
 
 logger = logging.getLogger(__name__)
+logger.info("🚀 AUTH API LOADED WITH NEW PROFILE UPDATE ENDPOINT - VERSION 2.0")
 
 auth_router = APIRouter()
 security = HTTPBearer()
@@ -306,7 +307,7 @@ async def update_user_preferences(
         if current_user != username:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        update_data = UserUpdate(preferences=preferences)
+        update_data = UserUpdate(preferences=UserPreferencesUpdate(**preferences))
         result = await user_service.update_user(username, update_data)
         
         if not result.success:
@@ -322,16 +323,45 @@ async def update_user_preferences(
 
 @auth_router.post("/update-profile")
 async def update_user_profile(
-    username: str = Body(...),
-    profile: dict = Body(...),
-    current_user: str = Depends(get_current_user)
+    request: Request
 ):
-    """Update user profile"""
+    """Update user profile and basic info"""
     try:
-        if current_user != username:
-            raise HTTPException(status_code=403, detail="Access denied")
+        # Get the raw JSON body
+        request_data = await request.json()
         
-        update_data = UserUpdate(profile=profile)
+        logger.info(f"RAW REQUEST RECEIVED: {request_data}")
+        logger.info(f"REQUEST TYPE: {type(request_data)}")
+        
+        # Extract data from request
+        username = request_data.get("username")
+        name = request_data.get("name")
+        profile = request_data.get("profile")
+        
+        logger.info(f"Profile update request: username={username}, name={name}, profile={profile}")
+        
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+        
+        # Build update data
+        update_dict = {}
+        
+        # Add name if provided
+        if name is not None and name.strip():
+            update_dict["name"] = name.strip()
+            
+        # Add profile if provided
+        if profile is not None:
+            try:
+                update_dict["profile"] = UserProfileUpdate(**profile)
+            except Exception as profile_error:
+                logger.error(f"Profile validation error: {profile_error}")
+                raise HTTPException(status_code=422, detail=f"Invalid profile data: {profile_error}")
+        
+        if not update_dict:
+            raise HTTPException(status_code=400, detail="No valid data provided for update")
+        
+        update_data = UserUpdate(**update_dict)
         result = await user_service.update_user(username, update_data)
         
         if not result.success:
@@ -344,6 +374,7 @@ async def update_user_profile(
     except Exception as e:
         logger.error(f"Profile update error: {e}")
         raise HTTPException(status_code=500, detail="Failed to update profile")
+
 
 @auth_router.get("/admin-info")
 async def get_admin_info():

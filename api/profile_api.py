@@ -3,7 +3,7 @@ Profile API - Handles user profile operations
 """
 from fastapi import APIRouter, HTTPException, Body, Query, Depends, UploadFile, File
 from fastapi.responses import JSONResponse
-from models.schemas import UserProfile, APIResponse
+from models.schemas import UserProfile, APIResponse, UserUpdate, UserProfileUpdate
 from services.user_service import user_service
 from services.s3_service import s3_service
 from auth import get_current_user
@@ -65,7 +65,8 @@ async def update_user_profile(
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Update profile
-        result = await user_service.update_user(username, {"profile": profile})
+        update_data = UserUpdate(profile=UserProfileUpdate(**profile))
+        result = await user_service.update_user(username, update_data)
         
         if not result.success:
             raise HTTPException(status_code=400, detail=result.message)

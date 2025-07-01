@@ -534,32 +534,110 @@ export const getUserProfile = async () => {
 };
 
 // Update User Profile API Call
-export const updateUserProfile = async (profileData) => {
+export const updateUserProfile = async (userData) => {
+  const token = localStorage.getItem("token");
+
+  if (!token) throw new Error("User not authenticated");
+
+  try {
+    console.log('📤 updateUserProfile - Sending request:', userData);
+    
+    const requestBody = {
+      username: userData.username,
+      name: userData.name,
+      profile: userData.profile
+    };
+    
+    const data = await apiRequest(`${API_BASE_URL}/auth/update-profile`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    // Update name in localStorage if it was updated
+    if (userData.name) {
+      localStorage.setItem("name", userData.name);
+    }
+
+    // Update avatar URL in localStorage if it was updated
+    if (userData.profile?.avatar_url) {
+      localStorage.setItem("avatarUrl", userData.profile.avatar_url);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    throw error;
+  }
+};
+
+// Update User Info (including name) API Call
+export const updateUserInfo = async (userData) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
 
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
-    const data = await apiRequest(`${API_BASE_URL}/auth/update-profile`, {
+    const requestPayload = { 
+      username,
+      name: userData.name,
+      profile: userData.profile
+    };
+    
+    console.log('📤 updateUserInfo - Sending request:', requestPayload);
+    console.log('📤 Profile data type:', typeof userData.profile);
+    console.log('📤 Profile data content:', userData.profile);
+    
+    const data = await apiRequest(`${API_BASE_URL}/auth/update-user-info`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestPayload),
+    });
+
+    // Update name in localStorage if it was updated
+    if (userData.name) {
+      localStorage.setItem("name", userData.name);
+    }
+
+    // Update avatar URL in localStorage if it was updated
+    if (userData.profile?.avatar_url) {
+      localStorage.setItem("avatarUrl", userData.profile.avatar_url);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error updating user info:", error);
+    throw error;
+  }
+};
+
+// Update User Preferences API Call
+export const updateUserPreferences = async (preferencesData) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/auth/update-preferences`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
       },
       body: JSON.stringify({ 
         username, 
-        profile: profileData 
+        preferences: preferencesData 
       }),
     });
 
-    // Update avatar URL in localStorage if it was updated
-    if (profileData.avatar_url) {
-      localStorage.setItem("avatarUrl", profileData.avatar_url);
-    }
-
     return data;
   } catch (error) {
-    console.error("Error updating user profile:", error);
+    console.error("Error updating user preferences:", error);
     throw error;
   }
 };

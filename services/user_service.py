@@ -108,23 +108,39 @@ class UserService:
     async def update_user(self, username: str, update_data: UserUpdate) -> APIResponse:
         """Update user information"""
         try:
+            # Get current user data once at the beginning
+            user = await self.get_user_by_username(username)
+            if not user:
+                return APIResponse(
+                    success=False,
+                    message="User not found"
+                )
+            
             update_doc = {"updated_at": datetime.utcnow()}
             
-            if update_data.name:
+            if update_data.name is not None:
                 update_doc["name"] = update_data.name
-            if update_data.preferences:
-                update_doc["preferences"] = update_data.preferences.dict()
-            if update_data.profile:
-                # Get current profile to merge with updates
-                user = await self.get_user_by_username(username)
-                current_profile = user.get("profile", {}) if user else {}
                 
-                # Create updated profile by merging current with updates
+            if update_data.preferences:
+                # Merge existing preferences with updates
+                existing_prefs = user.get("preferences", {})
+                updated_prefs = existing_prefs.copy()
+                preference_updates = update_data.preferences.dict(exclude_unset=True)
+                
+                for key, value in preference_updates.items():
+                    if value is not None:
+                        updated_prefs[key] = value
+                        
+                update_doc["preferences"] = updated_prefs
+                
+            if update_data.profile:
+                # Merge existing profile with updates
+                current_profile = user.get("profile", {})
                 updated_profile = current_profile.copy()
                 profile_updates = update_data.profile.dict(exclude_unset=True)
                 
                 for key, value in profile_updates.items():
-                    if value is not None:  # Only update fields that are provided
+                    if value is not None:
                         updated_profile[key] = value
                 
                 update_doc["profile"] = updated_profile

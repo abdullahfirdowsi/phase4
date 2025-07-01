@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Row, Col, Card, Form, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap';
 import { Person } from 'react-bootstrap-icons';
 import { getUserProfile, updateUserProfile } from '../../api';
-import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import './UserProfile.scss';
+import PreferencesSettings from '../PreferencesSettings/PreferencesSettings';
 
 const UserProfile = ({ show, onHide }) => {
   const [profile, setProfile] = useState(null);
@@ -111,14 +111,29 @@ const UserProfile = ({ show, onHide }) => {
         avatarUrl = previewImage; // Simulate successful upload
       }
 
-      // Update profile data
-      const updatedProfile = {
-        ...profile.profile,
-        bio: formData.bio,
-        avatar_url: avatarUrl
-      };
+      // Update user info - name and profile data
+const userData = {
+  name: formData.name.trim(),
+  profile: {
+    bio: formData.bio.trim() || null,
+    avatar_url: avatarUrl || null
+  }
+};
 
-      await updateUserProfile(updatedProfile);
+console.log('Sending user data:', JSON.stringify(userData, null, 2));
+
+      console.log('Sending user info update:', userData);
+      console.log('API request will send:', {
+        username: localStorage.getItem('username'),
+        name: userData.name,
+        profile: userData.profile
+      });
+      // Send to updateUserProfile API with name and profile data
+      await updateUserProfile({
+        username: localStorage.getItem('username'),
+        name: userData.name,
+        profile: userData.profile
+      });
 
       // Update local storage with new avatar URL
       if (avatarUrl) {
@@ -253,7 +268,7 @@ const UserProfile = ({ show, onHide }) => {
                     className="profile-tabs"
                   >
                     <Tab eventKey="personal" title="Personal Information" />
-                    <Tab eventKey="language" title="Language" />
+                    <Tab eventKey="preferences" title="Preferences" />
                     <Tab eventKey="security" title="Security" />
                   </Tabs>
                 </Card.Header>
@@ -290,6 +305,9 @@ const UserProfile = ({ show, onHide }) => {
                                 onChange={handleInputChange}
                                 placeholder="Enter your full name"
                               />
+                              <Form.Text className="text-muted">
+                                You can update your display name here
+                              </Form.Text>
                             </Form.Group>
                           </Col>
                           <Col md={6}>
@@ -340,9 +358,9 @@ const UserProfile = ({ show, onHide }) => {
                     </div>
                   )}
                   
-                  {activeTab === 'language' && (
-                    <div className="language-tab">
-                      <LanguageSettings />
+                  {activeTab === 'preferences' && (
+                    <div className="preferences-tab">
+                      <PreferencesSettings />
                     </div>
                   )}
                   

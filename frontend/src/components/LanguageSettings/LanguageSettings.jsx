@@ -1,27 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Alert, Card, Spinner } from 'react-bootstrap';
 import { FaGlobe, FaCheck } from 'react-icons/fa';
-import { getUserProfile, updateUserProfile } from '../../api';
+import { getUserProfile, updateUserPreferences } from '../../api';
 import './LanguageSettings.scss';
 
 const LanguageSettings = () => {
-  const [language, setLanguage] = useState('English');
+  const [language, setLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
   const languageOptions = [
-    { value: 'English', label: 'English', flag: '🇺🇸' },
-    { value: 'Hindi', label: 'हिंदी (Hindi)', flag: '🇮🇳' },
-    { value: 'Spanish', label: 'Español', flag: '🇪🇸' },
-    { value: 'French', label: 'Français', flag: '🇫🇷' },
-    { value: 'German', label: 'Deutsch', flag: '🇩🇪' },
-    { value: 'Chinese', label: '中文', flag: '🇨🇳' },
-    { value: 'Japanese', label: '日本語', flag: '🇯🇵' },
-    { value: 'Korean', label: '한국어', flag: '🇰🇷' },
-    { value: 'Portuguese', label: 'Português', flag: '🇵🇹' },
-    { value: 'Russian', label: 'Русский', flag: '🇷🇺' }
+    { value: 'en', label: 'English', flag: '🇺🇸' },
+    { value: 'hi', label: 'हिंदी (Hindi)', flag: '🇮🇳' },
+    { value: 'es', label: 'Español', flag: '🇪🇸' },
+    { value: 'fr', label: 'Français', flag: '🇫🇷' },
+    { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
+    { value: 'zh', label: '中文', flag: '🇨🇳' },
+    { value: 'ja', label: '日本語', flag: '🇯🇵' },
+    { value: 'ko', label: '한국어', flag: '🇰🇷' },
+    { value: 'pt', label: 'Português', flag: '🇵🇹' },
+    { value: 'ru', label: 'Русский', flag: '🇷🇺' }
   ];
 
   useEffect(() => {
@@ -32,7 +32,7 @@ const LanguageSettings = () => {
     setLoading(true);
     try {
       const profile = await getUserProfile();
-      const currentLang = profile.preferences?.language || 'English';
+      const currentLang = profile.preferences?.language || 'en';
       setLanguage(currentLang);
     } catch (err) {
       console.error('Error loading language preference:', err);
@@ -53,19 +53,17 @@ const LanguageSettings = () => {
       // Get current profile first
       const currentProfile = await getUserProfile();
       
-      // Update the language preference
+      // Update the language preference using the preferences API
       const updatedPreferences = {
         ...currentProfile.preferences,
         language: newLanguage
       };
 
-      await updateUserProfile({
-        ...currentProfile.profile,
-        preferences: updatedPreferences
-      });
+      await updateUserPreferences(updatedPreferences);
 
       setLanguage(newLanguage);
-      setMessage(`Language preference updated to ${newLanguage}! AI responses will now be in ${newLanguage}.`);
+      const languageLabel = languageOptions.find(opt => opt.value === newLanguage)?.label || newLanguage;
+      setMessage(`Language preference updated to ${languageLabel}! AI responses will now be in ${languageLabel}.`);
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
