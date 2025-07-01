@@ -20,14 +20,22 @@ const DashboardHome = () => {
   };
 
   const handleSuggestionClick = (suggestion, mode) => {
+    console.log('🎯 Suggestion clicked:', { suggestion, mode });
+    
     // Store the message and mode in sessionStorage
     sessionStorage.setItem("initialQuestion", suggestion);
     
     if (mode) {
       sessionStorage.setItem("initialMode", mode);
+      console.log('💾 Mode set:', mode);
+    } else {
+      // Clear any existing mode
+      sessionStorage.removeItem("initialMode");
+      console.log('💾 No mode specified, cleared any existing mode');
     }
     
     // Navigate to the chat page
+    console.log('🚀 Navigating to AI Chat');
     navigate("/dashboard/chat");
   };
 
@@ -74,21 +82,21 @@ const DashboardHome = () => {
         <div className="suggestion-chips">
           <button 
             className="suggestion-chip"
-            onClick={() => handleSuggestionClick("Create a learning path for Python programming", "learning_path")}
+            onClick={() => handleSuggestionClick("Create a Python learning path", "learning_path")}
           >
             <Book className="icon" />
             <span>Create a Python learning path</span>
           </button>
           <button 
             className="suggestion-chip"
-            onClick={() => handleSuggestionClick("Generate a quiz about world history", "quiz")}
+            onClick={() => handleSuggestionClick("Generate a history quiz", "quiz")}
           >
             <QuestionCircle className="icon" />
             <span>Generate a history quiz</span>
           </button>
           <button 
             className="suggestion-chip"
-            onClick={() => handleSuggestionClick("Explain machine learning concepts")}
+            onClick={() => handleSuggestionClick("Explain machine learning")}
           >
             <Lightbulb className="icon" />
             <span>Explain machine learning</span>

@@ -132,24 +132,33 @@ const AIChat = () => {
   // Check for initial question from home page
   useEffect(() => {
     const initialQuestion = sessionStorage.getItem("initialQuestion");
+    const initialMode = sessionStorage.getItem("initialMode");
+    
     if (initialQuestion) {
-      console.log("Found initial question:", initialQuestion);
-      
-      // Check if there's an initial mode set
-      const initialMode = sessionStorage.getItem("initialMode");
-      if (initialMode) {
-        console.log("Found initial mode:", initialMode);
-        setActiveMode(initialMode);
-        sessionStorage.removeItem("initialMode");
-      }
+      console.log('✅ Auto-submitting from Home page:', { question: initialQuestion, mode: initialMode });
       
       // Clear from session storage to prevent reuse
       sessionStorage.removeItem("initialQuestion");
+      sessionStorage.removeItem("initialMode");
       
-      // Submit the question automatically with the initial question directly
-      setTimeout(() => {
-        handleSendMessage(initialQuestion);
-      }, 500);
+      // Check if there's an initial mode set and apply it
+      if (initialMode) {
+        console.log('💾 Setting mode and auto-submitting with mode:', initialMode);
+        setActiveMode(initialMode);
+        
+        // Submit with mode parameter to override state timing issues
+        setTimeout(() => {
+          console.log('🚀 Auto-submitting with forced mode:', { question: initialQuestion, mode: initialMode });
+          handleSendMessageWithMode(initialQuestion, initialMode);
+        }, 500);
+      } else {
+        console.log('🚀 Auto-submitting without mode');
+        // Submit without mode for simple responses
+        setTimeout(() => {
+          console.log('🚀 Auto-submitting:', initialQuestion);
+          handleSendMessage(initialQuestion);
+        }, 500);
+      }
     }
   }, []);
 
@@ -427,6 +436,272 @@ const AIChat = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // Function to handle sending messages with a specific mode override
+  const handleSendMessageWithMode = async (message, mode) => {
+    if (!message.trim() || isGenerating) return;
+
+    // Temporarily override the mode for this specific message
+    const wasQuiz = (mode === 'quiz');
+    const wasLearningPath = (mode === 'learning_path');
+    
+    console.log('🔍 SEND MESSAGE WITH MODE DEBUG:', {
+      message: message.trim(),
+      mode,
+      wasQuiz,
+      wasLearningPath
+    });
+
+    setInputMessage('');
+    
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
+    // Add user message to chat with proper timestamp
+    const currentTimestamp = new Date().toISOString();
+    console.log('🕗 Creating user message with timestamp:', {
+      timestamp: currentTimestamp,
+      localTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      utcTime: new Date().toUTCString()
+    });
+    
+    const newUserMessage = {
+      role: 'user',
+      content: message.trim(),
+      type: 'content',
+      timestamp: currentTimestamp
+    };
+    
+    // Update messages with user message
+    const updatedMessagesWithUser = [...messages, newUserMessage];
+    setMessages(updatedMessagesWithUser);
+    
+    // Cache the user message immediately
+    const username = localStorage.getItem("username");
+    const localStorageKey = `chat_messages_${username}`;
+    try {
+      localStorage.setItem(localStorageKey, JSON.stringify(updatedMessagesWithUser));
+      console.log('💾 Cached user message to localStorage');
+    } catch (e) {
+      console.warn('⚠️ Failed to cache user message to localStorage:', e);
+    }
+    
+    setIsGenerating(true);
+    
+    try {
+      // Handle quiz mode differently - use proper quiz generation API
+      if (wasQuiz) {
+        console.log('🎯 Quiz mode detected with override, using generateQuiz API');
+        console.log('📞 About to call generateQuiz with topic:', message.trim());
+        
+        // Extract number of questions from user message
+        const extractQuestionCount = (msg) => {
+          const msgLower = msg.toLowerCase();
+          
+          // Look for patterns like "15 questions", "10 quiz", "5 MCQ", etc.
+          const patterns = [
+            /(?:with|for|about|generate|create)\s+(?:a\s+)?(?:quiz\s+(?:with\s+)?)?(?:of\s+)?(?:total\s+)?(?:exactly\s+)?(\d+)\s+(?:questions?|quiz|mcq|q)/i,
+            /(\d+)\s+(?:questions?|quiz|mcq|q)/i,
+            /(?:questions?)\s*[=:]?\s*(\d+)/i,
+            /\b(\d+)\s*[\-–—]?\s*(?:questions?|quiz|mcq|q)/i
+          ];
+          
+          for (const pattern of patterns) {
+            const match = msgLower.match(pattern);
+            if (match) {
+              const count = parseInt(match[1]);
+              if (count >= 1 && count <= 50) { // Reasonable range
+                console.log(`📈 Extracted ${count} questions from: "${msg}"`);
+                return count;
+              }
+            }
+          }
+          
+          // Default to 10 questions if not specified
+          console.log('📈 No question count specified, defaulting to 10 questions');
+          return 10;
+        };
+        
+        // Extract difficulty from user message
+        const extractDifficulty = (msg) => {
+          const msgLower = msg.toLowerCase();
+          
+          if (msgLower.includes('easy') || msgLower.includes('beginner') || msgLower.includes('basic') || msgLower.includes('simple')) {
+            return 'easy';
+          } else if (msgLower.includes('hard') || msgLower.includes('difficult') || msgLower.includes('advanced') || msgLower.includes('expert') || msgLower.includes('challenging')) {
+            return 'hard';
+          } else {
+            return 'medium';
+          }
+        };
+        
+        // Extract topic from user message (remove question count and difficulty modifiers)
+        const extractTopic = (msg) => {
+          let topic = msg.trim();
+          
+          // Remove common quiz-related phrases
+          topic = topic.replace(/(?:create|generate|make|build)\s+(?:a\s+|an\s+)?(?:quiz|test)\s+(?:about|on|for)?\s*/gi, '');
+          topic = topic.replace(/(?:quiz|test)\s+(?:about|on|for)\s*/gi, '');
+          topic = topic.replace(/\b\d+\s+(?:questions?|quiz|mcq|q)\b/gi, '');
+          topic = topic.replace(/\b(?:easy|medium|hard|difficult|advanced|beginner|basic|simple|expert|challenging)\b/gi, '');
+          topic = topic.replace(/\b(?:with|for|about)\s+/gi, '');
+          topic = topic.trim();
+          
+          // If topic is empty after cleaning, use a default
+          if (!topic) {
+            topic = 'General Knowledge';
+          }
+          
+          console.log(`🎯 Extracted topic: "${topic}" from: "${msg}"`);
+          return topic;
+        };
+        
+        const questionCount = extractQuestionCount(message);
+        const difficulty = extractDifficulty(message);
+        const topic = extractTopic(message);
+        
+        console.log(`📈 Quiz parameters: topic="${topic}", difficulty="${difficulty}", questions=${questionCount}`);
+        
+        const result = await generateQuiz(topic, difficulty, questionCount);
+        
+        if (result && result.quiz_data) {
+          // Create a proper quiz message with debugging
+          const quizTimestamp = new Date().toISOString();
+          console.log('🕗 Creating quiz message with timestamp:', {
+            timestamp: quizTimestamp,
+            localTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            utcTime: new Date().toUTCString()
+          });
+          
+          const quizMessage = {
+            role: 'assistant',
+            content: result,
+            type: 'quiz',
+            timestamp: quizTimestamp
+          };
+          
+          setMessages(prevMessages => [...prevMessages, quizMessage]);
+          console.log('✅ Quiz generated successfully:', result);
+          
+          // Store quiz messages to backend database for persistence
+          try {
+            console.log('💾 Storing quiz messages to backend database...');
+            await storeQuizMessage(newUserMessage, quizMessage);
+            console.log('✅ Quiz messages successfully stored to backend database');
+          } catch (storeError) {
+            console.warn('⚠️ Failed to store quiz to backend database:', storeError);
+          }
+          
+          // Cache the quiz messages to localStorage as backup
+          setTimeout(() => {
+            setMessages(currentMessages => {
+              try {
+                localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
+                console.log('💾 Cached quiz messages to localStorage');
+              } catch (e) {
+                console.warn('⚠️ Failed to cache quiz messages to localStorage:', e);
+              }
+              return currentMessages;
+            });
+          }, 100);
+        } else {
+          throw new Error('Failed to generate quiz');
+        }
+        
+        setIsGenerating(false);
+        return;
+      }
+      
+      // Always create a temporary AI message placeholder for non-quiz messages
+      const tempAIMessage = {
+        role: 'assistant',
+        content: '',
+        type: wasLearningPath ? 'learning_path' : 'content',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Update messages with temp AI message
+      setMessages(prevMessages => [...prevMessages, tempAIMessage]);
+      
+      let accumulatedResponse = '';
+      
+        await askQuestion(
+          message.trim(),
+          (partialResponse) => {
+            // Update the AI message with the accumulated response
+            // For learning paths, the partialResponse will be the full API response object
+            if (wasLearningPath && typeof partialResponse === 'object' && partialResponse.content) {
+              // Extract the content from the API response for learning paths
+              accumulatedResponse = partialResponse.content;
+              console.log('📚 Learning Path Content:', accumulatedResponse);
+            } else {
+              // For regular messages, it's the accumulated text
+              accumulatedResponse = partialResponse;
+            }
+            
+            setMessages(prevMessages => {
+              // Always update the last AI message (which was created as a temp placeholder)
+              const updatedMessages = [...prevMessages];
+              const lastMessageIndex = updatedMessages.length - 1;
+              
+              // Detect if the accumulated response looks like a learning path
+              let messageType = wasLearningPath ? 'learning_path' : 'content';
+              
+              // Additional runtime detection for learning path content
+              if (!wasLearningPath && typeof accumulatedResponse === 'string') {
+                const contentStr = accumulatedResponse.toLowerCase();
+                // Simplified detection - if it has topics array, it's likely a learning path
+                if (contentStr.includes('"topics"') && contentStr.includes('[') && contentStr.includes('{')) {
+                  messageType = 'learning_path';
+                  console.log('🎯 Runtime detection: Found learning path content during streaming!');
+                }
+              }
+              
+              // Create a new message object instead of modifying the existing one
+              updatedMessages[lastMessageIndex] = {
+                ...updatedMessages[lastMessageIndex],
+                content: accumulatedResponse,
+                type: messageType
+              };
+              
+              return updatedMessages;
+            });
+          },
+          () => {
+            // On complete
+            setIsGenerating(false);
+            
+            // Cache the completed messages to localStorage
+            const username = localStorage.getItem("username");
+            const localStorageKey = `chat_messages_${username}`;
+            
+            // Get current messages state and cache them
+            setTimeout(() => {
+              setMessages(currentMessages => {
+                try {
+                  localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
+                  console.log('💾 Cached completed messages to localStorage');
+                } catch (e) {
+                  console.warn('⚠️ Failed to cache completed messages to localStorage:', e);
+                }
+                return currentMessages; // Return unchanged
+              });
+            }, 100); // Small delay to ensure state is updated
+          },
+          false, // Don't pass isQuiz to askQuestion since we handle it separately
+          wasLearningPath
+        );
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Failed to send message. Please try again.');
+      setIsGenerating(false);
+      
+      // Remove the temporary AI message
+      setMessages(prevMessages => prevMessages.slice(0, -1));
     }
   };
 
