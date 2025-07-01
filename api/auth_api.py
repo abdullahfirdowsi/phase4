@@ -323,7 +323,8 @@ async def update_user_preferences(
 
 @auth_router.post("/update-profile")
 async def update_user_profile(
-    request: Request
+    request: Request,
+    current_user: str = Depends(get_current_user)
 ):
     """Update user profile and basic info"""
     try:
@@ -342,6 +343,9 @@ async def update_user_profile(
         
         if not username:
             raise HTTPException(status_code=400, detail="Username is required")
+            
+        if current_user != username:
+            raise HTTPException(status_code=403, detail="Access denied")
         
         # Build update data
         update_dict = {}

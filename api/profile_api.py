@@ -117,7 +117,8 @@ async def update_language_preference(
 
 @profile_router.patch("/password")
 async def update_user_password(
-    request: Request
+    request: Request,
+    current_user: str = Depends(get_current_user)
 ):
     """Update user password endpoint"""
     try:
@@ -136,6 +137,10 @@ async def update_user_password(
         
         if not username or not current_password or not new_password:
             raise HTTPException(status_code=400, detail="Username, current password, and new password are required")
+        
+        # Verify user is updating their own password
+        if current_user != username:
+            raise HTTPException(status_code=403, detail="Access denied")
         
         # Verify current password and update to new password
         result = await user_service.update_password(username, current_password, new_password)
