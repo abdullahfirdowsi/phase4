@@ -55,10 +55,10 @@ const Learning = () => {
       
       // Try to fetch lessons from backend
       try {
-        const response = await fetch(`http://localhost:8000/lessons/lessons?username=${username}`);
+        const response = await fetch(`http://localhost:8000/lessons/user?username=${encodeURIComponent(username)}`);
         if (response.ok) {
           const data = await response.json();
-          setFeaturedLessons(data.adminLessons || []);
+          setFeaturedLessons(data.lessons || []);
         } else {
           console.log("Lessons API endpoint not found, using empty lessons list");
           // Create sample featured lessons since the endpoint is not available
@@ -123,12 +123,13 @@ const Learning = () => {
     try {
       // Try to call the actual API first
       try {
-        const response = await fetch("http://localhost:8000/lessons/lessons/enroll", {
-          method: "POST",
+        const response = await fetch(`http://localhost:8000/lessons/user/${lessonId}/progress`, {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             username,
-            lesson_id: lessonId
+            progress: 0,
+            completed: false
           })
         });
 
