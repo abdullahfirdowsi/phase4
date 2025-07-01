@@ -10,6 +10,7 @@ from auth import get_current_user
 import logging
 import os
 import uuid
+from jose import jwt
 
 logger = logging.getLogger(__name__)
 logger.info("🔧 PROFILE API LOADED - PASSWORD ENDPOINT AVAILABLE")
@@ -117,16 +118,34 @@ async def update_language_preference(
 
 @profile_router.patch("/password")
 async def update_user_password(
-    request: Request,
-    current_user: str = Depends(get_current_user)
+    request: Request
 ):
     """Update user password endpoint"""
     try:
+        # Manual authentication check using header token
+        auth_header = request.headers.get("authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        token = auth_header.split(" ")[1]
+        try:
+            # Use the same JWT secret as auth_api.py
+            JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            current_user = payload.get("sub")
+            if not current_user:
+                raise HTTPException(status_code=401, detail="Invalid token")
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.JWTError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
         # Get the raw JSON body
         request_data = await request.json()
         
         logger.info(f"RAW PASSWORD REQUEST: {request_data}")
         logger.info(f"PASSWORD REQUEST TYPE: {type(request_data)}")
+        logger.info(f"Authenticated user: {current_user}")
         
         # Extract data from request
         username = request_data.get("username")
@@ -140,7 +159,7 @@ async def update_user_password(
         
         # Verify user is updating their own password
         if current_user != username:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise HTTPException(status_code=403, detail="Access denied - can only update your own password")
         
         # Verify current password and update to new password
         result = await user_service.update_password(username, current_password, new_password)
