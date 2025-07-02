@@ -93,6 +93,15 @@ export const login = async (username, password) => {
 
     return data;
   } catch (error) {
+    // Check if this is a Google OAuth user who needs to set a password
+    if (error.message === "google_oauth_password_setup_required") {
+      // Create a special error object with the username for the UI to handle
+      const passwordSetupError = new Error("Password setup required for Google OAuth user");
+      passwordSetupError.code = "PASSWORD_SETUP_REQUIRED";
+      passwordSetupError.username = username;
+      throw passwordSetupError;
+    }
+    
     throw new Error(error.message || "Login failed");
   }
 };
@@ -159,6 +168,37 @@ export const googleLogin = async (credential) => {
     return data;
   } catch (error) {
     throw new Error(error.message || "Google login failed");
+  }
+};
+
+// Check if user needs password setup (for Google OAuth users)
+export const checkPasswordStatus = async (email) => {
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/auth/check-password-status`, {
+      method: "POST",
+      body: JSON.stringify({ email: email }),
+    });
+
+    return data;
+  } catch (error) {
+    throw new Error(error.message || "Failed to check password status");
+  }
+};
+
+// Setup password for Google OAuth users
+export const setupPasswordForGoogleUser = async (username, newPassword) => {
+  try {
+    const data = await apiRequest(`${API_BASE_URL}/auth/setup-password`, {
+      method: "POST",
+      body: JSON.stringify({ 
+        username: username, 
+        new_password: newPassword 
+      }),
+    });
+
+    return data;
+  } catch (error) {
+    throw new Error(error.message || "Password setup failed");
   }
 };
 

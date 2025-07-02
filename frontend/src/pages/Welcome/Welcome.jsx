@@ -5,9 +5,12 @@ import { login, signup } from "../../api";
 import "./Welcome.scss";
 import { FaUserGraduate, FaRocket, FaChartLine, FaBrain, FaGraduationCap, FaLightbulb, FaPlay, FaCheck } from "react-icons/fa";
 import GoogleLoginButton from "../../components/GoogleLoginButton/GoogleLoginButton";
+import PasswordSetupModal from "../../components/PasswordSetupModal/PasswordSetupModal";
 
 const Welcome = () => {
   const [showModal, setShowModal] = useState(false);
+  const [showPasswordSetupModal, setShowPasswordSetupModal] = useState(false);
+  const [passwordSetupUsername, setPasswordSetupUsername] = useState("");
   const [activeTab, setActiveTab] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -42,11 +45,27 @@ const Welcome = () => {
         navigate("/dashboard");
       }
     } catch (err) {
-      setError(err.message || "Login failed. Please try again.");
+      // Check if this is a Google OAuth user who needs to set a password
+      if (err.code === "PASSWORD_SETUP_REQUIRED") {
+        setPasswordSetupUsername(email);
+        setShowPasswordSetupModal(true);
+        setShowModal(false); // Close the login modal
+      } else {
+        setError(err.message || "Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // Handle successful password setup
+  const handlePasswordSetupSuccess = () => {
+    setShowPasswordSetupModal(false);
+    setError("Password setup successful! Please try logging in again with your new password.");
+    setShowModal(true); // Show login modal again
+    setPassword(""); // Clear the password field
+  };
+
 
   const handleSignup = async () => {
     if (!name || !email || !password) {
@@ -503,6 +522,14 @@ const Welcome = () => {
           </Tabs>
         </Modal.Body>
       </Modal>
+
+      {/* Password Setup Modal for Google OAuth Users */}
+      <PasswordSetupModal
+        show={showPasswordSetupModal}
+        onHide={() => setShowPasswordSetupModal(false)}
+        username={passwordSetupUsername}
+        onSuccess={handlePasswordSetupSuccess}
+      />
     </div>
   );
 };
