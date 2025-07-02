@@ -10,7 +10,7 @@ import time
 from gtts import gTTS
 from typing import Dict, Any, Optional
 from services.s3_service import s3_service
-from database_config import get_collections
+from database import get_collections
 
 logger = logging.getLogger(__name__)
 

@@ -45,6 +45,10 @@ const Header = () => {
     navigate('/dashboard/chat');
   };
 
+  const handleNavigateToDashboard = () => {
+    navigate('/dashboard');
+  };
+
   const userName = localStorage.getItem("name") || "User";
   const userAvatarUrl = localStorage.getItem("avatarUrl");
 
@@ -122,7 +126,7 @@ const Header = () => {
                 </div>
               </div>
               <Dropdown.Divider />
-              <Dropdown.Item onClick={handleNavigateToChat}>
+              <Dropdown.Item onClick={handleNavigateToDashboard}>
                 Dashboard
               </Dropdown.Item>
               <Dropdown.Item onClick={handleOpenProfile}>

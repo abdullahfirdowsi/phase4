@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Row, Col, Card, Form, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap';
 import { Person } from 'react-bootstrap-icons';
-import { getUserProfile, updateUserProfile } from '../../api';
-import LanguageSettings from '../LanguageSettings/LanguageSettings';
+import { getUserProfile, updateUserProfile, updatePassword, uploadFile } from '../../api';
 import './UserProfile.scss';
+import PreferencesSettings from '../PreferencesSettings/PreferencesSettings';
 
 const UserProfile = ({ show, onHide }) => {
   const [profile, setProfile] = useState(null);
@@ -25,6 +25,7 @@ const UserProfile = ({ show, onHide }) => {
   });
   const [previewImage, setPreviewImage] = useState(null);
   const [imageFile, setImageFile] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -104,21 +105,55 @@ const UserProfile = ({ show, onHide }) => {
       // If we have a new image file, upload it first
       let avatarUrl = formData.avatar_url;
       if (imageFile) {
-        // In a real implementation, you would upload the image to your server/S3
-        // For now, we'll simulate a successful upload
-        console.log('Would upload image:', imageFile.name);
-        // avatarUrl = await uploadImage(imageFile);
-        avatarUrl = previewImage; // Simulate successful upload
+        try {
+          setUploadingImage(true);
+          console.log('📤 Uploading image:', imageFile.name);
+          const uploadResult = await uploadFile(imageFile, 'avatars');
+          
+          if (uploadResult.success) {
+            avatarUrl = uploadResult.url;
+            console.log('✅ Image uploaded successfully:', avatarUrl);
+            // Update preview with the uploaded URL
+            setPreviewImage(avatarUrl);
+            // Clear the file since it's now uploaded
+            setImageFile(null);
+          } else {
+            throw new Error(uploadResult.message || 'Failed to upload image');
+          }
+        } catch (uploadError) {
+          console.error('❌ Image upload failed:', uploadError);
+          setError(`Failed to upload image: ${uploadError.message}`);
+          setSaving(false);
+          setUploadingImage(false);
+          return;
+        } finally {
+          setUploadingImage(false);
+        }
       }
 
-      // Update profile data
-      const updatedProfile = {
-        ...profile.profile,
-        bio: formData.bio,
-        avatar_url: avatarUrl
-      };
+      // Update user info - name and profile data
+const userData = {
+  name: formData.name.trim(),
+  profile: {
+    bio: formData.bio.trim() || null,
+    avatar_url: avatarUrl || null
+  }
+};
 
-      await updateUserProfile(updatedProfile);
+console.log('Sending user data:', JSON.stringify(userData, null, 2));
+
+      console.log('Sending user info update:', userData);
+      console.log('API request will send:', {
+        username: localStorage.getItem('username'),
+        name: userData.name,
+        profile: userData.profile
+      });
+      // Send to updateUserProfile API with name and profile data
+      await updateUserProfile({
+        username: localStorage.getItem('username'),
+        name: userData.name,
+        profile: userData.profile
+      });
 
       // Update local storage with new avatar URL
       if (avatarUrl) {
@@ -168,9 +203,8 @@ const UserProfile = ({ show, onHide }) => {
         return;
       }
 
-      // In a real implementation, you would call an API to update the password
-      // For now, we'll simulate a successful password update
-      console.log('Would update password');
+      // Call the real password update API
+      await updatePassword(passwordData.currentPassword, passwordData.newPassword);
 
       setSuccess('Password updated successfully!');
       setPasswordData({
@@ -220,16 +254,26 @@ const UserProfile = ({ show, onHide }) => {
                       </div>
                     )}
                     <div className="avatar-overlay">
-                      <label htmlFor="avatar-upload" className="avatar-upload-label">
-                        Change
-                      </label>
-                      <input
-                        type="file"
-                        id="avatar-upload"
-                        className="avatar-upload-input"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                      />
+                      {uploadingImage ? (
+                        <div className="uploading-indicator">
+                          <Spinner size="sm" animation="border" />
+                          <span className="ms-2">Uploading...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <label htmlFor="avatar-upload" className="avatar-upload-label">
+                            Change
+                          </label>
+                          <input
+                            type="file"
+                            id="avatar-upload"
+                            className="avatar-upload-input"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            disabled={saving || uploadingImage}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                   <h5 className="profile-name">{profile?.name || 'User'}</h5>
@@ -253,7 +297,7 @@ const UserProfile = ({ show, onHide }) => {
                     className="profile-tabs"
                   >
                     <Tab eventKey="personal" title="Personal Information" />
-                    <Tab eventKey="language" title="Language" />
+                    <Tab eventKey="preferences" title="Preferences" />
                     <Tab eventKey="security" title="Security" />
                   </Tabs>
                 </Card.Header>
@@ -290,6 +334,9 @@ const UserProfile = ({ show, onHide }) => {
                                 onChange={handleInputChange}
                                 placeholder="Enter your full name"
                               />
+                              <Form.Text className="text-muted">
+                                You can update your display name here
+                              </Form.Text>
                             </Form.Group>
                           </Col>
                           <Col md={6}>
@@ -325,7 +372,7 @@ const UserProfile = ({ show, onHide }) => {
                         <Button
                           variant="primary"
                           onClick={handleSaveProfile}
-                          disabled={saving}
+                          disabled={saving || uploadingImage}
                         >
                           {saving ? (
                             <>
@@ -340,9 +387,9 @@ const UserProfile = ({ show, onHide }) => {
                     </div>
                   )}
                   
-                  {activeTab === 'language' && (
-                    <div className="language-tab">
-                      <LanguageSettings />
+                  {activeTab === 'preferences' && (
+                    <div className="preferences-tab">
+                      <PreferencesSettings />
                     </div>
                   )}
                   

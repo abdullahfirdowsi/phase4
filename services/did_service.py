@@ -10,7 +10,7 @@ import uuid
 import time
 from typing import Dict, Any, Optional, List
 from services.s3_service import s3_service
-from database_config import get_collections
+from database import get_collections
 
 logger = logging.getLogger(__name__)
 

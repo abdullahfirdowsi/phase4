@@ -94,6 +94,24 @@
           }
         }
         
+        .uploading-indicator {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          color: white;
+          font-size: 0.75rem;
+          background: rgba(0, 123, 255, 0.9);
+          border-radius: v.$border-radius-sm;
+          padding: 0.25rem 0.5rem;
+          
+          .spinner-border {
+            width: 12px;
+            height: 12px;
+            border-width: 1px;
+          }
+        }
+        
         .avatar-upload-input {
           display: none;
         }

@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     
     try:
         # Initialize database
-        from database_config import initialize_database
+        from database import initialize_database
         initialize_database()
         logger.info("✅ Database initialized successfully")
         
@@ -198,8 +198,9 @@ async def api_info():
 # Import and include API routers
 try:
     from api.auth_api import auth_router
-    from api.chat_api import chat_router as new_chat_router  # Use new implementation with proper analytics
-    from chat import chat_router as legacy_chat_router  # Keep legacy for backward compatibility
+    from api.profile_api import profile_router
+    from api.chat_api import chat_router  # Use enhanced implementation only
+    from api.upload_api import upload_router
     from ai_quiz_generator import ai_quiz_router
     from learning_paths import learning_paths_router
     from lessons import lessons_router
@@ -207,15 +208,16 @@ try:
     from api.avatar_api import avatar_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-    app.include_router(new_chat_router, prefix="/chat", tags=["Chat & Messaging Enhanced"])  # Use new implementation
-    app.include_router(legacy_chat_router, prefix="/chat-legacy", tags=["Chat & Messaging Legacy"])  # Keep legacy for compatibility
+    app.include_router(profile_router, prefix="/profile", tags=["User Profile"])
+    app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])  # Enhanced implementation only
+    app.include_router(upload_router, prefix="/upload", tags=["File Upload"])
     app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
     app.include_router(learning_paths_router, prefix="/learning-paths", tags=["Learning Paths"])
     app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
     app.include_router(quiz_router, prefix="/quiz-system", tags=["Quiz System"])
     app.include_router(avatar_router, prefix="/avatar", tags=["Avatar Generation"])
     
-    logger.info("✅ API routers loaded successfully")
+    logger.info("✅ Enhanced API routers loaded successfully")
 except Exception as e:
     logger.error(f"❌ Error loading API routers: {e}")
 
@@ -381,7 +383,7 @@ if os.path.exists(FRONTEND_BUILD_DIR):
         from fastapi.responses import FileResponse
         
         # Skip API routes and static assets
-        if path.startswith(("api/", "auth/", "chat/", "upload/", "lessons/", "admin/", "docs", "health", "openapi.json", "static/")):
+        if path.startswith(("api/", "auth/", "profile/", "chat/", "upload/", "lessons/", "admin/", "docs", "health", "openapi.json", "static/")):
             raise HTTPException(status_code=404, detail="API endpoint not found")
         
         # Handle root path or empty path

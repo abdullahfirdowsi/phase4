@@ -1,0 +1,308 @@
+@use "../../styles/variables" as v;
+@use "../../styles/themes";
+
+.preferences-settings {
+  .preferences-settings-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: v.$border-radius-xl;
+    box-shadow: var(--shadow);
+    
+    .card-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-light);
+      padding: 1.5rem;
+      
+      h5 {
+        color: var(--text-primary);
+        font-weight: v.$font-weight-bold;
+        margin: 0;
+      }
+    }
+    
+    .card-body {
+      padding: 2rem;
+    }
+  }
+  
+  .preference-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: v.$border-radius-lg;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-color: var(--primary-color);
+    }
+    
+    .card-header {
+      background: transparent;
+      border-bottom: 1px solid var(--border-light);
+      padding: 1rem 1.5rem;
+      font-weight: v.$font-weight-semibold;
+      color: var(--text-primary);
+      font-size: 1rem;
+      
+      svg {
+        color: var(--primary-color);
+      }
+    }
+    
+    .card-body {
+      padding: 1.5rem;
+    }
+  }
+  
+  .preference-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    
+    &.horizontal {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .preference-option {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      background: var(--card-bg);
+      border: 2px solid var(--border-light);
+      border-radius: v.$border-radius-lg;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: left;
+      width: 100%;
+      position: relative;
+      
+      &:hover {
+        border-color: var(--primary-color);
+        background: var(--bg-tertiary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      
+      &.active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+        
+        .option-label {
+          color: white;
+          font-weight: v.$font-weight-semibold;
+        }
+        
+        .option-description {
+          color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .check-icon {
+          color: white;
+        }
+      }
+      
+      .option-icon {
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+        min-width: 2rem;
+        text-align: center;
+      }
+      
+      .option-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      
+      .option-label {
+        font-weight: v.$font-weight-medium;
+        color: var(--text-primary);
+        font-size: 1rem;
+        line-height: 1.2;
+      }
+      
+      .option-description {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        line-height: 1.3;
+      }
+      
+      .check-icon {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        color: var(--primary-color);
+        font-size: 1rem;
+      }
+    }
+  }
+  
+  .horizontal .preference-option {
+    flex: 1;
+    min-width: 150px;
+    max-width: 200px;
+  }
+  
+  .save-section {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 0 1rem;
+    border-top: 1px solid var(--border-light);
+    margin-top: 2rem;
+    
+    .save-preferences-btn {
+      padding: 0.75rem 2rem;
+      font-weight: v.$font-weight-semibold;
+      border-radius: v.$border-radius-lg;
+      min-width: 200px;
+      font-size: 1.1rem;
+    }
+  }
+  
+  .preferences-info {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: v.$border-radius-lg;
+    border-left: 4px solid var(--primary-color);
+    
+    small {
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+  }
+  
+  .form-label {
+    font-weight: v.$font-weight-medium;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+  }
+}
+
+// Responsive design
+@media (max-width: v.$breakpoint-tablet) {
+  .preferences-settings {
+    .preferences-settings-card {
+      .card-body {
+        padding: 1.5rem;
+      }
+    }
+    
+    .preference-card {
+      .card-header {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      
+      .card-body {
+        padding: 1rem;
+      }
+    }
+    
+    .preference-options {
+      gap: 0.5rem;
+      
+      &.horizontal {
+        flex-direction: column;
+      }
+      
+      .preference-option {
+        padding: 0.75rem;
+        
+        .option-icon {
+          font-size: 1.25rem;
+          margin-right: 0.75rem;
+          min-width: 1.5rem;
+        }
+        
+        .option-label {
+          font-size: 0.9rem;
+        }
+        
+        .option-description {
+          font-size: 0.8rem;
+        }
+      }
+    }
+    
+    .save-section {
+      .save-preferences-btn {
+        width: 100%;
+        min-width: auto;
+      }
+    }
+  }
+}
+
+@media (max-width: v.$breakpoint-mobile) {
+  .preferences-settings {
+    .preferences-settings-card {
+      .card-header {
+        padding: 1rem;
+      }
+      
+      .card-body {
+        padding: 1rem;
+      }
+    }
+    
+    .preference-options {
+      .preference-option {
+        padding: 0.5rem;
+        
+        .option-icon {
+          font-size: 1rem;
+          margin-right: 0.5rem;
+          min-width: 1.25rem;
+        }
+        
+        .option-label {
+          font-size: 0.85rem;
+        }
+        
+        .option-description {
+          font-size: 0.75rem;
+        }
+        
+        .check-icon {
+          top: 0.5rem;
+          right: 0.5rem;
+          font-size: 0.875rem;
+        }
+      }
+    }
+  }
+}
+
+// Dark mode enhancements
+[data-theme="dark"] {
+  .preferences-settings {
+    .preferences-settings-card,
+    .preference-card {
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .preference-options {
+      .preference-option {
+        &:hover {
+          background: rgba(255, 255, 255, 0.05);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        &.active {
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+      }
+    }
+    
+    .preferences-info {
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
+}

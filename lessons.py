@@ -1,3 +1,4 @@
+# Using enhanced database with optimized collections
 # lessons.py - User Lesson Management System
 import json
 import datetime
@@ -7,7 +8,7 @@ from database import chats_collection, users_collection
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import logging
-from auth import get_current_user
+from api.auth_api import get_current_user
 import os
 from services.s3_service import s3_service
 

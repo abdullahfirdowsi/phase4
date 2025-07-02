@@ -108,16 +108,52 @@ class S3Service:
             if content_type:
                 extra_args['ContentType'] = content_type
             
-            # Upload file
-            self.s3_client.upload_fileobj(
-                file_obj,
-                self.bucket_name,
-                s3_key,
-                ExtraArgs=extra_args
-            )
-            
-            # Generate public URL
-            url = f"https://{self.bucket_name}.s3.{self.aws_region}.amazonaws.com/{s3_key}"
+            # Try to upload with public-read ACL first
+            try:
+                extra_args['ACL'] = 'public-read'
+                self.s3_client.upload_fileobj(
+                    file_obj,
+                    self.bucket_name,
+                    s3_key,
+                    ExtraArgs=extra_args
+                )
+                
+                # Generate public URL using the correct bucket region
+                try:
+                    bucket_location = self.s3_client.get_bucket_location(Bucket=self.bucket_name)
+                    actual_region = bucket_location['LocationConstraint']
+                    if actual_region is None:
+                        actual_region = 'us-east-1'  # Default for us-east-1
+                except Exception:
+                    actual_region = self.aws_region
+                
+                url = f"https://{self.bucket_name}.s3.{actual_region}.amazonaws.com/{s3_key}"
+                
+            except ClientError as e:
+                # If public ACL fails (bucket has block public access), upload without ACL and use presigned URL
+                if 'AccessControlListNotSupported' in str(e) or 'PublicAccessBlockConfiguration' in str(e):
+                    logger.info("Public ACL not supported, uploading without ACL and using presigned URL")
+                    # Remove ACL and try again
+                    extra_args.pop('ACL', None)
+                    file_obj.seek(0)  # Reset file pointer
+                    self.s3_client.upload_fileobj(
+                        file_obj,
+                        self.bucket_name,
+                        s3_key,
+                        ExtraArgs=extra_args
+                    )
+                    
+                    # Generate a long-lived presigned URL (1 year)
+                    url = self.s3_client.generate_presigned_url(
+                        'get_object',
+                        Params={
+                            'Bucket': self.bucket_name,
+                            'Key': s3_key
+                        },
+                        ExpiresIn=31536000  # 1 year in seconds
+                    )
+                else:
+                    raise e
             
             logger.info(f"✅ File uploaded to S3: {s3_key}")
             

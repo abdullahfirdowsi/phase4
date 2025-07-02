@@ -11,6 +11,7 @@ import LessonEdit from "./LessonEdit/LessonEdit";
 import AIChat from "../../components/AIChat/AIChat";
 import UserProfile from "../../components/UserProfile/UserProfile";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import FloatingActionButton from "../../components/FloatingActionButton/FloatingActionButton";
 import './Dashboard.scss';
 
 const Dashboard = () => {
@@ -40,6 +41,9 @@ const Dashboard = () => {
       setActiveScreen('dashboard');
     }
   }, [location.pathname, isAdmin]);
+
+  // Determine if we should show the floating action button
+  const showFloatingButton = activeScreen !== 'chat';
 
   return (
     <div className="dashboard-container">
@@ -99,6 +103,9 @@ const Dashboard = () => {
             } />
           )}
         </Routes>
+        
+        {/* Floating Action Button */}
+        {showFloatingButton && <FloatingActionButton />}
       </div>
 
       {/* Mobile Overlay */}

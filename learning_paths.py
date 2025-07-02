@@ -1,13 +1,169 @@
-# learning_paths.py
+# Using enhanced database with optimized collections
+# learning_paths.py - Consolidated Learning Paths Management
 import json
 import datetime
+import logging
+import uuid
 from fastapi import APIRouter, HTTPException, Body, Query
-from database import chats_collection, users_collection
+from database import chats_collection, users_collection, get_collections
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Router for learning path management
 learning_paths_router = APIRouter()
+
+# Core learning path processing function (consolidated from learning_path.py)
+async def process_learning_path_query(user_prompt, username, generate_response, extract_json, store_chat_history, REGENRATE_OR_FILTER_JSON, LEARNING_PATH_PROMPT, retry_count=0, max_retries=3):
+    """Processes a learning path query, generating and validating JSON responses."""
+    logger.info("📚 Learning Path Query Detected")
+    logger.info(f"🔄 Trying to generate Learning Path, Retry Count = {retry_count}")
+    
+    if retry_count < max_retries:
+        logger.info(f"🔄 Retrying JSON generation (attempt {retry_count + 1})...")
+
+    if retry_count > 0:
+        modified_prompt = f"{user_prompt} {REGENRATE_OR_FILTER_JSON}. IMPORTANT: Return ONLY valid JSON with 'topics' field containing an array of topic objects. Do not include any text before or after the JSON."
+    else:
+        modified_prompt = f"{user_prompt} {LEARNING_PATH_PROMPT}"
+
+    response_content = generate_response(modified_prompt)
+    response_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+    
+    # Check if response is empty or None
+    if not response_content or not isinstance(response_content, str) or not response_content.strip():
+        logger.error("❌ Empty or invalid response from AI model")
+        if retry_count < max_retries - 1:
+            logger.info("🔄 Retrying due to empty response...")
+            return await process_learning_path_query(
+                user_prompt, username, generate_response, extract_json,
+                store_chat_history, REGENRATE_OR_FILTER_JSON, LEARNING_PATH_PROMPT,
+                retry_count=retry_count + 1, max_retries=max_retries
+            )
+        else:
+            error_message = "I'm sorry, I couldn't generate a response. Please check your API configuration and try again."
+            error_response = {
+                "role": "assistant",
+                "content": error_message,
+                "type": "content",
+                "timestamp": response_timestamp
+            }
+            
+            try:
+                await store_chat_history(username, error_response)
+            except Exception as store_error:
+                logger.error(f"❌ Error storing chat history: {store_error}")
+            return {
+                "response": "ERROR",
+                "type": "content",
+                "timestamp": response_timestamp,
+                "content": error_message
+            }
+
+    logger.info(f"📝 AI Response length: {len(response_content)} characters")
+    
+    try:
+        # Clean and extract JSON
+        cleaned_content = response_content.strip()
+        learning_path_json = extract_json(cleaned_content)
+        
+        if not learning_path_json:
+            try:
+                learning_path_json = json.loads(cleaned_content)
+            except json.JSONDecodeError:
+                raise ValueError("Could not parse JSON from response")
+        
+        # Validate JSON structure
+        if not isinstance(learning_path_json, dict):
+            raise ValueError("Response is not a valid JSON object")
+            
+        if "topics" not in learning_path_json or not isinstance(learning_path_json["topics"], list):
+            raise ValueError("Missing or invalid 'topics' field in JSON")
+            
+        logger.info("✅ Successfully parsed and validated JSON")
+        
+        # Create lesson document
+        lesson_id = f"lesson_{datetime.datetime.utcnow().timestamp()}"
+        topic = learning_path_json.get("name", "") or user_prompt.split("learning path for ")[-1].split(" ")[0] or "Generated Lesson"
+        
+        lesson_doc = {
+            "lesson_id": lesson_id,
+            "title": topic,
+            "description": learning_path_json.get("description", ""),
+            "content": "",
+            "lesson_type": "video",
+            "subject": topic,
+            "difficulty": learning_path_json.get("difficulty", "Intermediate"),
+            "duration": int(learning_path_json.get("course_duration", "30").split()[0]),
+            "is_public": True,
+            "created_by": username,
+            "resources": learning_path_json.get("links", []),
+            "tags": learning_path_json.get("tags", []),
+            "created_at": datetime.datetime.utcnow(),
+            "learning_path": learning_path_json,
+            "status": "pending_avatar",
+            "updated_at": datetime.datetime.utcnow()
+        }
+        
+        # Store in lessons collection
+        collections = get_collections()
+        lessons_collection = collections['lessons']
+        lessons_collection.insert_one(lesson_doc)
+        
+        logger.info(f"✅ Created lesson document with ID: {lesson_id}")
+        
+        # Store response in chat history
+        response_message = {
+            "role": "assistant",
+            "content": json.dumps(learning_path_json) if isinstance(learning_path_json, dict) else learning_path_json,
+            "type": "learning_path",
+            "timestamp": response_timestamp
+        }
+        
+        response_data = {
+            "response": "JSON",
+            "type": "learning_path",
+            "timestamp": response_timestamp,
+            "content": learning_path_json,
+            "lesson_id": lesson_id
+        }
+        
+        try:
+            await store_chat_history(username, response_message)
+        except Exception as store_error:
+            logger.error(f"❌ Error storing chat history: {store_error}")
+        return response_data
+
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error(f"❌ JSON parsing error: {str(e)}")
+        
+        if retry_count < max_retries - 1:
+            return await process_learning_path_query(
+                user_prompt, username, generate_response, extract_json,
+                store_chat_history, REGENRATE_OR_FILTER_JSON, LEARNING_PATH_PROMPT,
+                retry_count=retry_count + 1, max_retries=max_retries
+            )
+        else:
+            error_message = "I'm sorry, I couldn't generate a valid learning path. Please try again with more specific details."
+            error_response = {
+                "role": "assistant",
+                "content": error_message,
+                "type": "content",
+                "timestamp": response_timestamp
+            }
+            
+            try:
+                await store_chat_history(username, error_response)
+            except Exception as store_error:
+                logger.error(f"❌ Error storing chat history: {store_error}")
+            return {
+                "response": "ERROR",
+                "type": "content", 
+                "timestamp": response_timestamp,
+                "content": error_message
+            }
 
 class LearningPathCreate(BaseModel):
     name: str

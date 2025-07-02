@@ -4,7 +4,7 @@ User Service - Handles all user-related operations
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from models.schemas import User, UserCreate, UserUpdate, UserStats, APIResponse
-from database_config import get_collections
+from database import get_collections
 import bcrypt
 import logging
 
@@ -20,11 +20,11 @@ class UserService:
     async def create_user(self, user_data: UserCreate) -> APIResponse:
         """Create a new user"""
         try:
-            # Check if user already exists
+            # Check if user already exists (case-insensitive)
             existing_user = self.users_collection.find_one({
                 "$or": [
-                    {"username": user_data.username},
-                    {"email": user_data.email}
+                    {"username": {"$regex": f"^{user_data.username}$", "$options": "i"}},
+                    {"email": {"$regex": f"^{user_data.email}$", "$options": "i"}}
                 ]
             })
             
@@ -95,9 +95,12 @@ class UserService:
             )
     
     async def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
-        """Get user by username"""
+        """Get user by username (case-insensitive)"""
         try:
-            user = self.users_collection.find_one({"username": username})
+            # Case-insensitive search using regex
+            user = self.users_collection.find_one({
+                "username": {"$regex": f"^{username}$", "$options": "i"}
+            })
             if user:
                 user["_id"] = str(user["_id"])
             return user
@@ -108,29 +111,45 @@ class UserService:
     async def update_user(self, username: str, update_data: UserUpdate) -> APIResponse:
         """Update user information"""
         try:
+            # Get current user data once at the beginning
+            user = await self.get_user_by_username(username)
+            if not user:
+                return APIResponse(
+                    success=False,
+                    message="User not found"
+                )
+            
             update_doc = {"updated_at": datetime.utcnow()}
             
-            if update_data.name:
+            if update_data.name is not None:
                 update_doc["name"] = update_data.name
-            if update_data.preferences:
-                update_doc["preferences"] = update_data.preferences.dict()
-            if update_data.profile:
-                # Get current profile to merge with updates
-                user = await self.get_user_by_username(username)
-                current_profile = user.get("profile", {}) if user else {}
                 
-                # Create updated profile by merging current with updates
+            if update_data.preferences:
+                # Merge existing preferences with updates
+                existing_prefs = user.get("preferences", {})
+                updated_prefs = existing_prefs.copy()
+                preference_updates = update_data.preferences.dict(exclude_unset=True)
+                
+                for key, value in preference_updates.items():
+                    if value is not None:
+                        updated_prefs[key] = value
+                        
+                update_doc["preferences"] = updated_prefs
+                
+            if update_data.profile:
+                # Merge existing profile with updates
+                current_profile = user.get("profile", {})
                 updated_profile = current_profile.copy()
                 profile_updates = update_data.profile.dict(exclude_unset=True)
                 
                 for key, value in profile_updates.items():
-                    if value is not None:  # Only update fields that are provided
+                    if value is not None:
                         updated_profile[key] = value
                 
                 update_doc["profile"] = updated_profile
             
             result = self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {"$set": update_doc}
             )
             
@@ -179,7 +198,7 @@ class UserService:
             
             # Update password
             result = self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {
                     "$set": {
                         "password_hash": new_password_hash,
@@ -259,7 +278,7 @@ class UserService:
             
             # Update user stats in database
             self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {"$set": {"stats": stats.dict(), "updated_at": datetime.utcnow()}}
             )
             
@@ -273,7 +292,7 @@ class UserService:
         """Update user's last login timestamp"""
         try:
             self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {"$set": {"last_login": datetime.utcnow()}}
             )
         except Exception as e:

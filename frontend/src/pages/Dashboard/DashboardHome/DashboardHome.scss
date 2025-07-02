@@ -1,224 +1,187 @@
 @use "../../../styles/variables" as v;
 @use "../../../styles/themes";
 
-.clean-dashboard-home {
-  background: var(--bg-primary);
+.minimalist-home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-height: calc(100vh - #{v.$navbar-height});
-  overflow-y: auto;
-  padding: 3rem 0;
+  background: var(--bg-primary);
+  padding: 2rem 1rem;
   
-  .container-fluid {
-    max-width: 1400px;
-    margin: 0 auto;
+  .chat-container {
+    max-width: 900px; /* Increased from 768px for larger UI */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
   
-  // Hero Section
-  .hero-section {
-    margin-bottom: 4rem;
+  .welcome-section {
+    text-align: center;
+    margin-bottom: 3rem; /* Increased spacing */
     
-    .hero-content {
-      padding: 2rem 1rem;
-      
-      @media (min-width: v.$breakpoint-tablet) {
-        padding: 2rem 3rem 2rem 0;
-      }
+    .brand-logo {
+      width: 120px; /* Increased from 80px */
+      height: 120px; /* Increased from 80px */
+      margin-bottom: 2rem; /* Increased from 1.5rem */
+      animation: float 6s ease-in-out infinite;
     }
     
-    .hero-title {
-      font-size: 2.5rem;
+    .welcome-message {
+      font-size: 2.5rem; /* Increased from 2rem */
       font-weight: v.$font-weight-bold;
       color: var(--text-primary);
-      margin-bottom: 1.5rem;
+      margin: 0;
       background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      
-      @media (min-width: v.$breakpoint-tablet) {
-        font-size: 3rem;
-      }
-    }
-    
-    .hero-subtitle {
-      font-size: 1.125rem;
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-      line-height: 1.6;
-      
-      @media (min-width: v.$breakpoint-tablet) {
-        font-size: 1.25rem;
-      }
-    }
-    
-    .cta-button {
-      padding: 0.75rem 2rem;
-      font-weight: v.$font-weight-semibold;
-      font-size: 1.125rem;
-      border-radius: v.$border-radius-lg;
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      border: none;
-      transition: all 0.3s ease;
-      
-      &:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
-      }
-    }
-    
-    .hero-image {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 2rem;
-      
-      img {
-        max-width: 300px;
-        animation: float 6s ease-in-out infinite;
-      }
     }
   }
   
-  // Offerings Section
-  .offerings-section {
-    margin-bottom: 4rem;
-    padding: 0 1rem;
+  .chat-form {
+    width: 100%;
+    max-width: 800px; /* Increased from 650px */
+    margin-bottom: 3rem; /* Increased from 2rem */
     
-    .section-title {
-      text-align: center;
-      font-size: 2rem;
-      font-weight: v.$font-weight-bold;
-      color: var(--text-primary);
-      margin-bottom: 2.5rem;
-    }
-    
-    .offering-card {
-      height: 100%;
-      border-radius: v.$border-radius-xl;
-      border: 1px solid var(--border-light);
+    .input-wrapper {
+      position: relative;
       background: var(--card-bg);
+      border: 1px solid var(--border-light);
+      border-radius: 24px;
+      padding: 18px 22px; /* Increased from 14px 18px */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       transition: all 0.3s ease;
-      padding: 1rem;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
       
-      &:hover {
-        transform: translateY(-10px);
-        box-shadow: var(--shadow-lg);
+      &:focus-within {
         border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        transform: translateY(-2px);
       }
       
-      .offering-icon {
-        width: 60px;
-        height: 60px;
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-        border-radius: 50%;
+      .chat-textarea {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 18px; /* Increased from 16px */
+        font-family: inherit;
+        line-height: 1.5;
+        resize: none;
+        min-height: 28px; /* Increased from 24px */
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0;
+        
+        &::placeholder {
+          color: var(--text-tertiary);
+        }
+        
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        
+        // Custom scrollbar
+        &::-webkit-scrollbar {
+          width: 4px;
+        }
+        
+        &::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        &::-webkit-scrollbar-thumb {
+          background: var(--border-color);
+          border-radius: 2px;
+          
+          &:hover {
+            background: var(--text-tertiary);
+          }
+        }
+      }
+      
+      .input-actions {
         display: flex;
         align-items: center;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-        color: white;
-        font-size: 1.5rem;
-      }
-      
-      .card-title {
-        font-size: 1.25rem;
-        font-weight: v.$font-weight-bold;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-      }
-      
-      .card-text {
-        color: var(--text-secondary);
-        margin-bottom: 1.5rem;
-        flex-grow: 1;
-      }
-      
-      .btn {
-        width: 100%;
-        border-radius: v.$border-radius-lg;
-        padding: 0.625rem 1rem;
-        font-weight: v.$font-weight-medium;
+        flex-shrink: 0;
         
-        &:hover {
-          transform: translateY(-2px);
+        .send-btn {
+          width: 44px; /* Increased from 36px */
+          height: 44px; /* Increased from 36px */
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+          padding: 0;
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+          border: none;
+          color: white;
+          font-size: 1.2rem; /* Added for larger icon */
+          
+          &:hover:not(:disabled) {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+          }
+          
+          &:active:not(:disabled) {
+            transform: scale(0.95);
+          }
+          
+          &.disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-tertiary);
+            cursor: not-allowed;
+          }
         }
       }
     }
   }
   
-  // Benefits Section
-  .benefits-section {
-    margin-bottom: 4rem;
-    padding: 3rem 1rem;
-    background: var(--bg-secondary);
+  .suggestion-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem; /* Increased from 0.75rem */
+    max-width: 800px; /* Increased from 650px */
     
-    .section-title {
-      text-align: center;
-      font-size: 2rem;
-      font-weight: v.$font-weight-bold;
-      color: var(--text-primary);
-      margin-bottom: 2.5rem;
-    }
-    
-    .benefit-item {
-      text-align: center;
-      margin-bottom: 2rem;
-      
-      h3 {
-        font-size: 1.5rem;
-        font-weight: v.$font-weight-semibold;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-      }
-      
-      p {
-        color: var(--text-secondary);
-        font-size: 1.125rem;
-        line-height: 1.6;
-      }
-    }
-    
-    .main-cta {
-      padding: 0.875rem 2.5rem;
-      font-weight: v.$font-weight-semibold;
-      font-size: 1.125rem;
-      border-radius: v.$border-radius-lg;
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      border: none;
+    .suggestion-chip {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: v.$border-radius-full;
+      padding: 1rem 1.5rem; /* Increased from 0.75rem 1.25rem */
+      color: var(--text-secondary);
+      font-size: 1rem; /* Increased from 0.9rem */
       transition: all 0.3s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem; /* Increased from 0.5rem */
+      
+      .icon {
+        color: var(--primary-color);
+        font-size: 1.2rem; /* Added for larger icon */
+      }
       
       &:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        background: var(--bg-tertiary);
+        border-color: var(--primary-color);
+        color: var(--text-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
       }
-    }
-  }
-  
-  // Footer
-  .dashboard-footer {
-    text-align: center;
-    padding: 2rem 1rem;
-    border-top: 1px solid var(--border-light);
-    
-    .footer-links {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 2rem;
-      margin-bottom: 1.5rem;
       
-      a {
-        color: var(--text-secondary);
-        text-decoration: none;
-        transition: color 0.3s ease;
-        
-        &:hover {
-          color: var(--primary-color);
-        }
+      &:active {
+        transform: translateY(0);
       }
-    }
-    
-    .copyright {
-      color: var(--text-tertiary);
-      font-size: 0.875rem;
     }
   }
 }
@@ -229,79 +192,63 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-20px);
+    transform: translateY(-15px);
   }
 }
 
 // Responsive adjustments
 @media (max-width: v.$breakpoint-tablet) {
-  .clean-dashboard-home {
-    padding: 2rem 0;
-    
-    .hero-section {
-      text-align: center;
-      margin-bottom: 3rem;
-      
-      .hero-content {
-        padding: 1rem;
+  .minimalist-home {
+    .welcome-section {
+      .brand-logo {
+        width: 100px; /* Increased from 70px */
+        height: 100px; /* Increased from 70px */
       }
       
-      .hero-title {
-        font-size: 2.25rem;
-      }
-      
-      .hero-subtitle {
-        font-size: 1rem;
+      .welcome-message {
+        font-size: 2rem; /* Increased from 1.75rem */
       }
     }
     
-    .offerings-section {
-      margin-bottom: 3rem;
+    .suggestion-chips {
+      flex-direction: column;
+      align-items: center;
       
-      .section-title {
-        font-size: 1.75rem;
-      }
-    }
-    
-    .benefits-section {
-      margin-bottom: 3rem;
-      padding: 2rem 1rem;
-      
-      .section-title {
-        font-size: 1.75rem;
-      }
-      
-      .benefit-item {
-        h3 {
-          font-size: 1.25rem;
-        }
-        
-        p {
-          font-size: 1rem;
-        }
+      .suggestion-chip {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
       }
     }
   }
 }
 
 @media (max-width: v.$breakpoint-mobile) {
-  .clean-dashboard-home {
-    padding: 1.5rem 0;
+  .minimalist-home {
+    padding: 1.5rem 1rem;
     
-    .hero-section {
-      .hero-title {
-        font-size: 2rem;
+    .welcome-section {
+      margin-bottom: 2rem;
+      
+      .brand-logo {
+        width: 80px; /* Increased from 60px */
+        height: 80px; /* Increased from 60px */
+        margin-bottom: 1.5rem; /* Increased from 1rem */
       }
       
-      .hero-image img {
-        max-width: 200px;
+      .welcome-message {
+        font-size: 1.75rem; /* Increased from 1.5rem */
       }
     }
     
-    .dashboard-footer {
-      .footer-links {
-        gap: 1rem;
-        flex-direction: column;
+    .chat-form {
+      .input-wrapper {
+        padding: 14px 18px; /* Slightly smaller on mobile but still larger than before */
+        
+        .send-btn {
+          width: 40px; /* Slightly smaller on mobile */
+          height: 40px; /* Slightly smaller on mobile */
+        }
       }
     }
   }

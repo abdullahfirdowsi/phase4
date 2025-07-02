@@ -1,3 +1,4 @@
+# Using enhanced database with optimized collections
 # quiz_system.py
 import json
 import datetime

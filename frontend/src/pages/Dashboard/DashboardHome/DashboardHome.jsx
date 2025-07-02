@@ -1,154 +1,107 @@
-import React from "react";
-import { Container, Row, Col, Card, Button } from "react-bootstrap";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookHalf, Award, Mortarboard } from "react-bootstrap-icons";
+import { Container, Form, Button } from "react-bootstrap";
+import { SendFill, Book, QuestionCircle, Lightbulb } from "react-bootstrap-icons";
 import "./DashboardHome.scss";
 
 const DashboardHome = () => {
+  const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
-  const handleNavigate = (path) => {
-    navigate(path);
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!message.trim()) return;
+    
+    // Store the message in sessionStorage to retrieve it in the chat page
+    sessionStorage.setItem("initialQuestion", message.trim());
+    
+    // Navigate to the chat page
+    navigate("/dashboard/chat");
+  };
+
+  const handleSuggestionClick = (suggestion, mode) => {
+    console.log('🎯 Suggestion clicked:', { suggestion, mode });
+    
+    // Store the message and mode in sessionStorage
+    sessionStorage.setItem("initialQuestion", suggestion);
+    
+    if (mode) {
+      sessionStorage.setItem("initialMode", mode);
+      console.log('💾 Mode set:', mode);
+    } else {
+      // Clear any existing mode
+      sessionStorage.removeItem("initialMode");
+      console.log('💾 No mode specified, cleared any existing mode');
+    }
+    
+    // Navigate to the chat page
+    console.log('🚀 Navigating to AI Chat');
+    navigate("/dashboard/chat");
   };
 
   return (
-    <div className="clean-dashboard-home">
-      <Container fluid>
-        {/* Hero Section */}
-        <section className="hero-section">
-          <Row className="align-items-center">
-            <Col lg={6} md={12}>
-              <div className="hero-content">
-                <h1 className="hero-title">Welcome to AI Tutor</h1>
-                <p className="hero-subtitle">
-                  Your personalized learning platform powered by artificial intelligence.
-                  Master new skills with customized learning paths and interactive lessons.
-                </p>
-                <Button 
-                  variant="primary" 
-                  size="lg" 
-                  className="cta-button"
-                  onClick={() => handleNavigate('/dashboard/learning-paths')}
-                >
-                  Start Learning
-                </Button>
-              </div>
-            </Col>
-            <Col lg={6} md={12} className="d-flex justify-content-center">
-              <div className="hero-image">
-                <img 
-                  src="/icons/aitutor-short-no-bg.png" 
-                  alt="AI Tutor" 
-                  className="img-fluid"
-                />
-              </div>
-            </Col>
-          </Row>
-        </section>
-
-        {/* Core Offerings Section */}
-        <section className="offerings-section">
-          <h2 className="section-title">Our Learning Solutions</h2>
-          <Row>
-            <Col lg={4} md={6} className="mb-4">
-              <Card className="offering-card">
-                <Card.Body>
-                  <div className="offering-icon">
-                    <BookHalf />
-                  </div>
-                  <Card.Title>Personalized Learning Paths</Card.Title>
-                  <Card.Text>
-                    Custom study plans tailored to your learning style, pace, and goals.
-                  </Card.Text>
-                  <Button 
-                    variant="outline-primary" 
-                    onClick={() => handleNavigate('/dashboard/learning-paths')}
-                  >
-                    Explore Paths
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col lg={4} md={6} className="mb-4">
-              <Card className="offering-card">
-                <Card.Body>
-                  <div className="offering-icon">
-                    <Award />
-                  </div>
-                  <Card.Title>Interactive Quizzes</Card.Title>
-                  <Card.Text>
-                    Test your knowledge with AI-generated quizzes on any subject.
-                  </Card.Text>
-                  <Button 
-                    variant="outline-primary" 
-                    onClick={() => handleNavigate('/dashboard/quiz-system')}
-                  >
-                    Take a Quiz
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col lg={4} md={6} className="mb-4">
-              <Card className="offering-card">
-                <Card.Body>
-                  <div className="offering-icon">
-                    <Mortarboard />
-                  </div>
-                  <Card.Title>Expert Lessons</Card.Title>
-                  <Card.Text>
-                    Access curated educational content from subject matter experts.
-                  </Card.Text>
-                  <Button 
-                    variant="outline-primary" 
-                    onClick={() => handleNavigate('/dashboard/learning')}
-                  >
-                    View Lessons
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        </section>
-
-        {/* Key Benefits Section */}
-        <section className="benefits-section">
-          <h2 className="section-title">Why Choose AI Tutor</h2>
-          <Row>
-            <Col md={4} className="benefit-item">
-              <h3>Personalized Learning</h3>
-              <p>AI-powered education tailored to your unique learning style and pace.</p>
-            </Col>
-            <Col md={4} className="benefit-item">
-              <h3>Learn Anywhere</h3>
-              <p>Access your courses and materials from any device, anytime.</p>
-            </Col>
-            <Col md={4} className="benefit-item">
-              <h3>Track Progress</h3>
-              <p>Monitor your learning journey with detailed insights and analytics.</p>
-            </Col>
-          </Row>
-          <div className="text-center mt-4">
-            <Button 
-              variant="primary" 
-              size="lg" 
-              className="main-cta"
-              onClick={() => handleNavigate('/dashboard/learning-paths')}
-            >
-              Get Started Now
-            </Button>
+    <div className="minimalist-home">
+      <Container className="chat-container">
+        <div className="welcome-section">
+          <img 
+            src="/icons/aitutor-short-no-bg.png" 
+            alt="AI Tutor" 
+            className="brand-logo"
+          />
+          <h1 className="welcome-message">How can I help you today?</h1>
+        </div>
+        
+        <Form className="chat-form" onSubmit={handleSubmit}>
+          <div className="input-wrapper">
+            <textarea
+              placeholder="Message AI Tutor..."
+              className="chat-textarea"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              rows={1}
+            />
+            
+            <div className="input-actions">
+              <Button 
+                type="submit" 
+                className={`send-btn ${!message.trim() ? 'disabled' : ''}`}
+                disabled={!message.trim()}
+              >
+                <SendFill />
+              </Button>
+            </div>
           </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="dashboard-footer">
-          <div className="footer-links">
-            <a href="/dashboard">Home</a>
-            <a href="/dashboard/learning-paths">Learning Paths</a>
-            <a href="/dashboard/quiz-system">Quizzes</a>
-            <a href="/dashboard/learning">Lessons</a>
-          </div>
-          <p className="copyright">© 2025 AI Tutor. All rights reserved.</p>
-        </footer>
+        </Form>
+        
+        <div className="suggestion-chips">
+          <button 
+            className="suggestion-chip"
+            onClick={() => handleSuggestionClick("Create a Python learning path", "learning_path")}
+          >
+            <Book className="icon" />
+            <span>Create a Python learning path</span>
+          </button>
+          <button 
+            className="suggestion-chip"
+            onClick={() => handleSuggestionClick("Generate a history quiz", "quiz")}
+          >
+            <QuestionCircle className="icon" />
+            <span>Generate a history quiz</span>
+          </button>
+          <button 
+            className="suggestion-chip"
+            onClick={() => handleSuggestionClick("Explain machine learning")}
+          >
+            <Lightbulb className="icon" />
+            <span>Explain machine learning</span>
+          </button>
+        </div>
       </Container>
     </div>
   );

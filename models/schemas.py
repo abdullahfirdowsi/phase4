@@ -78,10 +78,23 @@ class UserCreate(BaseModel):
     is_admin: bool = False
     profile: Optional[UserProfile] = None
 
+class UserPreferencesUpdate(BaseModel):
+    language: Optional[str] = None
+    user_role: Optional[UserRole] = None
+    age_group: Optional[str] = None
+    time_value: Optional[int] = None
+
+class UserProfileUpdate(BaseModel):
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+    skill_level: Optional[DifficultyLevel] = None
+    voice_id: Optional[str] = None
+    voice_name: Optional[str] = None
+
 class UserUpdate(BaseModel):
     name: Optional[str] = None
-    preferences: Optional[UserPreferences] = None
-    profile: Optional[UserProfile] = None
+    preferences: Optional[UserPreferencesUpdate] = None
+    profile: Optional[UserProfileUpdate] = None
 
 class User(BaseModel):
     id: Optional[str] = Field(alias="_id")

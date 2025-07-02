@@ -1,9 +1,9 @@
 """
 Enhanced Authentication API with new database structure
 """
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
+from fastapi import APIRouter, HTTPException, Depends, Query, Body, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from models.schemas import UserCreate, UserUpdate, UserProfile, APIResponse
+from models.schemas import UserCreate, UserUpdate, UserProfile, APIResponse, UserProfileUpdate, UserPreferencesUpdate
 from services.user_service import user_service
 from services.chat_service import chat_service
 import bcrypt
@@ -15,6 +15,7 @@ import requests
 import json
 
 logger = logging.getLogger(__name__)
+logger.info("🚀 AUTH API LOADED WITH NEW PROFILE UPDATE ENDPOINT - VERSION 2.0")
 
 auth_router = APIRouter()
 security = HTTPBearer()
@@ -45,6 +46,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     """Get current user from JWT token"""
     return verify_jwt_token(credentials.credentials)
 
+# Compatibility function for legacy imports
+def get_current_user_from_token(token: str) -> str:
+    """Legacy compatibility function for get_current_user"""
+    return verify_jwt_token(token)
+
 def is_default_admin(email: str) -> bool:
     """Check if email should have admin privileges"""
     return email.lower() == DEFAULT_ADMIN_EMAIL.lower()
@@ -53,6 +59,10 @@ def is_default_admin(email: str) -> bool:
 async def signup(user_data: UserCreate):
     """User registration endpoint"""
     try:
+        # Normalize username and email to lowercase for consistency
+        user_data.username = user_data.username.lower().strip()
+        user_data.email = user_data.email.lower().strip()
+        
         # Check if this is the default admin email
         if is_default_admin(user_data.username):
             user_data.is_admin = True
@@ -81,9 +91,23 @@ async def signup(user_data: UserCreate):
 async def login(username: str = Body(...), password: str = Body(...)):
     """User login endpoint"""
     try:
+        # Normalize username to lowercase for consistency
+        username = username.lower().strip()
+        
         user = await user_service.get_user_by_username(username)
         
-        if not user or not bcrypt.checkpw(password.encode('utf-8'), user["password_hash"].encode('utf-8')):
+        if not user:
+            raise HTTPException(status_code=400, detail="User not found")
+        
+        # Check if this is a Google OAuth user trying to login with password
+        if user["password_hash"] and bcrypt.checkpw("google-oauth-user".encode('utf-8'), user["password_hash"].encode('utf-8')):
+            # This is a Google OAuth user - they need to set a password first
+            raise HTTPException(
+                status_code=423,  # 423 Locked - special status for password setup needed
+                detail="google_oauth_password_setup_required"
+            )
+        
+        if not bcrypt.checkpw(password.encode('utf-8'), user["password_hash"].encode('utf-8')):
             raise HTTPException(status_code=400, detail="Invalid credentials")
         
         # Check if user should have admin privileges
@@ -155,6 +179,9 @@ async def google_login(request_body: dict = Body(...)):
         
         if not email:
             raise HTTPException(status_code=400, detail="Email not found in Google token")
+        
+        # Normalize email to lowercase for consistency
+        email = email.lower()
         
         # Check if user exists
         user = await user_service.get_user_by_username(email)
@@ -297,16 +324,38 @@ async def check_admin_status(username: str = Query(...)):
 
 @auth_router.post("/update-preferences")
 async def update_user_preferences(
-    username: str = Body(...),
-    preferences: dict = Body(...),
+    request: Request,
     current_user: str = Depends(get_current_user)
 ):
     """Update user preferences"""
     try:
+        # Get the raw JSON body
+        request_data = await request.json()
+        
+        logger.info(f"RAW PREFERENCES REQUEST: {request_data}")
+        logger.info(f"PREFERENCES REQUEST TYPE: {type(request_data)}")
+        
+        # Extract data from request
+        username = request_data.get("username")
+        preferences = request_data.get("preferences")
+        
+        logger.info(f"Preferences update request: username={username}, preferences={preferences}")
+        
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+            
         if current_user != username:
             raise HTTPException(status_code=403, detail="Access denied")
+            
+        if not preferences:
+            raise HTTPException(status_code=400, detail="Preferences data is required")
         
-        update_data = UserUpdate(preferences=preferences)
+        try:
+            update_data = UserUpdate(preferences=UserPreferencesUpdate(**preferences))
+        except Exception as pref_error:
+            logger.error(f"Preferences validation error: {pref_error}")
+            raise HTTPException(status_code=422, detail=f"Invalid preferences data: {pref_error}")
+            
         result = await user_service.update_user(username, update_data)
         
         if not result.success:
@@ -322,16 +371,49 @@ async def update_user_preferences(
 
 @auth_router.post("/update-profile")
 async def update_user_profile(
-    username: str = Body(...),
-    profile: dict = Body(...),
+    request: Request,
     current_user: str = Depends(get_current_user)
 ):
-    """Update user profile"""
+    """Update user profile and basic info"""
     try:
+        # Get the raw JSON body
+        request_data = await request.json()
+        
+        logger.info(f"RAW REQUEST RECEIVED: {request_data}")
+        logger.info(f"REQUEST TYPE: {type(request_data)}")
+        
+        # Extract data from request
+        username = request_data.get("username")
+        name = request_data.get("name")
+        profile = request_data.get("profile")
+        
+        logger.info(f"Profile update request: username={username}, name={name}, profile={profile}")
+        
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+            
         if current_user != username:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        update_data = UserUpdate(profile=profile)
+        # Build update data
+        update_dict = {}
+        
+        # Add name if provided
+        if name is not None and name.strip():
+            update_dict["name"] = name.strip()
+            
+        # Add profile if provided
+        if profile is not None:
+            try:
+                update_dict["profile"] = UserProfileUpdate(**profile)
+            except Exception as profile_error:
+                logger.error(f"Profile validation error: {profile_error}")
+                raise HTTPException(status_code=422, detail=f"Invalid profile data: {profile_error}")
+        
+        if not update_dict:
+            raise HTTPException(status_code=400, detail="No valid data provided for update")
+        
+        update_data = UserUpdate(**update_dict)
         result = await user_service.update_user(username, update_data)
         
         if not result.success:
@@ -345,6 +427,7 @@ async def update_user_profile(
         logger.error(f"Profile update error: {e}")
         raise HTTPException(status_code=500, detail="Failed to update profile")
 
+
 @auth_router.get("/admin-info")
 async def get_admin_info():
     """Get information about admin configuration"""
@@ -353,6 +436,69 @@ async def get_admin_info():
         "message": f"Users with email '{DEFAULT_ADMIN_EMAIL}' automatically receive admin privileges",
         "auto_admin_enabled": True
     }
+
+@auth_router.post("/setup-password")
+async def setup_password_for_google_user(
+    username: str = Body(...), 
+    new_password: str = Body(...)
+):
+    """Setup password for Google OAuth users"""
+    try:
+        # Normalize username to lowercase for consistency
+        username = username.lower().strip()
+        
+        user = await user_service.get_user_by_username(username)
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Verify this is a Google OAuth user
+        if not (user["password_hash"] and bcrypt.checkpw("google-oauth-user".encode('utf-8'), user["password_hash"].encode('utf-8'))):
+            raise HTTPException(
+                status_code=400, 
+                detail="This endpoint is only for Google OAuth users who haven't set a password yet"
+            )
+        
+        # Validate password
+        if len(new_password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+        
+        # Hash the new password
+        new_password_hash = bcrypt.hashpw(
+            new_password.encode('utf-8'), 
+            bcrypt.gensalt()
+        ).decode('utf-8')
+        
+        # Update user's password in database
+        from database import get_collections
+        collections = get_collections()
+        users_collection = collections['users']
+        
+        result = users_collection.update_one(
+            {"username": {"$regex": f"^{username}$", "$options": "i"}},
+            {
+                "$set": {
+                    "password_hash": new_password_hash,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        logger.info(f"Password setup completed for Google OAuth user: {username}")
+        
+        return {
+            "message": "Password setup successful! You can now login with both Google OAuth and email/password.",
+            "success": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password setup error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to setup password")
 
 @auth_router.get("/users-overview")
 async def get_users_overview(current_user: str = Depends(get_current_user)):

@@ -4,7 +4,7 @@ Learning Service - Handles learning goals, paths, and progress tracking
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from models.schemas import LearningGoal, DifficultyLevel, APIResponse
-from database_config import get_collections
+from database import get_collections
 import uuid
 import logging
 

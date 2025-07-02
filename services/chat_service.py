@@ -4,7 +4,7 @@ Chat Service - Handles all chat and messaging operations
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timedelta
 from models.schemas import ChatMessage, MessageType, APIResponse
-from database_config import get_collections
+from database import get_collections
 import uuid
 import logging
 

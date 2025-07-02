@@ -1,17 +1,19 @@
 """
 Profile API - Handles user profile operations
 """
-from fastapi import APIRouter, HTTPException, Body, Query, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Body, Query, Depends, UploadFile, File, Request
 from fastapi.responses import JSONResponse
-from models.schemas import UserProfile, APIResponse
+from models.schemas import UserProfile, APIResponse, UserUpdate, UserProfileUpdate
 from services.user_service import user_service
 from services.s3_service import s3_service
-from auth import get_current_user
+from api.auth_api import get_current_user
 import logging
 import os
 import uuid
+from jose import jwt
 
 logger = logging.getLogger(__name__)
+logger.info("🔧 PROFILE API LOADED - PASSWORD ENDPOINT AVAILABLE")
 
 profile_router = APIRouter()
 
@@ -65,7 +67,8 @@ async def update_user_profile(
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Update profile
-        result = await user_service.update_user(username, {"profile": profile})
+        update_data = UserUpdate(profile=UserProfileUpdate(**profile))
+        result = await user_service.update_user(username, update_data)
         
         if not result.success:
             raise HTTPException(status_code=400, detail=result.message)
@@ -113,21 +116,52 @@ async def update_language_preference(
         logger.error(f"Language update error: {e}")
         raise HTTPException(status_code=500, detail="Failed to update language preference")
 
-@profile_router.patch("/profile/password")
+@profile_router.patch("/password")
 async def update_user_password(
-    username: str = Body(...),
-    current_password: str = Body(...),
-    new_password: str = Body(...),
-    current_user: str = Depends(get_current_user)
+    request: Request
 ):
     """Update user password endpoint"""
     try:
+        # Manual authentication check using header token
+        auth_header = request.headers.get("authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        token = auth_header.split(" ")[1]
+        try:
+            # Use the same JWT secret as auth_api.py
+            JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            current_user = payload.get("sub")
+            if not current_user:
+                raise HTTPException(status_code=401, detail="Invalid token")
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.JWTError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        # Get the raw JSON body
+        request_data = await request.json()
+        
+        logger.info(f"RAW PASSWORD REQUEST: {request_data}")
+        logger.info(f"PASSWORD REQUEST TYPE: {type(request_data)}")
+        logger.info(f"Authenticated user: {current_user}")
+        
+        # Extract data from request
+        username = request_data.get("username")
+        current_password = request_data.get("current_password")
+        new_password = request_data.get("new_password")
+        
+        logger.info(f"Password update request: username={username}")
+        
+        if not username or not current_password or not new_password:
+            raise HTTPException(status_code=400, detail="Username, current password, and new password are required")
+        
         # Verify user is updating their own password
         if current_user != username:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise HTTPException(status_code=403, detail="Access denied - can only update your own password")
         
         # Verify current password and update to new password
-        # This would be implemented in the user_service
         result = await user_service.update_password(username, current_password, new_password)
         
         if not result.success:
