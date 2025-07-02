@@ -171,20 +171,6 @@ export const googleLogin = async (credential) => {
   }
 };
 
-// Check if user needs password setup (for Google OAuth users)
-export const checkPasswordStatus = async (email) => {
-  try {
-    const data = await apiRequest(`${API_BASE_URL}/auth/check-password-status`, {
-      method: "POST",
-      body: JSON.stringify({ email: email }),
-    });
-
-    return data;
-  } catch (error) {
-    throw new Error(error.message || "Failed to check password status");
-  }
-};
-
 // Setup password for Google OAuth users
 export const setupPasswordForGoogleUser = async (username, newPassword) => {
   try {

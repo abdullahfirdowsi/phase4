@@ -437,42 +437,6 @@ async def get_admin_info():
         "auto_admin_enabled": True
     }
 
-@auth_router.post("/check-password-status")
-async def check_password_status(request_body: dict = Body(...)):
-    """Check if user needs to set up a password (for Google OAuth users)"""
-    try:
-        # Extract email from request body
-        email = request_body.get("email")
-        if not email:
-            raise HTTPException(status_code=400, detail="Email is required")
-        
-        # Normalize email to lowercase for consistency
-        email = email.lower().strip()
-        
-        user = await user_service.get_user_by_username(email)
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Check if this is a Google OAuth user
-        if user["password_hash"] and bcrypt.checkpw("google-oauth-user".encode('utf-8'), user["password_hash"].encode('utf-8')):
-            return {
-                "needs_password_setup": True,
-                "message": "This account was created with Google OAuth. Please set up a password for manual login.",
-                "username": email
-            }
-        else:
-            return {
-                "needs_password_setup": False,
-                "message": "Account has a password set. Please use the regular login."
-            }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Password status check error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to check password status")
-
 @auth_router.post("/setup-password")
 async def setup_password_for_google_user(
     username: str = Body(...), 
