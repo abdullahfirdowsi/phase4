@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     
     try:
         # Initialize database
-        from database_config import initialize_database
+        from database import initialize_database
         initialize_database()
         logger.info("✅ Database initialized successfully")
         

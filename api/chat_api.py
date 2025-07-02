@@ -131,7 +131,7 @@ async def process_learning_path_request(username: str, session_id: str, user_pro
     """Process learning path generation request"""
     try:
         # Import here to avoid circular imports
-        from learning_path import process_learning_path_query
+        from learning_paths import process_learning_path_query
         from chat import generate_response
         from utils import extract_json
         from constants import LEARNING_PATH_PROMPT, REGENRATE_OR_FILTER_JSON

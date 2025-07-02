@@ -165,7 +165,7 @@ class DatabaseReset:
             logger.info("🏗️ Recreating database structure...")
             
             # Initialize the enhanced database structure
-            from database_config import initialize_database
+            from database import initialize_database
             initialize_database()
             
             logger.info("✅ Database structure recreated")

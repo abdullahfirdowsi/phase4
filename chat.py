@@ -11,7 +11,7 @@ from database import chats_collection, users_collection
 from constants import get_basic_environment_prompt, LEARNING_PATH_PROMPT, REGENRATE_OR_FILTER_JSON, CALCULATE_SCORE
 from utils import extract_json
 import os
-from learning_path import process_learning_path_query
+from learning_paths import process_learning_path_query
 import logging
 
 # Configure logging

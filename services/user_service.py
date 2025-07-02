@@ -4,7 +4,7 @@ User Service - Handles all user-related operations
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from models.schemas import User, UserCreate, UserUpdate, UserStats, APIResponse
-from database_config import get_collections
+from database import get_collections
 import bcrypt
 import logging
 
