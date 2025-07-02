@@ -38,17 +38,14 @@ const PreferencesSettings = () => {
   const skillLevelOptions = [
     { value: 'beginner', label: 'Beginner', icon: '🌱', description: 'Just starting out' },
     { value: 'intermediate', label: 'Intermediate', icon: '🌿', description: 'Some experience' },
-    { value: 'advanced', label: 'Advanced', icon: '🌳', description: 'Highly experienced' },
-    { value: 'expert', label: 'Expert', icon: '🏆', description: 'Professional level' },
-    { value: 'senior', label: 'Senior', icon: '👑', description: 'Senior professional/educator' }
+    { value: 'advanced', label: 'Advanced', icon: '🌳', description: 'Highly experienced' }
   ];
 
   const timeValueOptions = [
     { value: 15, label: '15 minutes', description: 'Quick sessions' },
     { value: 30, label: '30 minutes', description: 'Standard sessions' },
     { value: 45, label: '45 minutes', description: 'Extended sessions' },
-    { value: 60, label: '1 hour', description: 'Long sessions' },
-    { value: 90, label: '1.5 hours', description: 'Extended learning' }
+    { value: 60, label: '1 hour', description: 'Long sessions' }
   ];
 
   useEffect(() => {
