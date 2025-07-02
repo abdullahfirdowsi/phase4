@@ -59,6 +59,10 @@ def is_default_admin(email: str) -> bool:
 async def signup(user_data: UserCreate):
     """User registration endpoint"""
     try:
+        # Normalize username and email to lowercase for consistency
+        user_data.username = user_data.username.lower().strip()
+        user_data.email = user_data.email.lower().strip()
+        
         # Check if this is the default admin email
         if is_default_admin(user_data.username):
             user_data.is_admin = True
@@ -87,6 +91,9 @@ async def signup(user_data: UserCreate):
 async def login(username: str = Body(...), password: str = Body(...)):
     """User login endpoint"""
     try:
+        # Normalize username to lowercase for consistency
+        username = username.lower().strip()
+        
         user = await user_service.get_user_by_username(username)
         
         if not user or not bcrypt.checkpw(password.encode('utf-8'), user["password_hash"].encode('utf-8')):
@@ -161,6 +168,9 @@ async def google_login(request_body: dict = Body(...)):
         
         if not email:
             raise HTTPException(status_code=400, detail="Email not found in Google token")
+        
+        # Normalize email to lowercase for consistency
+        email = email.lower()
         
         # Check if user exists
         user = await user_service.get_user_by_username(email)

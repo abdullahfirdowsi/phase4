@@ -20,11 +20,11 @@ class UserService:
     async def create_user(self, user_data: UserCreate) -> APIResponse:
         """Create a new user"""
         try:
-            # Check if user already exists
+            # Check if user already exists (case-insensitive)
             existing_user = self.users_collection.find_one({
                 "$or": [
-                    {"username": user_data.username},
-                    {"email": user_data.email}
+                    {"username": {"$regex": f"^{user_data.username}$", "$options": "i"}},
+                    {"email": {"$regex": f"^{user_data.email}$", "$options": "i"}}
                 ]
             })
             
@@ -95,9 +95,12 @@ class UserService:
             )
     
     async def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
-        """Get user by username"""
+        """Get user by username (case-insensitive)"""
         try:
-            user = self.users_collection.find_one({"username": username})
+            # Case-insensitive search using regex
+            user = self.users_collection.find_one({
+                "username": {"$regex": f"^{username}$", "$options": "i"}
+            })
             if user:
                 user["_id"] = str(user["_id"])
             return user
@@ -146,7 +149,7 @@ class UserService:
                 update_doc["profile"] = updated_profile
             
             result = self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {"$set": update_doc}
             )
             
@@ -195,7 +198,7 @@ class UserService:
             
             # Update password
             result = self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {
                     "$set": {
                         "password_hash": new_password_hash,
@@ -275,7 +278,7 @@ class UserService:
             
             # Update user stats in database
             self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {"$set": {"stats": stats.dict(), "updated_at": datetime.utcnow()}}
             )
             
@@ -289,7 +292,7 @@ class UserService:
         """Update user's last login timestamp"""
         try:
             self.users_collection.update_one(
-                {"username": username},
+                {"username": {"$regex": f"^{username}$", "$options": "i"}},
                 {"$set": {"last_login": datetime.utcnow()}}
             )
         except Exception as e:
