@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from models.schemas import UserProfile, APIResponse, UserUpdate, UserProfileUpdate
 from services.user_service import user_service
 from services.s3_service import s3_service
-from auth import get_current_user
+from api.auth_api import get_current_user
 import logging
 import os
 import uuid

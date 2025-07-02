@@ -12,7 +12,7 @@ import logging
 import hmac
 import hashlib
 import time
-from auth import get_current_user
+from api.auth_api import get_current_user
 
 logger = logging.getLogger(__name__)
 

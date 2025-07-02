@@ -46,6 +46,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     """Get current user from JWT token"""
     return verify_jwt_token(credentials.credentials)
 
+# Compatibility function for legacy imports
+def get_current_user_from_token(token: str) -> str:
+    """Legacy compatibility function for get_current_user"""
+    return verify_jwt_token(token)
+
 def is_default_admin(email: str) -> bool:
     """Check if email should have admin privileges"""
     return email.lower() == DEFAULT_ADMIN_EMAIL.lower()
