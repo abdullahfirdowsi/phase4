@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Row, Col, Card, Form, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap';
 import { Person } from 'react-bootstrap-icons';
-import { getUserProfile, updateUserProfile, updatePassword } from '../../api';
+import { getUserProfile, updateUserProfile, updatePassword, uploadFile } from '../../api';
 import './UserProfile.scss';
 import PreferencesSettings from '../PreferencesSettings/PreferencesSettings';
 
@@ -25,6 +25,7 @@ const UserProfile = ({ show, onHide }) => {
   });
   const [previewImage, setPreviewImage] = useState(null);
   const [imageFile, setImageFile] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -104,11 +105,30 @@ const UserProfile = ({ show, onHide }) => {
       // If we have a new image file, upload it first
       let avatarUrl = formData.avatar_url;
       if (imageFile) {
-        // In a real implementation, you would upload the image to your server/S3
-        // For now, we'll simulate a successful upload
-        console.log('Would upload image:', imageFile.name);
-        // avatarUrl = await uploadImage(imageFile);
-        avatarUrl = previewImage; // Simulate successful upload
+        try {
+          setUploadingImage(true);
+          console.log('📤 Uploading image:', imageFile.name);
+          const uploadResult = await uploadFile(imageFile, 'avatars');
+          
+          if (uploadResult.success) {
+            avatarUrl = uploadResult.url;
+            console.log('✅ Image uploaded successfully:', avatarUrl);
+            // Update preview with the uploaded URL
+            setPreviewImage(avatarUrl);
+            // Clear the file since it's now uploaded
+            setImageFile(null);
+          } else {
+            throw new Error(uploadResult.message || 'Failed to upload image');
+          }
+        } catch (uploadError) {
+          console.error('❌ Image upload failed:', uploadError);
+          setError(`Failed to upload image: ${uploadError.message}`);
+          setSaving(false);
+          setUploadingImage(false);
+          return;
+        } finally {
+          setUploadingImage(false);
+        }
       }
 
       // Update user info - name and profile data
@@ -234,16 +254,26 @@ console.log('Sending user data:', JSON.stringify(userData, null, 2));
                       </div>
                     )}
                     <div className="avatar-overlay">
-                      <label htmlFor="avatar-upload" className="avatar-upload-label">
-                        Change
-                      </label>
-                      <input
-                        type="file"
-                        id="avatar-upload"
-                        className="avatar-upload-input"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                      />
+                      {uploadingImage ? (
+                        <div className="uploading-indicator">
+                          <Spinner size="sm" animation="border" />
+                          <span className="ms-2">Uploading...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <label htmlFor="avatar-upload" className="avatar-upload-label">
+                            Change
+                          </label>
+                          <input
+                            type="file"
+                            id="avatar-upload"
+                            className="avatar-upload-input"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            disabled={saving || uploadingImage}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                   <h5 className="profile-name">{profile?.name || 'User'}</h5>
@@ -342,7 +372,7 @@ console.log('Sending user data:', JSON.stringify(userData, null, 2));
                         <Button
                           variant="primary"
                           onClick={handleSaveProfile}
-                          disabled={saving}
+                          disabled={saving || uploadingImage}
                         >
                           {saving ? (
                             <>

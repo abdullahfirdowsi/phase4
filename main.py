@@ -200,6 +200,7 @@ try:
     from api.auth_api import auth_router
     from api.profile_api import profile_router
     from api.chat_api import chat_router  # Use enhanced implementation only
+    from api.upload_api import upload_router
     from ai_quiz_generator import ai_quiz_router
     from learning_paths import learning_paths_router
     from lessons import lessons_router
@@ -209,6 +210,7 @@ try:
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(profile_router, prefix="/profile", tags=["User Profile"])
     app.include_router(chat_router, prefix="/chat", tags=["Chat & Messaging"])  # Enhanced implementation only
+    app.include_router(upload_router, prefix="/upload", tags=["File Upload"])
     app.include_router(ai_quiz_router, prefix="/quiz", tags=["AI Quiz Generator"])
     app.include_router(learning_paths_router, prefix="/learning-paths", tags=["Learning Paths"])
     app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
