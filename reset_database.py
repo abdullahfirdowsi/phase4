@@ -1,373 +1,423 @@
 """
-Complete Database Reset Script
-Resets all collections and optionally recreates the database schema
+Enhanced Database Reset Script
+Provides safe and comprehensive database reset functionality for ai_tutor_db
 """
 import os
-import sys
 import asyncio
-from datetime import datetime
-from database_config import DatabaseConfig, initialize_database, get_collections
-from dotenv import load_dotenv
 import logging
+from datetime import datetime
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import argparse
 
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DatabaseReset:
     def __init__(self):
-        self.db_config = DatabaseConfig()
-        self.db = None
+        self.mongo_uri = os.getenv("MONGO_URI")
+        if not self.mongo_uri:
+            raise ValueError("MONGO_URI environment variable is required")
         
-    def connect(self):
-        """Connect to the database"""
-        try:
-            self.db = self.db_config.connect_sync()
-            logger.info("✅ Connected to MongoDB successfully")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Failed to connect to MongoDB: {e}")
-            return False
+        self.client = MongoClient(self.mongo_uri)
+        self.database_name = os.getenv("DATABASE_NAME", "ai_tutor_db")
+        self.db = self.client[self.database_name]
+        
+        # Define all collections in the enhanced system
+        self.collections = [
+            "users",
+            "chat_messages", 
+            "learning_goals",
+            "quizzes",
+            "quiz_attempts",
+            "lessons",
+            "user_enrollments",
+            "user_sessions"
+        ]
     
-    def backup_database(self, backup_name=None):
-        """Create a backup before reset (optional)"""
+    def create_backup(self) -> bool:
+        """Create a backup before reset"""
         try:
-            if not backup_name:
-                backup_name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_db_name = f"{self.database_name}_backup_{timestamp}"
+            backup_db = self.client[backup_db_name]
             
-            logger.info(f"📦 Creating backup: {backup_name}")
+            logger.info(f"💾 Creating backup: {backup_db_name}")
             
-            # Get all collection names
-            collection_names = self.db.list_collection_names()
-            backup_data = {}
-            
-            for collection_name in collection_names:
+            backup_count = 0
+            for collection_name in self.collections:
                 collection = self.db[collection_name]
                 documents = list(collection.find({}))
-                backup_data[collection_name] = {
-                    'count': len(documents),
-                    'sample': documents[:5] if documents else []  # Store first 5 docs as sample
-                }
-                logger.info(f"  📊 {collection_name}: {len(documents)} documents")
+                
+                if documents:
+                    backup_db[collection_name].insert_many(documents)
+                    backup_count += len(documents)
+                    logger.info(f"  📄 Backed up {len(documents)} documents from {collection_name}")
+                else:
+                    logger.info(f"  📄 {collection_name} is empty, skipping")
             
-            # Save backup info to a backup collection
-            backup_collection = self.db[f"_backup_{backup_name}"]
-            backup_collection.insert_one({
-                'backup_name': backup_name,
-                'created_at': datetime.utcnow(),
-                'collections_info': backup_data,
-                'total_collections': len(collection_names)
-            })
-            
-            logger.info(f"✅ Backup created successfully: {backup_name}")
-            return backup_name
+            logger.info(f"✅ Backup completed: {backup_count} total documents backed up")
+            return True
             
         except Exception as e:
             logger.error(f"❌ Backup failed: {e}")
-            return None
+            return False
     
-    def list_collections_with_counts(self):
-        """List all collections and their document counts"""
+    def reset_specific_collections(self, collection_names: list) -> dict:
+        """Reset specific collections only"""
         try:
-            logger.info("📊 Current database status:")
-            collection_names = self.db.list_collection_names()
+            logger.info(f"🔄 Resetting specific collections: {collection_names}")
             
-            if not collection_names:
-                logger.info("  🗂️ No collections found")
-                return {}
-            
-            collection_stats = {}
-            total_documents = 0
-            
-            for name in collection_names:
-                if name.startswith('_backup_'):
-                    continue  # Skip backup collections
-                    
-                collection = self.db[name]
-                count = collection.count_documents({})
-                collection_stats[name] = count
-                total_documents += count
-                logger.info(f"  📁 {name}: {count} documents")
-            
-            logger.info(f"  📈 Total: {total_documents} documents across {len(collection_stats)} collections")
-            return collection_stats
-            
-        except Exception as e:
-            logger.error(f"❌ Error listing collections: {e}")
-            return {}
-    
-    def drop_all_collections(self, exclude_backups=True):
-        """Drop all collections except backups"""
-        try:
-            collection_names = self.db.list_collection_names()
-            dropped_count = 0
-            
-            for name in collection_names:
-                if exclude_backups and name.startswith('_backup_'):
-                    logger.info(f"  🔒 Preserving backup collection: {name}")
+            reset_stats = {}
+            for collection_name in collection_names:
+                if collection_name not in self.collections:
+                    logger.warning(f"⚠️ Unknown collection: {collection_name}")
                     continue
                 
-                self.db[name].drop()
-                logger.info(f"  🗑️ Dropped collection: {name}")
-                dropped_count += 1
+                collection = self.db[collection_name]
+                count_before = collection.count_documents({})
+                
+                # Drop the collection
+                collection.drop()
+                logger.info(f"  🗑️ Dropped {collection_name} ({count_before} documents)")
+                
+                reset_stats[collection_name] = count_before
             
-            logger.info(f"✅ Successfully dropped {dropped_count} collections")
-            return True
+            # Recreate collections and indexes
+            self._recreate_structure()
+            
+            logger.info(f"✅ Reset completed for collections: {collection_names}")
+            return reset_stats
             
         except Exception as e:
-            logger.error(f"❌ Error dropping collections: {e}")
-            return False
+            logger.error(f"❌ Specific reset failed: {e}")
+            return {}
     
-    def reset_specific_collections(self, collections_to_reset):
-        """Reset only specific collections"""
+    def reset_all_collections(self) -> dict:
+        """Reset all collections in the database"""
         try:
-            reset_count = 0
+            logger.info("🔄 Resetting all collections...")
             
-            for collection_name in collections_to_reset:
-                if collection_name in self.db.list_collection_names():
-                    result = self.db[collection_name].delete_many({})
-                    logger.info(f"  🧹 Cleared {collection_name}: {result.deleted_count} documents deleted")
-                    reset_count += 1
+            reset_stats = {}
+            for collection_name in self.collections:
+                collection = self.db[collection_name]
+                count_before = collection.count_documents({})
+                
+                # Drop the collection
+                collection.drop()
+                logger.info(f"  🗑️ Dropped {collection_name} ({count_before} documents)")
+                
+                reset_stats[collection_name] = count_before
+            
+            # Recreate collections and indexes
+            self._recreate_structure()
+            
+            logger.info("✅ All collections reset completed")
+            return reset_stats
+            
+        except Exception as e:
+            logger.error(f"❌ Full reset failed: {e}")
+            return {}
+    
+    def reset_user_data_only(self, username: str) -> dict:
+        """Reset data for a specific user only"""
+        try:
+            logger.info(f"🔄 Resetting data for user: {username}")
+            
+            reset_stats = {}
+            
+            # Reset user-specific data in each collection
+            collections_with_user_data = {
+                "users": {"username": username},
+                "chat_messages": {"username": username},
+                "learning_goals": {"username": username},
+                "quiz_attempts": {"username": username},
+                "user_enrollments": {"username": username},
+                "user_sessions": {"username": username}
+            }
+            
+            for collection_name, query in collections_with_user_data.items():
+                collection = self.db[collection_name]
+                count_before = collection.count_documents(query)
+                
+                if count_before > 0:
+                    result = collection.delete_many(query)
+                    reset_stats[collection_name] = result.deleted_count
+                    logger.info(f"  🗑️ Deleted {result.deleted_count} documents from {collection_name}")
                 else:
-                    logger.warning(f"  ⚠️ Collection not found: {collection_name}")
+                    reset_stats[collection_name] = 0
+                    logger.info(f"  📄 No data found in {collection_name} for user {username}")
             
-            logger.info(f"✅ Successfully reset {reset_count} collections")
-            return True
+            logger.info(f"✅ User data reset completed for: {username}")
+            return reset_stats
             
         except Exception as e:
-            logger.error(f"❌ Error resetting collections: {e}")
-            return False
+            logger.error(f"❌ User data reset failed: {e}")
+            return {}
     
-    def recreate_schema(self):
-        """Recreate database schema with collections and indexes"""
+    def _recreate_structure(self):
+        """Recreate database structure with indexes"""
         try:
-            logger.info("🏗️ Recreating database schema...")
+            logger.info("🏗️ Recreating database structure...")
+            
+            # Initialize the enhanced database structure
+            from database_config import initialize_database
             initialize_database()
-            logger.info("✅ Database schema recreated successfully")
-            return True
+            
+            logger.info("✅ Database structure recreated")
             
         except Exception as e:
-            logger.error(f"❌ Error recreating schema: {e}")
-            return False
+            logger.error(f"❌ Structure recreation failed: {e}")
     
-    def create_default_admin(self):
-        """Create default admin user"""
+    def add_sample_data(self) -> dict:
+        """Add sample data for testing"""
         try:
-            collections = get_collections()
-            admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
+            logger.info("📝 Adding sample data...")
             
-            # Check if admin already exists
-            existing_admin = collections['users'].find_one({"email": admin_email})
-            if existing_admin:
-                logger.info(f"👤 Admin user already exists: {admin_email}")
-                return True
+            from datetime import datetime
+            import uuid
+            import bcrypt
             
-            admin_user = {
-                "username": admin_email,
-                "email": admin_email,
-                "password_hash": "admin_hash_please_change",  # Should be changed on first login
-                "is_admin": True,
+            sample_stats = {}
+            
+            # Sample user
+            sample_user = {
+                "username": "demo_user",
+                "email": "demo@example.com",
+                "password_hash": bcrypt.hashpw("demo123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+                "is_admin": False,
+                "name": "Demo User",
                 "preferences": {
-                    "language": "en",
-                    "user_role": "admin",
-                    "age_group": "25+",
-                    "time_value": 60
+                    "language": "English",
+                    "user_role": "student",
+                    "age_group": "18-25",
+                    "time_value": 30
                 },
                 "profile": {
-                    "bio": "Default administrator account",
+                    "bio": "Demo user for testing",
                     "avatar_url": None,
-                    "skill_level": "expert"
+                    "skill_level": "beginner"
                 },
                 "stats": {
                     "total_goals": 0,
                     "completed_goals": 0,
-                    "average_score": 0,
+                    "average_score": 0.0,
                     "total_study_time": 0,
                     "streak_days": 0
                 },
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
-                "last_login": None
+                "last_login": datetime.utcnow()
             }
             
-            collections['users'].insert_one(admin_user)
-            logger.info(f"✅ Created default admin user: {admin_email}")
-            return True
+            # Insert sample user
+            result = self.db.users.insert_one(sample_user)
+            sample_stats["users"] = 1
+            logger.info("  👤 Added sample user: demo_user")
+            
+            # Sample learning goal
+            sample_goal = {
+                "goal_id": str(uuid.uuid4()),
+                "username": "demo_user",
+                "name": "Learn Python Basics",
+                "description": "Master the fundamentals of Python programming",
+                "difficulty": "beginner",
+                "duration": "2 weeks",
+                "progress": 0.0,
+                "status": "active",
+                "prerequisites": [],
+                "tags": ["python", "programming", "basics"],
+                "study_plans": [{
+                    "name": "Python Fundamentals",
+                    "description": "Basic Python concepts and syntax",
+                    "topics": [
+                        {"name": "Variables and Data Types", "completed": False},
+                        {"name": "Control Structures", "completed": False},
+                        {"name": "Functions", "completed": False}
+                    ],
+                    "duration": "1 week"
+                }],
+                "created_at": datetime.utcnow(),
+                "target_completion_date": None
+            }
+            
+            # Insert sample goal
+            self.db.learning_goals.insert_one(sample_goal)
+            sample_stats["learning_goals"] = 1
+            logger.info("  🎯 Added sample learning goal")
+            
+            # Sample quiz
+            sample_quiz = {
+                "quiz_id": str(uuid.uuid4()),
+                "title": "Python Basics Assessment",
+                "description": "Test your knowledge of Python fundamentals",
+                "subject": "Python Programming",
+                "difficulty": "beginner",
+                "time_limit": 30,
+                "is_public": True,
+                "created_by": "system",
+                "questions": [
+                    {
+                        "question_id": str(uuid.uuid4()),
+                        "question": "What is the correct way to create a list in Python?",
+                        "question_type": "mcq",
+                        "options": ["[]", "()", "{}", "<>"],
+                        "correct_answer": "[]",
+                        "explanation": "Square brackets [] are used to create lists in Python",
+                        "points": 1
+                    },
+                    {
+                        "question_id": str(uuid.uuid4()),
+                        "question": "Python is a compiled language.",
+                        "question_type": "true_false",
+                        "options": ["True", "False"],
+                        "correct_answer": "False",
+                        "explanation": "Python is an interpreted language, not compiled",
+                        "points": 1
+                    }
+                ],
+                "tags": ["python", "basics", "assessment"],
+                "created_at": datetime.utcnow()
+            }
+            
+            # Insert sample quiz
+            self.db.quizzes.insert_one(sample_quiz)
+            sample_stats["quizzes"] = 1
+            logger.info("  📋 Added sample quiz")
+            
+            # Sample lesson
+            sample_lesson = {
+                "lesson_id": str(uuid.uuid4()),
+                "title": "Introduction to Python Programming",
+                "description": "Learn the basics of Python programming language",
+                "content": "Python is a high-level, interpreted programming language with dynamic semantics. Its high-level built-in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development.",
+                "lesson_type": "text",
+                "subject": "Python Programming",
+                "difficulty": "beginner",
+                "duration": 45,
+                "is_public": True,
+                "created_by": "system",
+                "resources": ["https://python.org", "https://docs.python.org"],
+                "tags": ["python", "introduction", "programming"],
+                "status": "published",
+                "created_at": datetime.utcnow()
+            }
+            
+            # Insert sample lesson
+            self.db.lessons.insert_one(sample_lesson)
+            sample_stats["lessons"] = 1
+            logger.info("  📚 Added sample lesson")
+            
+            logger.info(f"✅ Sample data added: {sample_stats}")
+            return sample_stats
             
         except Exception as e:
-            logger.error(f"❌ Error creating default admin: {e}")
-            return False
-
-def get_user_confirmation(message):
-    """Get user confirmation for destructive operations"""
-    response = input(f"{message} (y/N): ").strip().lower()
-    return response in ['y', 'yes']
+            logger.error(f"❌ Sample data creation failed: {e}")
+            return {}
+    
+    def get_database_stats(self) -> dict:
+        """Get current database statistics"""
+        try:
+            stats = {"database": self.database_name, "collections": {}}
+            
+            for collection_name in self.collections:
+                collection = self.db[collection_name]
+                count = collection.count_documents({})
+                stats["collections"][collection_name] = count
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ Stats retrieval failed: {e}")
+            return {}
 
 def main():
-    """Main reset function with interactive options"""
-    print("=" * 60)
-    print("🔄 DATABASE RESET UTILITY")
-    print("=" * 60)
+    """Main function with command line interface"""
+    parser = argparse.ArgumentParser(description="Enhanced Database Reset Tool")
+    parser.add_argument("--action", choices=["reset-all", "reset-collections", "reset-user", "stats", "add-samples"], 
+                       default="stats", help="Action to perform")
+    parser.add_argument("--collections", nargs="+", help="Specific collections to reset")
+    parser.add_argument("--username", help="Username for user-specific reset")
+    parser.add_argument("--backup", action="store_true", help="Create backup before reset")
+    parser.add_argument("--force", action="store_true", help="Skip confirmation prompts")
     
-    # Initialize reset utility
-    reset_util = DatabaseReset()
+    args = parser.parse_args()
     
-    # Connect to database
-    if not reset_util.connect():
-        print("❌ Cannot proceed without database connection")
-        sys.exit(1)
-    
-    # Show current status
-    print("\n📊 CURRENT DATABASE STATUS:")
-    collection_stats = reset_util.list_collections_with_counts()
-    
-    if not collection_stats:
-        print("🗂️ Database is already empty")
-        if get_user_confirmation("Would you like to initialize the schema?"):
-            reset_util.recreate_schema()
-            reset_util.create_default_admin()
-        sys.exit(0)
-    
-    # Reset options
-    print("\n🛠️ RESET OPTIONS:")
-    print("1. Complete reset (drop all collections + recreate schema)")
-    print("2. Clear data only (keep collections structure)")
-    print("3. Reset specific collections")
-    print("4. Create backup only")
-    print("5. Cancel")
-    
-    while True:
-        try:
-            choice = input("\nSelect option (1-5): ").strip()
-            
-            if choice == "1":
-                # Complete reset
-                print("\n⚠️ COMPLETE DATABASE RESET")
-                print("This will:")
-                print("- Create a backup of current data")
-                print("- Drop all collections")
-                print("- Recreate database schema")
-                print("- Create default admin user")
-                
-                if not get_user_confirmation("Are you sure you want to proceed?"):
-                    print("❌ Operation cancelled")
-                    break
-                
-                # Create backup
-                backup_name = reset_util.backup_database()
-                if backup_name:
-                    print(f"✅ Backup created: {backup_name}")
-                
-                # Drop collections
-                if reset_util.drop_all_collections():
-                    print("✅ All collections dropped")
-                
-                # Recreate schema
-                if reset_util.recreate_schema():
-                    print("✅ Schema recreated")
-                
-                # Create admin
-                if reset_util.create_default_admin():
-                    print("✅ Default admin created")
-                
-                print("\n🎉 Complete database reset finished!")
-                break
-                
-            elif choice == "2":
-                # Clear data only
-                print("\n🧹 CLEAR DATA ONLY")
-                print("This will clear all documents but keep collection structure")
-                
-                if not get_user_confirmation("Are you sure you want to clear all data?"):
-                    print("❌ Operation cancelled")
-                    break
-                
-                # Create backup
-                backup_name = reset_util.backup_database()
-                if backup_name:
-                    print(f"✅ Backup created: {backup_name}")
-                
-                collections_to_clear = list(collection_stats.keys())
-                if reset_util.reset_specific_collections(collections_to_clear):
-                    print("✅ All data cleared")
-                
-                # Create admin
-                if reset_util.create_default_admin():
-                    print("✅ Default admin created")
-                
-                print("\n🎉 Data clearing finished!")
-                break
-                
-            elif choice == "3":
-                # Reset specific collections
-                print("\n🎯 RESET SPECIFIC COLLECTIONS")
-                print("Available collections:")
-                for i, name in enumerate(collection_stats.keys(), 1):
-                    print(f"  {i}. {name} ({collection_stats[name]} documents)")
-                
-                selected_indices = input("\nEnter collection numbers (comma-separated): ").strip()
-                try:
-                    indices = [int(x.strip()) - 1 for x in selected_indices.split(',')]
-                    collection_names = list(collection_stats.keys())
-                    collections_to_reset = [collection_names[i] for i in indices if 0 <= i < len(collection_names)]
-                    
-                    if not collections_to_reset:
-                        print("❌ No valid collections selected")
-                        continue
-                    
-                    print(f"\nSelected collections: {', '.join(collections_to_reset)}")
-                    
-                    if not get_user_confirmation("Are you sure you want to reset these collections?"):
-                        print("❌ Operation cancelled")
-                        break
-                    
-                    # Create backup
-                    backup_name = reset_util.backup_database()
-                    if backup_name:
-                        print(f"✅ Backup created: {backup_name}")
-                    
-                    if reset_util.reset_specific_collections(collections_to_reset):
-                        print("✅ Selected collections reset")
-                    
-                    print("\n🎉 Specific reset finished!")
-                    break
-                    
-                except ValueError:
-                    print("❌ Invalid input. Please enter numbers separated by commas.")
-                    continue
-                
-            elif choice == "4":
-                # Backup only
-                print("\n📦 CREATE BACKUP ONLY")
-                backup_name = reset_util.backup_database()
-                if backup_name:
-                    print(f"✅ Backup created successfully: {backup_name}")
-                else:
-                    print("❌ Backup failed")
-                break
-                
-            elif choice == "5":
-                print("❌ Operation cancelled")
-                break
-                
+    try:
+        db_reset = DatabaseReset()
+        
+        # Show current stats
+        if args.action == "stats":
+            logger.info("📊 Current Database Statistics:")
+            stats = db_reset.get_database_stats()
+            logger.info(f"Database: {stats['database']}")
+            for collection, count in stats["collections"].items():
+                logger.info(f"  {collection}: {count} documents")
+            return
+        
+        # Add sample data
+        if args.action == "add-samples":
+            logger.info("📝 Adding sample data...")
+            sample_stats = db_reset.add_sample_data()
+            logger.info(f"✅ Sample data added: {sample_stats}")
+            return
+        
+        # Confirmation for destructive operations
+        if not args.force:
+            if args.action == "reset-all":
+                confirm = input("⚠️ This will delete ALL data in the database. Are you sure? (yes/no): ")
+            elif args.action == "reset-collections":
+                confirm = input(f"⚠️ This will delete data in collections: {args.collections}. Are you sure? (yes/no): ")
+            elif args.action == "reset-user":
+                confirm = input(f"⚠️ This will delete all data for user '{args.username}'. Are you sure? (yes/no): ")
             else:
-                print("❌ Invalid choice. Please select 1-5.")
-                continue
-                
-        except KeyboardInterrupt:
-            print("\n❌ Operation cancelled by user")
-            break
-        except Exception as e:
-            print(f"❌ Error: {e}")
-            break
-    
-    print("\n👋 Database reset utility finished")
+                confirm = "yes"
+            
+            if confirm.lower() != "yes":
+                logger.info("❌ Operation cancelled")
+                return
+        
+        # Create backup if requested
+        if args.backup:
+            if not db_reset.create_backup():
+                logger.error("❌ Backup failed, aborting operation")
+                return
+        
+        # Perform the requested action
+        if args.action == "reset-all":
+            reset_stats = db_reset.reset_all_collections()
+            logger.info(f"📊 Reset statistics: {reset_stats}")
+            
+        elif args.action == "reset-collections":
+            if not args.collections:
+                logger.error("❌ --collections parameter is required for reset-collections")
+                return
+            reset_stats = db_reset.reset_specific_collections(args.collections)
+            logger.info(f"📊 Reset statistics: {reset_stats}")
+            
+        elif args.action == "reset-user":
+            if not args.username:
+                logger.error("❌ --username parameter is required for reset-user")
+                return
+            reset_stats = db_reset.reset_user_data_only(args.username)
+            logger.info(f"📊 Reset statistics: {reset_stats}")
+        
+        # Show final stats
+        logger.info("📊 Final Database Statistics:")
+        final_stats = db_reset.get_database_stats()
+        for collection, count in final_stats["collections"].items():
+            logger.info(f"  {collection}: {count} documents")
+        
+        logger.info("✅ Database reset operation completed successfully")
+        
+    except Exception as e:
+        logger.error(f"❌ Database reset failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     main()

@@ -1,3 +1,4 @@
+# Using enhanced database with optimized collections
 # ai_quiz_generator.py
 """
 AI-powered quiz generator that creates interactive quizzes in JSON format

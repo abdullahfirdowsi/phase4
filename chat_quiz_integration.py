@@ -1,3 +1,4 @@
+# Using enhanced database with optimized collections
 # chat_quiz_integration.py
 """
 Example of how to integrate the AI Quiz Generator with your existing chat system

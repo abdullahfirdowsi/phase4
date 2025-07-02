@@ -1,3 +1,4 @@
+# Using enhanced database with optimized collections
 # learning_paths.py
 import json
 import datetime

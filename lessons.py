@@ -1,3 +1,4 @@
+# Using enhanced database with optimized collections
 # lessons.py - User Lesson Management System
 import json
 import datetime
