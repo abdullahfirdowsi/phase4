@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: eduverse-backend
+    name: ai-tutor-viztalk-phase4
     env: python
     region: oregon  # Change based on your location
     plan: free
