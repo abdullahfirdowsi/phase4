@@ -109,7 +109,34 @@ class ChatService:
             )
     
     async def clear_chat_history(self, username: str, session_id: Optional[str] = None) -> APIResponse:
-        """Clear chat history for a user"""
+        """Clear chat history for a user (preserves learning paths and quizzes)"""
+        try:
+            # Only clear regular content messages, preserve learning paths and quizzes
+            query = {
+                "username": username,
+                "message_type": {"$in": ["content", "CONTENT"]}
+            }
+            if session_id:
+                query["session_id"] = session_id
+            
+            result = self.chat_collection.delete_many(query)
+            
+            return APIResponse(
+                success=True,
+                message=f"Cleared {result.deleted_count} chat messages (learning paths and quizzes preserved)",
+                data={"deleted_count": result.deleted_count}
+            )
+            
+        except Exception as e:
+            logger.error(f"Error clearing chat history: {e}")
+            return APIResponse(
+                success=False,
+                message="Failed to clear chat history",
+                errors=[str(e)]
+            )
+    
+    async def clear_all_messages(self, username: str, session_id: Optional[str] = None) -> APIResponse:
+        """Clear ALL messages for a user (including learning paths and quizzes)"""
         try:
             query = {"username": username}
             if session_id:
@@ -119,15 +146,15 @@ class ChatService:
             
             return APIResponse(
                 success=True,
-                message=f"Cleared {result.deleted_count} messages",
+                message=f"Cleared all {result.deleted_count} messages",
                 data={"deleted_count": result.deleted_count}
             )
             
         except Exception as e:
-            logger.error(f"Error clearing chat history: {e}")
+            logger.error(f"Error clearing all messages: {e}")
             return APIResponse(
                 success=False,
-                message="Failed to clear chat history",
+                message="Failed to clear all messages",
                 errors=[str(e)]
             )
     

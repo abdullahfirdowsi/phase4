@@ -167,17 +167,8 @@ async def process_learning_path_request(username: str, session_id: str, user_pro
         
         # If successful, create learning goal
         if result.get("response") == "JSON" and result.get("content"):
-            # Store the learning path content as a JSON string to ensure consistency
-            content_to_store = result["content"]
-            if isinstance(content_to_store, dict):
-                # Store the content as a serialized JSON string
-                await chat_service.store_message(
-                    username=username,
-                    session_id=session_id,
-                    role="assistant",
-                    content=json.dumps(content_to_store),
-                    message_type=MessageType.LEARNING_PATH
-                )
+            # Note: The learning path message is already stored in the process_learning_path_query function
+            # via the store_chat_history callback, so we don't need to store it again here
             
             learning_goal_data = {
                 "name": result["content"].get("name", "AI Generated Learning Path"),
@@ -352,7 +343,7 @@ async def store_quiz_messages(
 
 @chat_router.delete("/clear")
 async def clear_chat_history(username: str = Query(...)):
-    """Clear chat history for user"""
+    """Clear chat history for user (preserves learning paths and quizzes)"""
     try:
         result = await chat_service.clear_chat_history(username)
         
@@ -364,6 +355,21 @@ async def clear_chat_history(username: str = Query(...)):
     except Exception as e:
         logger.error(f"Clear history error: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear chat history")
+
+@chat_router.delete("/clear-all")
+async def clear_all_messages(username: str = Query(...)):
+    """Clear ALL messages for user (including learning paths and quizzes)"""
+    try:
+        result = await chat_service.clear_all_messages(username)
+        
+        if not result.success:
+            raise HTTPException(status_code=500, detail=result.message)
+        
+        return {"message": result.message}
+        
+    except Exception as e:
+        logger.error(f"Clear all messages error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear all messages")
 
 @chat_router.get("/search")
 async def search_messages(username: str = Query(...), query: str = Query(...)):
