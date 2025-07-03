@@ -46,13 +46,24 @@ const AIChat = () => {
   const textareaRef = useRef(null);
   const sessionIdRef = useRef(null);
 
-  // Initialize session ID once - use consistent session for quiz integration
+  // Initialize persistent session ID for conversation continuity
   useEffect(() => {
     if (!sessionIdRef.current) {
-      // Use a consistent session ID format for better integration
       const username = localStorage.getItem('username');
-      sessionIdRef.current = `chat_session_${username}_${Date.now()}`;
-      console.log('🆔 Initialized session ID:', sessionIdRef.current);
+      
+      // Try to get existing session ID from localStorage
+      const existingSessionId = localStorage.getItem(`chat_session_${username}`);
+      
+      if (existingSessionId) {
+        // Use existing session ID for conversation continuity
+        sessionIdRef.current = existingSessionId;
+        console.log('🔄 Restored existing session ID:', sessionIdRef.current);
+      } else {
+        // Create new session ID only if none exists
+        sessionIdRef.current = `chat_session_${username}_${Date.now()}`;
+        localStorage.setItem(`chat_session_${username}`, sessionIdRef.current);
+        console.log('🆔 Created new session ID:', sessionIdRef.current);
+      }
     }
   }, []);
 
@@ -388,6 +399,12 @@ const AIChat = () => {
       // Step 2: Clear local UI immediately
       setMessages([]);
       setError(null);
+      
+      // Step 3: Reset session ID for fresh conversation
+      const username = localStorage.getItem('username');
+      sessionIdRef.current = `chat_session_${username}_${Date.now()}`;
+      localStorage.setItem(`chat_session_${username}`, sessionIdRef.current);
+      console.log('🔄 Created new session ID for fresh conversation:', sessionIdRef.current);
       
       // Step 3: Verify clear by fetching fresh data
       console.log('🔍 Verifying clear by fetching fresh chat history...');

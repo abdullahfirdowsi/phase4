@@ -68,16 +68,17 @@ async def process_chat_request(username: str, session_id: str, user_prompt: str)
         from chat import generate_chat_stream
         from constants import get_basic_environment_prompt
         
-        # Get recent chat history for context
-        history_result = await chat_service.get_chat_history(username, session_id, limit=10)
+        # Get recent chat history for context (across all sessions for continuity)
+        history_result = await chat_service.get_chat_history(username, session_id=None, limit=10)
         recent_messages = []
         
         if history_result.success:
             recent_messages = [
                 {"role": msg["role"], "content": msg["content"]}
                 for msg in history_result.data["messages"]
-                if msg.get("message_type") != "learning_path"
+                if msg.get("message_type") != "learning_path" and isinstance(msg["content"], str)
             ]
+            logger.info(f"📚 Found {len(recent_messages)} recent messages for context")
         
         # Get user preferences for language
         from services.user_service import user_service
@@ -200,16 +201,17 @@ async def process_quiz_request(username: str, session_id: str, user_prompt: str)
             'give me a quiz', 'start a quiz', 'new quiz'
         ])
         
-        # Get recent chat history for context
-        history_result = await chat_service.get_chat_history(username, session_id, limit=10)
+        # Get recent chat history for context (across all sessions for continuity)
+        history_result = await chat_service.get_chat_history(username, session_id=None, limit=10)
         recent_messages = []
         
         if history_result.success:
             recent_messages = [
                 {"role": msg["role"], "content": msg["content"]}
                 for msg in history_result.data["messages"]
-                if msg.get("message_type") != "learning_path"
+                if msg.get("message_type") != "learning_path" and isinstance(msg["content"], str)
             ]
+            logger.info(f"📚 Found {len(recent_messages)} recent messages for quiz context")
         
         # Get user preferences for language
         from services.user_service import user_service
