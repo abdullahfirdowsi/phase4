@@ -509,33 +509,38 @@ def calculate_fallback_score(quiz_data: Dict[str, Any], user_answers: List[str])
 
 @ai_quiz_router.get("/quiz-history")
 async def get_quiz_history(username: str):
-    """Get user's quiz history"""
+    """Get user's quiz history from quiz_attempts collection"""
     try:
-        chat_session = chats_collection.find_one({"username": username})
-        if not chat_session:
-            return {"quiz_history": []}
+        from database import quiz_attempts_collection
         
-        quiz_results = chat_session.get("quiz_results", [])
+        # Get quiz attempts from the correct collection
+        quiz_attempts = list(quiz_attempts_collection.find(
+            {"username": username, "completed": True}
+        ).sort("submitted_at", -1).limit(100))
+        
+        logger.info(f"📊 Found {len(quiz_attempts)} quiz attempts for user: {username}")
         
         # Format results for display
         history = []
-        for result in quiz_results:
-            # Handle different result structures
-            if "score_json" in result and "score_data" in result["score_json"]:
-                score_data = result["score_json"]["score_data"]
-            elif "result" in result:
-                score_data = result["result"]
-            else:
-                # Skip malformed results
-                continue
-                
-            history.append({
-                "quiz_id": result["quiz_id"],
-                "submitted_at": result["submitted_at"],
-                "score": f"{score_data.get('correct_answers', 0)}/{score_data.get('total_questions', 0)}",
-                "percentage": score_data.get("score_percentage", 0),
-                "topic": result.get("topic", "General")
-            })
+        for attempt in quiz_attempts:
+            result_data = attempt.get("result", {})
+            
+            # Extract quiz info
+            quiz_info = {
+                "id": result_data.get("id", attempt.get("attempt_id")),
+                "quiz_id": attempt.get("quiz_id"),
+                "quiz_title": result_data.get("quiz_title", "Quiz"),
+                "score_percentage": result_data.get("score_percentage", attempt.get("score", 0)),
+                "correct_answers": result_data.get("correct_answers", 0),
+                "total_questions": result_data.get("total_questions", 0),
+                "submitted_at": attempt.get("submitted_at"),
+                "answerReview": result_data.get("answerReview", []),
+                "source": "ai_chat"  # Mark as AI Chat quiz
+            }
+            
+            history.append(quiz_info)
+            
+            logger.info(f"  - Quiz {quiz_info['quiz_id']}: {quiz_info['score_percentage']}% ({quiz_info['quiz_title']})")
         
         return {"quiz_history": history}
         
