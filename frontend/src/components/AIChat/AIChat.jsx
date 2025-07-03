@@ -1,19 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Container, Row, Col, Card, Form, Button, Modal, Badge, Alert, Spinner } from 'react-bootstrap';
-import { 
-  Send, 
-  Trash, 
-  Search, 
-  BarChart,
-  PlayCircleFill,
-  StopCircleFill,
-  Book,
-  QuestionCircle,
-  ChatDots,
-  Lightbulb,
-  Code,
-  Calculator
-} from 'react-bootstrap-icons';
+import { FaPaperPlane, FaStop, FaBook, FaQuestionCircle, FaSearch, FaChartBar, FaTrash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
 // Import API functions
@@ -456,187 +443,197 @@ const AIChat = () => {
   };
 
   return (
-    <Container fluid className="ai-chat-container h-100">
-      <Row className="h-100">
-        <Col className="d-flex flex-column h-100">
-          <Card className="flex-grow-1 d-flex flex-column">
-            {/* Header */}
-            <Card.Header className="d-flex justify-content-between align-items-center">
-              <div className="d-flex align-items-center">
-                <ChatDots className="me-2" size={20} />
-                <h5 className="mb-0">AI Tutor Chat</h5>
+    <div className="ai-chat">
+      <Container fluid className="chat-container">
+        {/* Chat Messages */}
+        <div className="chat-messages">
+          {messages.length > 0 ? (
+            messages.map((message, index) => {
+              // Create a stable unique key for each message
+              const messageKey = message.id || `${message.role}-${message.timestamp || index}-${typeof message.content === 'string' ? message.content.substring(0, 50).replace(/\s/g, '') : String(message.content || '').substring(0, 50).replace(/\s/g, '')}`; 
+              
+              return (
+                <div key={messageKey} className="message-wrapper">
+                  {renderMessage(message, index)}
+                </div>
+              );
+            })
+          ) : (
+            <div className="welcome-screen">
+              <div className="welcome-content">
+                <img 
+                  src="/icons/aitutor-short-no-bg.png" 
+                  alt="AI Tutor" 
+                  className="welcome-logo"
+                />
+                <h2 className="welcome-title">How can I help you today?</h2>
+                
+                <div className="quick-actions">
+                  <button 
+                    className="quick-action-btn"
+                    onClick={() => {
+                      setActiveMode('learning_path');
+                      setInputMessage("Create a learning path for Python programming");
+                    }}
+                  >
+                    <span className="icon">🛣️</span>
+                    <span className="text">Create study plan</span>
+                  </button>
+                  
+                  <button 
+                    className="quick-action-btn"
+                    onClick={() => {
+                      setActiveMode('quiz');
+                      setInputMessage("Generate a quiz about world history");
+                    }}
+                  >
+                    <span className="icon">📝</span>
+                    <span className="text">Generate a quiz</span>
+                  </button>
+                </div>
               </div>
-              <div className="d-flex gap-2">
-                <Button
-                  variant={activeMode === 'quiz' ? 'primary' : 'outline-primary'}
-                  size="sm"
-                  onClick={handleToggleQuiz}
-                  className="d-flex align-items-center"
-                >
-                  <QuestionCircle className="me-1" size={16} />
-                  Quiz Mode
-                </Button>
-                <Button
-                  variant={activeMode === 'learning_path' ? 'success' : 'outline-success'}
-                  size="sm"
-                  onClick={handleToggleLearningPath}
-                  className="d-flex align-items-center"
-                >
-                  <Book className="me-1" size={16} />
-                  Learning Path
-                </Button>
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => setShowSearchModal(true)}
-                >
-                  <Search size={16} />
-                </Button>
-                <Button
-                  variant="outline-info"
-                  size="sm"
-                  onClick={() => setShowAnalyticsModal(true)}
-                >
-                  <BarChart size={16} />
-                </Button>
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={() => setShowConfirmModal(true)}
-                >
-                  <Trash size={16} />
-                </Button>
+            </div>
+          )}
+          
+          {/* Error Alert */}
+          {error && (
+            <div className="error-alert">
+              <Alert 
+                variant="danger" 
+                dismissible 
+                onClose={() => setError(null)}
+              >
+                {error}
+              </Alert>
+            </div>
+          )}
+          
+          {/* Typing Indicator */}
+          {isGenerating && (
+            <div className="typing-indicator">
+              <div className="typing-dots">
+                <div className="dot"></div>
+                <div className="dot"></div>
+                <div className="dot"></div>
               </div>
-            </Card.Header>
-
-            {/* Messages Area */}
-            <Card.Body className="flex-grow-1 p-0 d-flex flex-column">
-              <div className="chat-messages flex-grow-1 p-3 overflow-auto">
-                {error && (
-                  <Alert variant="danger" className="mb-3">
-                    {error}
-                  </Alert>
-                )}
-
-                {messages.length === 0 && !isGenerating && (
-                  <div className="text-center text-muted my-5">
-                    <ChatDots size={48} className="mb-3 opacity-50" />
-                    <h6>Welcome to AI Tutor!</h6>
-                    <p>Start a conversation, ask for a quiz, or request a learning path.</p>
-                    
-                    {/* Quick Actions */}
-                    <div className="mt-4">
-                      <h6 className="text-muted mb-3">Quick Actions:</h6>
-                      <div className="d-flex flex-wrap gap-2 justify-content-center">
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => handleQuickAction('Explain machine learning basics')}
-                          className="d-flex align-items-center"
-                        >
-                          <Lightbulb className="me-1" size={14} />
-                          Learn ML Basics
-                        </Button>
-                        <Button
-                          variant="outline-success"
-                          size="sm"
-                          onClick={() => handleQuickAction('Create a Python quiz with 10 questions')}
-                          className="d-flex align-items-center"
-                        >
-                          <Code className="me-1" size={14} />
-                          Python Quiz
-                        </Button>
-                        <Button
-                          variant="outline-info"
-                          size="sm"
-                          onClick={() => handleQuickAction('Generate a learning path for web development')}
-                          className="d-flex align-items-center"
-                        >
-                          <Book className="me-1" size={14} />
-                          Web Dev Path
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {messages.map((msg, index) => renderMessage(msg, index))}
-
-                {isGenerating && (
-                  <div className="d-flex justify-content-center my-3">
-                    <div className="d-flex align-items-center text-muted">
-                      <Spinner animation="border" size="sm" className="me-2" />
-                      AI is thinking...
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input Area */}
-              <div className="border-top p-3">
-                {activeMode !== 'none' && (
-                  <div className="mb-2">
-                    <Badge 
-                      bg={activeMode === 'quiz' ? 'primary' : 'success'}
-                      className="me-2"
-                    >
-                      {activeMode === 'quiz' ? '🎯 Quiz Mode' : '📚 Learning Path Mode'}
-                    </Badge>
-                    <small className="text-muted">
-                      {activeMode === 'quiz' 
-                        ? 'Your next message will generate a quiz'
-                        : 'Your next message will create a learning path'
-                      }
-                    </small>
-                  </div>
-                )}
-
-                <Form.Group>
-                  <div className="d-flex gap-2">
-                    <Form.Control
-                      ref={textareaRef}
-                      as="textarea"
-                      rows={1}
-                      value={inputMessage}
-                      onChange={handleInputChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder={
-                        activeMode === 'quiz' 
-                          ? 'Enter topic for quiz (e.g., "Python basics with 10 questions")'
-                          : activeMode === 'learning_path'
-                          ? 'Enter topic for learning path (e.g., "Web development roadmap")'
-                          : 'Type your message here...'
-                      }
-                      disabled={isGenerating}
-                      className="flex-grow-1"
-                      style={{ 
-                        resize: 'none', 
-                        minHeight: '38px',
-                        maxHeight: '200px'
-                      }}
-                    />
-                    <Button
-                      variant="primary"
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || isGenerating}
-                      className="d-flex align-items-center"
-                    >
-                      {isGenerating ? (
-                        <StopCircleFill size={16} />
-                      ) : (
-                        <Send size={16} />
-                      )}
-                    </Button>
-                  </div>
-                </Form.Group>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
+              <span>AI Tutor is thinking...</span>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+        
+        {/* Action Buttons */}
+        {messages.length > 0 && (
+          <div className="chat-actions">
+            <Button
+              variant={activeMode === 'learning_path' ? 'primary' : 'outline-primary'}
+              className="action-btn"
+              onClick={handleToggleLearningPath}
+              disabled={isGenerating}
+            >
+              <FaBook className="icon" />
+              <span className="text">Study Plan</span>
+            </Button>
+            
+            <Button
+              variant={activeMode === 'quiz' ? 'primary' : 'outline-primary'}
+              className="action-btn"
+              onClick={handleToggleQuiz}
+              disabled={isGenerating}
+            >
+              <FaQuestionCircle className="icon" />
+              <span className="text">Quiz</span>
+            </Button>
+            
+            <Button
+              variant="outline-secondary"
+              className="action-btn"
+              onClick={() => setShowSearchModal(true)}
+              disabled={isGenerating}
+            >
+              <FaSearch className="icon" />
+              <span className="text">Search</span>
+            </Button>
+            
+            <Button
+              variant="outline-secondary"
+              className="action-btn"
+              onClick={() => setShowAnalyticsModal(true)}
+              disabled={isGenerating}
+            >
+              <FaChartBar className="icon" />
+              <span className="text">Analytics</span>
+            </Button>
+            
+            <Button
+              variant="outline-danger"
+              className="action-btn"
+              onClick={() => setShowConfirmModal(true)}
+              disabled={isGenerating}
+            >
+              <FaTrash className="icon" />
+              <span className="text">Clear</span>
+            </Button>
+          </div>
+        )}
+        
+        {/* Chat Input */}
+        <div className="chat-input-container">
+          <div className="input-wrapper">
+            <textarea
+              ref={textareaRef}
+              placeholder={
+                activeMode === 'learning_path'
+                  ? "Tell me what you want to learn..." 
+                  : activeMode === 'quiz'
+                  ? "Ask me to create a quiz..."
+                  : "Message AI Tutor..."
+              }
+              className="chat-textarea"
+              value={inputMessage}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
+              disabled={isGenerating}
+              rows={1}
+            />
+            
+            <div className="input-actions">
+              {isGenerating ? (
+                <Button 
+                  variant="outline-danger" 
+                  className="stop-btn"
+                  onClick={() => setIsGenerating(false)}
+                >
+                  <FaStop />
+                </Button>
+              ) : (
+                <Button 
+                  variant="primary" 
+                  className={`send-btn ${!inputMessage.trim() ? 'disabled' : ''}`}
+                  onClick={handleSendMessage}
+                  disabled={!inputMessage.trim()}
+                >
+                  <FaPaperPlane />
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          {activeMode === 'learning_path' && (
+            <div className="mode-indicator learning-path">
+              📚 Learning Path Mode - I'll create a personalized study plan for you
+            </div>
+          )}
+          
+          {activeMode === 'quiz' && (
+            <div className="mode-indicator quiz">
+              📝 Quiz Mode - I'll create interactive quizzes to test your knowledge
+            </div>
+          )}
+        </div>
+      </Container>
+      
       {/* Modals */}
       <SearchModal 
         show={showSearchModal} 
@@ -648,14 +645,15 @@ const AIChat = () => {
         onHide={() => setShowAnalyticsModal(false)} 
       />
       
-      <ConfirmModal
+      <ConfirmModal 
         show={showConfirmModal}
         onHide={() => setShowConfirmModal(false)}
         onConfirm={handleClearChat}
         title="Clear Chat History"
-        message="Are you sure you want to clear all chat messages? This action cannot be undone."
+        message="Are you sure you want to clear the chat history? This will remove regular chat messages but preserve your learning paths and quizzes. This action cannot be undone."
+        confirmText="Clear Chat"
       />
-    </Container>
+    </div>
   );
 };
 
