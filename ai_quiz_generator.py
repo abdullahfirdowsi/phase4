@@ -12,7 +12,7 @@ import re
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
-from database import chats_collection, users_collection
+from database import chats_collection, users_collection, quizzes_collection, chat_messages_collection
 from constants import get_basic_environment_prompt
 import os
 import groq
@@ -46,7 +46,9 @@ class QuizSubmissionRequest(BaseModel):
 
 # Quiz generation prompts
 QUIZ_GENERATION_PROMPT = """
-You are an AI Tutor creating an interactive quiz. Generate a quiz about {topic} with {num_questions} questions at {difficulty} difficulty level.
+You are an AI Tutor creating an interactive quiz. Generate a quiz about "{topic}" with {num_questions} questions at {difficulty} difficulty level.
+
+IMPORTANT: You must generate questions specifically about "{topic}". If you cannot create questions about this topic, respond with an error message instead.
 
 Your response must be ONLY a valid JSON object in this exact format:
 {{
@@ -132,48 +134,66 @@ Calculate accurately and provide encouraging feedback.
 def generate_ai_response(prompt: str) -> str:
     """Generate AI response using Groq"""
     try:
+        logger.info(f"🤖 Sending request to AI model: {os.getenv('MODEL_NAME', 'llama3-70b-8192')}")
         response = client.chat.completions.create(
             model=os.getenv("MODEL_NAME", "llama3-70b-8192"),
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "You are an expert quiz generator. Always respond with valid JSON format as requested. Generate questions that are accurate, educational, and appropriate for the given topic and difficulty level."},
+                {"role": "user", "content": prompt}
+            ],
             max_tokens=4000,
-            temperature=0.7
+            temperature=0.3  # Lower temperature for more consistent JSON output
         )
-        return response.choices[0].message.content
+        ai_content = response.choices[0].message.content
+        logger.info(f"✅ Received AI response (length: {len(ai_content)})")
+        return ai_content
     except Exception as e:
         logger.error(f"Error generating AI response: {e}")
-        return ""
+        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 
 def extract_json_from_response(response: str) -> Dict[str, Any]:
     """Extract JSON from AI response"""
     try:
+        # Clean the response first
+        response = response.strip()
+        
         # Try to parse as direct JSON
-        return json.loads(response)
-    except:
+        parsed = json.loads(response)
+        logger.info(f"✅ Successfully parsed JSON directly")
+        return parsed
+    except json.JSONDecodeError as e:
+        logger.warning(f"⚠️ Direct JSON parsing failed: {e}")
         try:
-            # Try to find JSON in the response
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            # Try to find JSON in the response using improved regex
+            json_match = re.search(r'\{[\s\S]*\}', response, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group())
-        except:
-            pass
+                json_str = json_match.group()
+                parsed = json.loads(json_str)
+                logger.info(f"✅ Successfully extracted JSON from response")
+                return parsed
+            else:
+                logger.error(f"❌ No JSON pattern found in response")
+        except json.JSONDecodeError as e2:
+            logger.error(f"❌ JSON extraction also failed: {e2}")
+        except Exception as e3:
+            logger.error(f"❌ Unexpected error during JSON extraction: {e3}")
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during JSON parsing: {e}")
     
     return None
 
 def store_quiz_message(username: str, content: Dict[str, Any]):
-    """Store quiz message in chat history using old system for compatibility"""
+    """Store quiz message in chat_messages_collection"""
     try:
         message = {
+            "username": username,
             "role": "assistant",
             "content": content,
             "type": "quiz",
             "timestamp": datetime.datetime.utcnow()
         }
         
-        chats_collection.update_one(
-            {"username": username},
-            {"$push": {"messages": message}},
-            upsert=True
-        )
+        chat_messages_collection.insert_one(message)
         
         logger.info(f"✅ Stored quiz message for user: {username}")
         
@@ -199,13 +219,25 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
         # Generate AI response
         ai_response = generate_ai_response(prompt)
         if not ai_response:
-            raise HTTPException(status_code=500, detail="Failed to generate quiz")
+            raise HTTPException(status_code=500, detail="Failed to generate AI response for quiz")
         
         # Extract JSON from response
         quiz_json = extract_json_from_response(ai_response)
         if not quiz_json:
-            # Fallback to manual quiz generation
-            quiz_json = create_fallback_quiz(request, quiz_id)
+            logger.error(f"❌ Failed to parse JSON from AI response for topic: {request.topic}")
+            logger.error(f"Raw AI response: {ai_response[:500]}...")  # Log first 500 chars
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Unable to generate a valid quiz for '{request.topic}'. The AI could not create appropriate questions for this topic. Please try:\n1. A more specific or well-known topic\n2. Using English language topics\n3. Educational subjects like 'Mathematics', 'Science', 'History', etc."
+            )
+        
+        # Validate the quiz structure
+        if not quiz_json.get("quiz_data") or not quiz_json["quiz_data"].get("questions"):
+            logger.error(f"❌ Invalid quiz structure generated for topic: {request.topic}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Generated quiz for '{request.topic}' has invalid structure. Please try a different topic."
+            )
         
         # Store user message first
         store_quiz_message(request.username, {
@@ -226,25 +258,16 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
             "status": "active"
         }
         
-        # Store in common collection so both AI Chat and Quiz System can access
-        chats_collection.update_one(
-            {"username": request.username},
-            {"$push": {"active_quizzes": quiz_data}},
+        # Store in quizzes collection for proper organization
+        result = quizzes_collection.update_one(
+            {"quiz_id": quiz_id, "username": request.username},
+            {"$set": quiz_data},
             upsert=True
         )
+        logger.info(f"✅ Stored quiz in quizzes collection - matched: {result.matched_count}, modified: {result.modified_count}, upserted: {result.upserted_id}")
         
-        quiz_result_data = {
-            "quiz_id": quiz_id,
-            "submitted_at": datetime.datetime.utcnow(),
-            "results": None,  # Results will be calculated on submission
-            "source": "ai_chat"
-        }
-
-        chats_collection.update_one(
-            {"username": request.username},
-            {"$push": {"quiz_results": quiz_result_data}},
-            upsert=True
-        )
+        # Don't create initial quiz attempt record - only create when submitting
+        # This avoids duplicate records
         
         return quiz_json
         
@@ -256,21 +279,71 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
 async def submit_ai_quiz(request: QuizSubmissionRequest):
     """Submit quiz answers and get AI-generated results"""
     try:
-        # Find the quiz data
-        chat_session = chats_collection.find_one({"username": request.username})
-        if not chat_session:
-            raise HTTPException(status_code=404, detail="User session not found")
+        logger.info(f"📝 Quiz submission request: username={request.username}, quiz_id={request.quiz_id}, answers_count={len(request.answers)}")
         
-        # Find the specific quiz
-        active_quizzes = chat_session.get("active_quizzes", [])
-        quiz_data = None
-        for quiz in active_quizzes:
-            if quiz["quiz_id"] == request.quiz_id:
-                quiz_data = quiz
-                break
+        # Validate request data
+        if not request.username or not request.quiz_id:
+            raise HTTPException(status_code=400, detail="Username and quiz_id are required")
+        
+        if not request.answers or len(request.answers) == 0:
+            raise HTTPException(status_code=400, detail="At least one answer is required")
+        
+        # Find the quiz data in quizzes collection first
+        quiz_data = quizzes_collection.find_one({"quiz_id": request.quiz_id, "username": request.username})
+        logger.info(f"🔍 Looking for quiz ID: {request.quiz_id}")
+        
+        if quiz_data:
+            logger.info(f"✅ Found quiz in quizzes collection: {request.quiz_id}")
+        else:
+            logger.info(f"⚠️ Quiz not found in quizzes collection")
+        
+        # If not found in quizzes collection, check chat messages for fallback
+        if not quiz_data:
+            logger.info(f"⚠️ Quiz not found in quizzes collection, checking chat messages...")
+            messages = list(chats_collection.find(
+                {"username": request.username}
+            ).sort("timestamp", -1).limit(10))
+            logger.info(f"📬 Total user sessions to check: {len(messages)}")
+            
+            quiz_ids_in_messages = []
+            for session in messages:
+                messages_list = session.get("messages", [])
+                for message in reversed(messages_list):  # Check most recent first
+                    if message.get("type") == "quiz" and message.get("role") == "assistant":
+                        content = message.get("content", {})
+                        if isinstance(content, dict):
+                            quiz_json = content
+                        elif isinstance(content, str):
+                            try:
+                                quiz_json = json.loads(content)
+                            except:
+                                continue
+                        else:
+                            continue
+                        
+                        # Log the quiz ID found in this message
+                        found_quiz_id = quiz_json.get("quiz_data", {}).get("quiz_id")
+                        if found_quiz_id:
+                            quiz_ids_in_messages.append(found_quiz_id)
+                        
+                        # Check if this is the quiz we're looking for
+                        if found_quiz_id == request.quiz_id:
+                            quiz_data = {
+                                "quiz_id": request.quiz_id,
+                                "quiz_json": quiz_json,
+                                "created_at": message.get("timestamp", datetime.datetime.utcnow()),
+                                "status": "active"
+                            }
+                            logger.info(f"📋 Found quiz in messages: {request.quiz_id}")
+                            break
+                if quiz_data:
+                    break
+            
+            logger.info(f"🔍 Quiz IDs found in messages: {quiz_ids_in_messages}")
         
         if not quiz_data:
-            raise HTTPException(status_code=404, detail="Quiz not found")
+            logger.error(f"❌ Quiz not found: {request.quiz_id}")
+            raise HTTPException(status_code=404, detail=f"Quiz {request.quiz_id} not found. Please generate a new quiz.")
         
         # Prepare data for scoring
         quiz_json = quiz_data["quiz_json"]
@@ -351,26 +424,27 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
         
         # Store result in frontend format for compatibility
         result_data = {
+            "attempt_id": f"attempt_{int(datetime.datetime.utcnow().timestamp())}",
             "quiz_id": request.quiz_id,
             "username": request.username,
             "answers": request.answers,
             "result": frontend_result,
-            "submitted_at": datetime.datetime.utcnow()
+            "submitted_at": datetime.datetime.utcnow(),
+            "completed": True,
+            "score": score_percentage
         }
         
         # Debug: Log the exact structure being sent to frontend
         logger.info(f"🔍 Frontend result structure: {json.dumps(frontend_result, indent=2)}")
         
-        chats_collection.update_one(
-            {"username": request.username},
-            {"$push": {"quiz_results": result_data}},
-            upsert=True
-        )
+        # Store final quiz result in quiz_attempts collection
+        from database import quiz_attempts_collection
+        quiz_attempts_collection.insert_one(result_data)
         
-        # Update quiz status
-        chats_collection.update_one(
-            {"username": request.username, "active_quizzes.quiz_id": request.quiz_id},
-            {"$set": {"active_quizzes.$.status": "completed"}}
+        # Update quiz status in quizzes collection
+        quizzes_collection.update_one(
+            {"quiz_id": request.quiz_id, "username": request.username},
+            {"$set": {"status": "completed"}}
         )
         
         return frontend_result
@@ -379,66 +453,6 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
         logger.error(f"Error submitting quiz: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def create_fallback_quiz(request: QuizGenerationRequest, quiz_id: str) -> Dict[str, Any]:
-    """Create a fallback quiz if AI generation fails"""
-    sample_questions = {
-        "python": [
-            {
-                "question": "What is the correct way to define a function in Python?",
-                "type": "mcq",
-                "options": ["A) function myFunc():", "B) def myFunc():", "C) create myFunc():", "D) func myFunc():"],
-                "correct_answer": "B",
-                "explanation": "In Python, functions are defined using the 'def' keyword."
-            },
-            {
-                "question": "True or False: Python is case-sensitive.",
-                "type": "true_false",
-                "options": ["True", "False"],
-                "correct_answer": "True",
-                "explanation": "Python is case-sensitive, meaning 'Variable' and 'variable' are different."
-            }
-        ],
-        "mathematics": [
-            {
-                "question": "What is 2 + 2?",
-                "type": "mcq",
-                "options": ["A) 3", "B) 4", "C) 5", "D) 6"],
-                "correct_answer": "B",
-                "explanation": "2 + 2 equals 4."
-            },
-            {
-                "question": "True or False: 0 is a natural number.",
-                "type": "true_false",
-                "options": ["True", "False"],
-                "correct_answer": "False",
-                "explanation": "Natural numbers typically start from 1, not 0."
-            }
-        ]
-    }
-    
-    # Select questions based on topic
-    topic_key = request.topic.lower()
-    if topic_key in sample_questions:
-        questions = sample_questions[topic_key][:request.num_questions]
-    else:
-        questions = sample_questions["python"][:request.num_questions]
-    
-    # Add question numbers
-    for i, q in enumerate(questions):
-        q["question_number"] = i + 1
-    
-    return {
-        "response": f"Here's your {request.topic} quiz! Let's test your knowledge. Answer each question and I'll calculate your score at the end.\n\n",
-        "type": "quiz",
-        "quiz_data": {
-            "quiz_id": quiz_id,
-            "topic": request.topic,
-            "difficulty": request.difficulty,
-            "total_questions": len(questions),
-            "time_limit": request.time_limit,
-            "questions": questions
-        }
-    }
 
 def calculate_fallback_score(quiz_data: Dict[str, Any], user_answers: List[str]) -> Dict[str, Any]:
     """Calculate score if AI scoring fails"""
