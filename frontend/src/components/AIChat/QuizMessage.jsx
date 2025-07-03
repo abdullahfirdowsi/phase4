@@ -11,7 +11,7 @@ import {
   Send,
   BarChart
 } from 'react-bootstrap-icons';
-import { submitQuiz } from '../../api';
+import { submitQuiz, storeAIChatQuizResult } from '../../api';
 import './QuizMessage.scss';
 
 const QuizMessage = ({ message, onQuizComplete, username }) => {
@@ -158,7 +158,7 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
         answersObject: answers
       });
 
-      // Submit to backend
+      // Submit to backend for scoring
       const result = await submitQuiz(quizData.quiz_id, answersArray);
       
       if (result) {
@@ -166,8 +166,31 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
         setShowResult(true);
         setIsActive(false);
         
+        // Store AI Chat quiz result so it appears in Quiz System
+        try {
+          const aiChatQuizResult = {
+            quiz_id: quizData.quiz_id,
+            quiz_title: `${quizData.topic || 'AI Chat'} Quiz`,
+            score_percentage: result.score_percentage,
+            correct_answers: result.correct_answers,
+            total_questions: result.total_questions,
+            answers: answersArray,
+            answerReview: result.answerReview || [],
+            source: 'ai_chat',
+            chat_message_id: message.id,
+            submitted_at: new Date().toISOString()
+          };
+          
+          console.log('📤 Storing AI Chat quiz result:', aiChatQuizResult);
+          await storeAIChatQuizResult(aiChatQuizResult);
+          console.log('✅ AI Chat quiz result stored successfully for Quiz System');
+        } catch (storeError) {
+          console.warn('⚠️ Failed to store AI Chat quiz result:', storeError);
+          // Don't throw error as quiz completion is still successful
+        }
+        
         // NO localStorage caching - quiz results and data are stored directly in MongoDB
-        console.log('📡 Quiz result will be persisted to MongoDB via backend APIs');
+        console.log('📡 Quiz result persisted to MongoDB via backend APIs');
         
         // Add metadata for chat context
         const enhancedResult = {

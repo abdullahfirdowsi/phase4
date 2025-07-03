@@ -269,25 +269,30 @@ const AIChat = () => {
               const contentStr = String(msg.content).toLowerCase();
               
               // Check for quiz content first - enhanced detection
+              // IMPORTANT: Only include quizzes that were generated through AI Chat conversations
+              // Exclude quizzes that were manually created in the Quiz System
               const hasQuizStructure = (
-                // Check for quiz-specific properties
-                (contentStr.includes('"quiz_data"') || contentStr.includes('quiz_data')) ||
-                (contentStr.includes('"questions"') && contentStr.includes('"correct_answer"')) ||
-                (contentStr.includes('"question_number"') && contentStr.includes('"options"')) ||
-                (contentStr.includes('"type"') && contentStr.includes('"quiz"')) ||
-                (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')) ||
-                (contentStr.includes('"time_limit"') && contentStr.includes('"difficulty"')) ||
-                // Check for more quiz patterns
-                (contentStr.includes('"total_questions"') && contentStr.includes('"difficulty"')) ||
-                (contentStr.includes('"correct_answer"') && contentStr.includes('"explanation"')) ||
-                // Check if it's already parsed as a quiz object
-                (typeof msg.content === 'object' && (
-                  msg.content.type === 'quiz' ||
-                  msg.content.quiz_data ||
-                  (msg.content.questions && Array.isArray(msg.content.questions)) ||
-                  (msg.content.quiz_id && msg.content.topic && msg.content.questions) ||
-                  (msg.content.response && msg.content.quiz_data)
-                ))
+                // Check for AI-generated quiz properties (not manual quiz system)
+                (contentStr.includes('"quiz_data"') || contentStr.includes('quiz_data')) &&
+                // Make sure this is from an AI Chat interaction, not manual quiz creation
+                msg.type === 'quiz' && // Must have quiz type set by AI Chat
+                (
+                  (contentStr.includes('"questions"') && contentStr.includes('"correct_answer"')) ||
+                  (contentStr.includes('"question_number"') && contentStr.includes('"options"')) ||
+                  (contentStr.includes('"quiz_id"') && contentStr.includes('"topic"')) ||
+                  (contentStr.includes('"time_limit"') && contentStr.includes('"difficulty"')) ||
+                  // Check for more AI-generated quiz patterns
+                  (contentStr.includes('"total_questions"') && contentStr.includes('"difficulty"')) ||
+                  (contentStr.includes('"correct_answer"') && contentStr.includes('"explanation"')) ||
+                  // Check if it's already parsed as an AI-generated quiz object
+                  (typeof msg.content === 'object' && (
+                    msg.content.type === 'quiz' ||
+                    msg.content.quiz_data ||
+                    (msg.content.questions && Array.isArray(msg.content.questions)) ||
+                    (msg.content.quiz_id && msg.content.topic && msg.content.questions) ||
+                    (msg.content.response && msg.content.quiz_data)
+                  ))
+                )
               );
               
               // Simplified detection for learning paths - just check for topics array

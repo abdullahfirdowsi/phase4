@@ -1247,6 +1247,46 @@ export const storeQuizMessage = async (userMessage, quizMessage) => {
   }
 };
 
+// Store quiz result from AI Chat to be accessible in Quiz System
+export const storeAIChatQuizResult = async (quizResult) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const requestBody = {
+      username,
+      quiz_id: quizResult.quiz_id,
+      quiz_title: quizResult.quiz_title,
+      score_percentage: quizResult.score_percentage,
+      correct_answers: quizResult.correct_answers,
+      total_questions: quizResult.total_questions,
+      answers: quizResult.answers || [],
+      answer_review: quizResult.answerReview || [],
+      source: 'ai_chat', // Mark as AI Chat source
+      submitted_at: quizResult.submitted_at || new Date().toISOString()
+    };
+
+    console.log('📤 Storing AI Chat quiz result:', requestBody);
+
+    const data = await apiRequest(`${API_BASE_URL}/quiz/store-ai-chat-result`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('✅ AI Chat quiz result stored successfully');
+    return data;
+  } catch (error) {
+    console.error("Error storing AI Chat quiz result:", error);
+    throw error;
+  }
+};
+
 // Quiz System API Calls
 export const generateQuiz = async (topic, difficulty = "medium", questionCount = 5) => {
   const username = localStorage.getItem("username");

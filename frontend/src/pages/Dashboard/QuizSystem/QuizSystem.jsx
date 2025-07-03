@@ -131,17 +131,24 @@ const QuizSystem = () => {
           });
         }
         
-        // Process chat history for quiz messages
+        // Process chat history for quiz messages from AI Chat
+        // Only include quizzes that were generated through AI Chat interactions
         if (chatHistoryResponse.ok) {
           const chatData = await chatHistoryResponse.json();
           const messages = chatData.history || [];
           
+          console.log('🔍 Processing chat history for AI-generated quizzes...');
+          
           const chatQuizzes = messages
-            .filter(msg => msg.type === 'quiz' && msg.role === 'assistant')
+            .filter(msg => {
+              // Only include quiz messages that came from AI Chat (assistant role)
+              return msg.type === 'quiz' && msg.role === 'assistant' && msg.content;
+            })
             .map(msg => {
               try {
                 let quizContent;
                 if (typeof msg.content === 'string') {
+                  // Try to parse JSON content
                   const jsonMatch = msg.content.match(/\{[\s\S]*\}/);
                   if (jsonMatch) {
                     quizContent = JSON.parse(jsonMatch[0]);
@@ -153,28 +160,39 @@ const QuizSystem = () => {
                 if (quizContent && quizContent.quiz_data) {
                   const quizData = quizContent.quiz_data;
                   return {
-                    id: quizData.quiz_id || `chat_quiz_${Date.now()}`,
+                    id: quizData.quiz_id || `ai_chat_quiz_${Date.now()}`,
                     quiz_id: quizData.quiz_id,
-                    title: `${quizData.topic || 'Chat'} Quiz`,
-                    description: `Quiz created from AI Chat about ${quizData.topic || 'various topics'}`,
+                    title: `${quizData.topic || 'AI Chat'} Quiz`,
+                    description: `AI-generated quiz about ${quizData.topic || 'various topics'} from AI Chat`,
                     subject: quizData.topic || 'General',
                     difficulty: quizData.difficulty || 'medium',
                     time_limit: quizData.time_limit || 10,
                     questions: quizData.questions || [],
                     created_at: msg.timestamp || new Date().toISOString(),
-                    source: 'ai_chat',
-                    chat_message_id: msg.id
+                    source: 'ai_chat', // Mark as AI Chat source
+                    chat_message_id: msg.id,
+                    isAIGenerated: true // Flag to distinguish from manually created quizzes
                   };
                 }
               } catch (e) {
-                console.error('Error parsing chat quiz:', e);
+                console.error('Error parsing AI Chat quiz:', e);
               }
               return null;
             })
             .filter(quiz => quiz !== null);
           
-          // Combine both sources, removing duplicates
-          const allQuizzes = [...transformedQuizzes, ...chatQuizzes];
+          console.log(`✅ Found ${chatQuizzes.length} AI-generated quizzes from chat history`);
+          
+          // Combine quizzes: Manual quizzes first, then AI Chat quizzes
+          // Mark manual quizzes to distinguish them
+          const manualQuizzes = transformedQuizzes.map(quiz => ({
+            ...quiz,
+            source: 'manual',
+            isAIGenerated: false
+          }));
+          
+          // Combine and remove duplicates based on quiz_id
+          const allQuizzes = [...manualQuizzes, ...chatQuizzes];
           const uniqueQuizzes = allQuizzes.filter((quiz, index, self) => 
             index === self.findIndex(q => q.quiz_id === quiz.quiz_id)
           );
@@ -275,30 +293,93 @@ const QuizSystem = () => {
         return;
       }
       
-      // Try to fetch quiz results from backend
+      // Try to fetch quiz results from multiple sources
       try {
-        const response = await fetch(`http://localhost:8000/quiz/quiz-history?username=${username}`);
-        if (response.ok) {
-          const data = await response.json();
-          const results = data.quiz_history || [];
-          
-          // Sort results by submission date (newest first)
-          const sortedResults = results.sort((a, b) => {
-            const dateA = new Date(a.submitted_at || 0);
-            const dateB = new Date(b.submitted_at || 0);
-            return dateB - dateA; // Descending order (newest first)
-          });
-          
-          setQuizResults(sortedResults);
-          // NO localStorage caching - data loaded directly from MongoDB
-        } else {
-          console.log("Quiz results API returned non-JSON response, creating sample results");
-          // Create sample quiz results since the API is not available
-          createSampleQuizResults();
+        // Fetch from both quiz history API and chat history (for AI Chat quizzes)
+        const [quizHistoryResponse, chatHistoryResponse] = await Promise.all([
+          fetch(`http://localhost:8000/quiz/quiz-history?username=${username}`),
+          fetch(`http://localhost:8000/chat/history?username=${username}`)
+        ]);
+        
+        let allResults = [];
+        
+        // Get regular quiz results
+        if (quizHistoryResponse.ok) {
+          const quizData = await quizHistoryResponse.json();
+          const quizResults = quizData.quiz_history || [];
+          allResults = [...allResults, ...quizResults];
+          console.log(`✅ Found ${quizResults.length} quiz results from quiz history API`);
         }
+        
+        // Get AI Chat quiz results from submitted quiz answers in chat history
+        if (chatHistoryResponse.ok) {
+          const chatData = await chatHistoryResponse.json();
+          const messages = chatData.history || [];
+          
+          // Look for quiz submission results in chat messages
+          const chatQuizResults = messages
+            .filter(msg => {
+              // Look for messages that contain quiz results or submissions
+              return msg.role === 'user' && msg.content && 
+                     (msg.content.includes('quiz') || msg.content.includes('Quiz')) &&
+                     msg.quiz_result; // Look for quiz_result field
+            })
+            .map(msg => {
+              // Extract quiz result from chat message
+              try {
+                if (msg.quiz_result) {
+                  return {
+                    ...msg.quiz_result,
+                    id: msg.quiz_result.id || `chat_result_${Date.now()}`,
+                    source: 'ai_chat',
+                    submitted_at: msg.timestamp || new Date().toISOString()
+                  };
+                }
+              } catch (e) {
+                console.error('Error parsing chat quiz result:', e);
+              }
+              return null;
+            })
+            .filter(result => result !== null);
+          
+          allResults = [...allResults, ...chatQuizResults];
+          console.log(`✅ Found ${chatQuizResults.length} AI Chat quiz results from chat history`);
+        }
+        
+        // Also try the getQuizHistory API function (uses newer endpoint)
+        try {
+          const apiQuizHistory = await getQuizHistory();
+          if (Array.isArray(apiQuizHistory) && apiQuizHistory.length > 0) {
+            // Merge with existing results, removing duplicates
+            const existingIds = new Set(allResults.map(r => r.id || r.quiz_id));
+            const newResults = apiQuizHistory.filter(r => !existingIds.has(r.id || r.quiz_id));
+            allResults = [...allResults, ...newResults];
+            console.log(`✅ Found ${newResults.length} additional quiz results from getQuizHistory API`);
+          }
+        } catch (apiError) {
+          console.log('📍 getQuizHistory API not available:', apiError.message);
+        }
+        
+        // Remove duplicates based on quiz_id and submitted_at
+        const uniqueResults = allResults.filter((result, index, self) => {
+          const key = `${result.quiz_id}_${result.submitted_at}`;
+          return index === self.findIndex(r => `${r.quiz_id}_${r.submitted_at}` === key);
+        });
+        
+        // Sort results by submission date (newest first)
+        const sortedResults = uniqueResults.sort((a, b) => {
+          const dateA = new Date(a.submitted_at || 0);
+          const dateB = new Date(b.submitted_at || 0);
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
+        console.log(`🏆 Total unique quiz results found: ${sortedResults.length}`);
+        setQuizResults(sortedResults);
+        // NO localStorage caching - data loaded directly from MongoDB
+        
       } catch (error) {
-        console.log("Quiz results API returned non-JSON response, creating sample results");
-        // Create sample quiz results since the API is not available
+        console.log("Quiz results APIs failed, creating sample results:", error.message);
+        // Create sample quiz results since the APIs are not available
         createSampleQuizResults();
       }
     } catch (error) {
