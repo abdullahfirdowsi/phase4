@@ -28,6 +28,10 @@ const globalSlice = createSlice({
     },
     setIsQuizQuery: (state, action) => {
       state.isQuizQuery = action.payload;
+      // Reset conflicting states
+      if (action.payload) {
+        state.isLearningPathQuery = false;
+      }
     },
     setStreamChat: (state, action) => {
       const message = action.payload;
@@ -81,6 +85,10 @@ const globalSlice = createSlice({
     },
     setIsLearningPathQuery: (state, action) => {
       state.isLearningPathQuery = action.payload;
+      // Reset conflicting states
+      if (action.payload) {
+        state.isQuizQuery = false;
+      }
     },
     setPreferences: (state, action) => {
       state.preferences = { ...state.preferences, ...action.payload };

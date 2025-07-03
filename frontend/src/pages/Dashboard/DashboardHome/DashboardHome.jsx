@@ -22,21 +22,23 @@ const DashboardHome = () => {
   const handleSuggestionClick = (suggestion, mode) => {
     console.log('🎯 Suggestion clicked:', { suggestion, mode });
     
-    // Store the message and mode in sessionStorage
-    sessionStorage.setItem("initialQuestion", suggestion);
+    // Clear any existing storage first to prevent conflicts
+    sessionStorage.removeItem("initialQuestion");
+    sessionStorage.removeItem("initialMode");
     
-    if (mode) {
-      sessionStorage.setItem("initialMode", mode);
-      console.log('💾 Mode set:', mode);
-    } else {
-      // Clear any existing mode
-      sessionStorage.removeItem("initialMode");
-      console.log('💾 No mode specified, cleared any existing mode');
-    }
-    
-    // Navigate to the chat page
-    console.log('🚀 Navigating to AI Chat');
-    navigate("/dashboard/chat");
+    // Store the message and mode in sessionStorage with a small delay
+    setTimeout(() => {
+      sessionStorage.setItem("initialQuestion", suggestion);
+      
+      if (mode) {
+        sessionStorage.setItem("initialMode", mode);
+        console.log('💾 Mode set:', mode);
+      }
+      
+      // Navigate to the chat page after storage is set
+      console.log('🚀 Navigating to AI Chat');
+      navigate("/dashboard/chat");
+    }, 50); // Small delay to ensure storage operations complete
   };
 
   return (

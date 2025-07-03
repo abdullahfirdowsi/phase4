@@ -5,6 +5,7 @@ import { fetchChatHistory, askQuestion, clearChat, generateQuiz, storeQuizMessag
 import './AIChat.scss';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { debugLogger, validateState } from '../../utils/debugUtils';
 import { formatDistanceToNow } from 'date-fns';
 import SearchModal from './SearchModal';
 import AnalyticsModal from './AnalyticsModal';
@@ -19,6 +20,7 @@ const AIChat = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   // Use a single state to track the active mode - ensures mutual exclusivity
   const [activeMode, setActiveMode] = useState('none'); // 'none', 'learning_path', 'quiz'
+  const [stateVersion, setStateVersion] = useState(0); // Force re-renders when needed
   const [error, setError] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
@@ -30,10 +32,50 @@ const AIChat = () => {
   
   // Cleanup on unmount
   useEffect(() => {
+    debugLogger.log('Mount', 'AIChat component mounted');
     return () => {
       console.log('🧹 AIChat component unmounted, cleaning up...');
       componentMounted.current = false;
+      // Clear any pending timeouts and force a final state sync
+      syncUIState();
     };
+  }, []);
+  
+  // Storage synchronization function to prevent data conflicts
+  const cleanupStorageConflicts = useCallback(() => {
+    const username = localStorage.getItem("username");
+    if (!username) return;
+    
+    const localStorageKey = `chat_messages_${username}`;
+    const cachedMessages = localStorage.getItem(localStorageKey);
+    
+    if (cachedMessages) {
+      try {
+        const parsedMessages = JSON.parse(cachedMessages);
+        // Remove any messages with invalid timestamps or duplicate content
+        const cleanedMessages = parsedMessages.filter((msg, index, arr) => {
+          // Check for valid timestamp
+          if (!msg.timestamp) return false;
+          
+          // Check for duplicate content (keep first occurrence)
+          const isDuplicate = arr.findIndex(other => 
+            other.role === msg.role && 
+            other.content === msg.content && 
+            other.timestamp !== msg.timestamp
+          ) < index;
+          
+          return !isDuplicate;
+        });
+        
+        if (cleanedMessages.length !== parsedMessages.length) {
+          localStorage.setItem(localStorageKey, JSON.stringify(cleanedMessages));
+          console.log('🧹 Cleaned up storage conflicts');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to clean storage conflicts:', e);
+        localStorage.removeItem(localStorageKey);
+      }
+    }
   }, []);
   
   // Helper function to detect if content is a learning path
@@ -82,6 +124,17 @@ const AIChat = () => {
   // Derived states for backward compatibility and cleaner code
   const isLearningPath = activeMode === 'learning_path';
   const isQuiz = activeMode === 'quiz';
+  
+  // Centralized state synchronization function to prevent inconsistencies
+  const syncUIState = useCallback(() => {
+    setStateVersion(prev => prev + 1);
+  }, []);
+  
+  // Sync state whenever activeMode changes
+  useEffect(() => {
+    console.log('🔄 Active mode changed:', activeMode);
+    syncUIState();
+  }, [activeMode, syncUIState]);
 
   // Fetch chat history on component mount and when returning to page
   useEffect(() => {
@@ -98,6 +151,8 @@ const AIChat = () => {
       localStorage.setItem('name', 'Test User');
     }
     
+    // Clean up any storage conflicts before loading
+    cleanupStorageConflicts();
     loadChatHistory();
     hasFetched.current = true;
   }, []); // Empty dependency array to run only once
@@ -371,6 +426,14 @@ const AIChat = () => {
           });
         
         console.log('📚 Processed chat history:', processedHistory.length, 'messages');
+        
+        // Validate chat history before setting
+        const validationErrors = validateState.chatHistory(processedHistory);
+        if (validationErrors.length > 0) {
+          console.warn('⚠️ Chat history validation failed:', validationErrors);
+          debugLogger.error('ChatHistory', 'Validation failed', validationErrors);
+        }
+        
         setMessages(processedHistory);
         
         // Cache the processed messages in localStorage
@@ -483,9 +546,10 @@ const AIChat = () => {
     // Cache the user message immediately
     const username = localStorage.getItem("username");
     const localStorageKey = `chat_messages_${username}`;
-    try {
-      localStorage.setItem(localStorageKey, JSON.stringify(updatedMessagesWithUser));
-      console.log('💾 Cached user message to localStorage');
+      try {
+        localStorage.setItem(localStorageKey, JSON.stringify(updatedMessagesWithUser));
+        debugLogger.storageOperation('SET', localStorageKey, `${updatedMessagesWithUser.length} messages`);
+        console.log('💾 Cached user message to localStorage');
     } catch (e) {
       console.warn('⚠️ Failed to cache user message to localStorage:', e);
     }
@@ -997,12 +1061,20 @@ const AIChat = () => {
 
   const handleToggleLearningPath = () => {
     // Toggle learning path mode - if already active, deactivate; otherwise activate
-    setActiveMode(prev => prev === 'learning_path' ? 'none' : 'learning_path');
+    setActiveMode(prev => {
+      const newMode = prev === 'learning_path' ? 'none' : 'learning_path';
+      debugLogger.stateChange('AIChat', { activeMode: prev }, { activeMode: newMode });
+      return newMode;
+    });
   };
 
   const handleToggleQuiz = () => {
     // Toggle quiz mode - if already active, deactivate; otherwise activate
-    setActiveMode(prev => prev === 'quiz' ? 'none' : 'quiz');
+    setActiveMode(prev => {
+      const newMode = prev === 'quiz' ? 'none' : 'quiz';
+      debugLogger.stateChange('AIChat', { activeMode: prev }, { activeMode: newMode });
+      return newMode;
+    });
   };
 
   const handleQuickAction = async (prompt) => {
@@ -1115,6 +1187,8 @@ const AIChat = () => {
   const memoizedMessages = useMemo(() => messages, [messages]);
 
 
+  debugLogger.uiRender('AIChat', { activeMode, isGenerating, messagesCount: messages.length });
+  
   return (
     <div className="ai-chat">
       <Container fluid className="chat-container">
