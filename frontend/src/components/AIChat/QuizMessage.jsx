@@ -170,7 +170,7 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
         try {
           const aiChatQuizResult = {
             quiz_id: quizData.quiz_id,
-            quiz_title: `${quizData.topic || 'AI Chat'} Quiz`,
+            quiz_title: quizData.quiz_title || quizData.topic || 'AI Chat Quiz',
             score_percentage: result.score_percentage,
             correct_answers: result.correct_answers,
             total_questions: result.total_questions,
@@ -251,7 +251,7 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
           <div className="quiz-title-section">
             <h5 className="quiz-title">
               <Trophy className="me-2" />
-              {quizData.topic || 'Quiz'} Quiz
+              {quizData.quiz_title || quizData.topic || 'Knowledge Challenge'}
             </h5>
             <div className="quiz-badges">
               <Badge bg={getDifficultyColor(quizData.difficulty)}>

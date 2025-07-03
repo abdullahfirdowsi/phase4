@@ -52,10 +52,11 @@ IMPORTANT: You must generate questions specifically about "{topic}". If you cann
 
 Your response must be ONLY a valid JSON object in this exact format:
 {{
-    "response": "Here's your {topic} quiz! Let's test your knowledge. Answer each question and I'll calculate your score at the end.\\n\\n",
+    "response": "Here's your quiz! Let's test your knowledge. Answer each question and I'll calculate your score at the end.\\n\\n",
     "type": "quiz",
     "quiz_data": {{
         "quiz_id": "{quiz_id}",
+        "quiz_title": "[Generate a creative, unique title for this quiz - NOT just '{topic} Quiz']",
         "topic": "{topic}",
         "difficulty": "{difficulty}",
         "total_questions": {num_questions},
@@ -411,7 +412,7 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
         frontend_result = {
             "id": f"result_{int(datetime.datetime.utcnow().timestamp())}",
             "quiz_id": request.quiz_id,
-            "quiz_title": f"{quiz_info.get('topic', 'Quiz')} Quiz",
+            "quiz_title": quiz_info.get('quiz_title', quiz_info.get('topic', 'Knowledge Challenge')),  # Use AI-generated title or topic as fallback
             "score_percentage": score_percentage,
             "correct_answers": correct_answers,
             "total_questions": total_questions,
