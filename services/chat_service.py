@@ -17,9 +17,21 @@ class ChatService:
         self.sessions_collection = self.collections['user_sessions']
     
     async def create_session(self, username: str, ip_address: str, user_agent: str) -> str:
-        """Create a new chat session"""
+        """Create or get existing chat session for user"""
         try:
-            session_id = str(uuid.uuid4())
+            # Check for existing active session first
+            existing_session = self.sessions_collection.find_one({
+                "username": username,
+                "logout_time": None  # Active session
+            }, sort=[("login_time", -1)])  # Get most recent
+            
+            if existing_session:
+                session_id = existing_session["session_id"]
+                logger.info(f"🔄 Reusing existing session for {username}: {session_id}")
+                return session_id
+            
+            # Create new session if none exists
+            session_id = f"chat_session_{username}_{int(datetime.utcnow().timestamp() * 1000)}"
             session_doc = {
                 "session_id": session_id,
                 "username": username,
@@ -31,11 +43,13 @@ class ChatService:
             }
             
             self.sessions_collection.insert_one(session_doc)
+            logger.info(f"🆕 Created new session for {username}: {session_id}")
             return session_id
             
         except Exception as e:
             logger.error(f"Error creating chat session: {e}")
-            return str(uuid.uuid4())  # Fallback
+            # Fallback with consistent format
+            return f"chat_session_{username}_{int(datetime.utcnow().timestamp() * 1000)}"
     
     async def store_message(self, username: str, session_id: str, role: str, 
                           content: Union[str, Dict[str, Any]], message_type: MessageType = MessageType.CONTENT,

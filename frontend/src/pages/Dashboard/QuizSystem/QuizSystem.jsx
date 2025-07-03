@@ -303,12 +303,44 @@ const QuizSystem = () => {
         
         let allResults = [];
         
-        // Get regular quiz results
+        // Get regular quiz results (including AI Chat quiz results via submitQuiz)
         if (quizHistoryResponse.ok) {
           const quizData = await quizHistoryResponse.json();
           const quizResults = quizData.quiz_history || [];
+          
+          console.log('🔍 DETAILED Quiz History Debug:');
+          console.log('  - Raw API Response:', quizData);
+          console.log('  - Quiz Results Array:', quizResults);
+          console.log(`  - Total Results Count: ${quizResults.length}`);
+          
+          // Check if any results contain AI Chat quiz IDs from the logs
+          const aiChatQuizIds = ['quiz_1751532395']; // From backend logs
+          const matchingResults = quizResults.filter(result => 
+            aiChatQuizIds.includes(result.quiz_id)
+          );
+          console.log(`  - AI Chat Quiz Results Found: ${matchingResults.length}`);
+          if (matchingResults.length > 0) {
+            console.log('  - Matching AI Chat Results:', matchingResults);
+          }
+          
+          // Log each result for analysis
+          quizResults.forEach((result, index) => {
+            console.log(`  - Result ${index + 1}:`, {
+              id: result.id,
+              quiz_id: result.quiz_id,
+              quiz_title: result.quiz_title,
+              score_percentage: result.score_percentage,
+              submitted_at: result.submitted_at,
+              source: result.source || 'unknown'
+            });
+          });
+          
           allResults = [...allResults, ...quizResults];
           console.log(`✅ Found ${quizResults.length} quiz results from quiz history API`);
+        } else {
+          console.warn('⚠️ Quiz history API failed:', quizHistoryResponse.status, quizHistoryResponse.statusText);
+          const errorText = await quizHistoryResponse.text();
+          console.warn('  - Error details:', errorText);
         }
         
         // Get AI Chat quiz results from submitted quiz answers in chat history

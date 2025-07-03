@@ -288,18 +288,24 @@ async def store_quiz_messages(
     request: Request,
     username: str = Body(...),
     user_message: dict = Body(...),
-    quiz_message: dict = Body(...)
+    quiz_message: dict = Body(...),
+    session_id: str = Body(None)
 ):
     """Store quiz messages directly to chat history for persistence"""
     try:
         logger.info(f"💾 Storing quiz messages for user: {username}")
         
-        # Get client info for session
-        client_ip = request.client.host
-        user_agent = request.headers.get("user-agent", "Unknown")
-        
-        # Create or get session
-        session_id = await chat_service.create_session(username, client_ip, user_agent)
+        # Use session ID from frontend if provided, otherwise create new one
+        if session_id:
+            logger.info(f"🔄 Using session ID from frontend: {session_id}")
+        else:
+            # Get client info for session
+            client_ip = request.client.host
+            user_agent = request.headers.get("user-agent", "Unknown")
+            
+            # Create or get session
+            session_id = await chat_service.create_session(username, client_ip, user_agent)
+            logger.info(f"🆔 Created new session ID: {session_id}")
         
         # Store user message first
         user_result = await chat_service.store_message(

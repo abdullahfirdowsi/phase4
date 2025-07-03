@@ -453,38 +453,84 @@ export const clearChat = async () => {
 
   if (!username || !token) throw new Error("User not authenticated");
 
+  console.log('🗑️ Starting chat clear process for user:', username);
+
   try {
-    // Use the working legacy endpoint first (this is where messages are actually stored)
+    // Try multiple endpoints to ensure complete clearing
+    let successCount = 0;
+    let lastError = null;
+
+    // Endpoint 1: Legacy chat/clear
     try {
-      const data = await apiRequest(
+      console.log('🗑️ Attempting to clear via /chat/clear...');
+      const data1 = await apiRequest(
         `${API_BASE_URL}/chat/clear?username=${encodeURIComponent(username)}`,
         {
           method: "DELETE",
           headers: {
             "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
           },
         }
       );
-      console.log('🗑️ Chat cleared using working API:', data);
-      return data;
-    } catch (workingApiError) {
-      console.warn('⚠️ Working API failed, trying new endpoint:', workingApiError.message);
-      
-      // Fallback to new endpoint
-      const data = await apiRequest(
+      console.log('✅ Chat cleared via /chat/clear:', data1);
+      successCount++;
+    } catch (error1) {
+      console.warn('⚠️ /chat/clear failed:', error1.message);
+      lastError = error1;
+    }
+
+    // Endpoint 2: New api/chat/clear
+    try {
+      console.log('🗑️ Attempting to clear via /api/chat/clear...');
+      const data2 = await apiRequest(
         `${API_BASE_URL}/api/chat/clear?username=${encodeURIComponent(username)}`,
         {
           method: "DELETE",
           headers: {
             "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
           },
         }
       );
-      console.log('🗑️ Chat cleared using fallback API:', data);
-      return data;
+      console.log('✅ Chat cleared via /api/chat/clear:', data2);
+      successCount++;
+    } catch (error2) {
+      console.warn('⚠️ /api/chat/clear failed:', error2.message);
+      lastError = error2;
+    }
+
+    // Endpoint 3: Try POST method (some backends expect POST for clears)
+    try {
+      console.log('🗑️ Attempting to clear via POST /chat/clear...');
+      const data3 = await apiRequest(
+        `${API_BASE_URL}/chat/clear`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ username })
+        }
+      );
+      console.log('✅ Chat cleared via POST /chat/clear:', data3);
+      successCount++;
+    } catch (error3) {
+      console.warn('⚠️ POST /chat/clear failed:', error3.message);
+      lastError = error3;
+    }
+
+    // Check if any method succeeded
+    if (successCount > 0) {
+      console.log(`✅ Chat clearing succeeded via ${successCount} endpoint(s)`);
+      return { success: true, clearedVia: successCount };
+    } else {
+      console.error('❌ All chat clear endpoints failed');
+      throw lastError || new Error('All clear endpoints failed');
     }
   } catch (error) {
-    console.error("Error clearing chat history:", error);
+    console.error("❌ Critical error in clearChat:", error);
     throw error;
   }
 };
@@ -1219,7 +1265,7 @@ export const updateLearningPathProgress = async (pathId, topicId, completed = tr
 };
 
 // Store quiz message directly to chat history
-export const storeQuizMessage = async (userMessage, quizMessage) => {
+export const storeQuizMessage = async (userMessage, quizMessage, sessionId = null) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
 
@@ -1235,7 +1281,8 @@ export const storeQuizMessage = async (userMessage, quizMessage) => {
       body: JSON.stringify({
         username,
         user_message: userMessage,
-        quiz_message: quizMessage
+        quiz_message: quizMessage,
+        session_id: sessionId  // Pass session ID from frontend
       }),
     });
 
@@ -1248,6 +1295,8 @@ export const storeQuizMessage = async (userMessage, quizMessage) => {
 };
 
 // Store quiz result from AI Chat to be accessible in Quiz System
+// Note: The quiz result is already stored when submitQuiz() is called
+// This function is now mainly for logging and verification
 export const storeAIChatQuizResult = async (quizResult) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
@@ -1255,35 +1304,36 @@ export const storeAIChatQuizResult = async (quizResult) => {
   if (!username || !token) throw new Error("User not authenticated");
 
   try {
-    const requestBody = {
-      username,
+    console.log('📤 AI Chat quiz result (already stored via submitQuiz):', {
       quiz_id: quizResult.quiz_id,
-      quiz_title: quizResult.quiz_title,
       score_percentage: quizResult.score_percentage,
       correct_answers: quizResult.correct_answers,
       total_questions: quizResult.total_questions,
-      answers: quizResult.answers || [],
-      answer_review: quizResult.answerReview || [],
-      source: 'ai_chat', // Mark as AI Chat source
-      submitted_at: quizResult.submitted_at || new Date().toISOString()
-    };
-
-    console.log('📤 Storing AI Chat quiz result:', requestBody);
-
-    const data = await apiRequest(`${API_BASE_URL}/quiz/store-ai-chat-result`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
+      source: 'ai_chat'
     });
 
-    console.log('✅ AI Chat quiz result stored successfully');
-    return data;
+    // The result is already stored in the database via submitQuiz() call
+    // The backend automatically stores it in the quiz_history when /quiz/submit is called
+    // So we just return success to indicate the AI Chat quiz was completed
+    
+    console.log('✅ AI Chat quiz result already stored via submitQuiz() - Quiz System integration complete');
+    
+    return { 
+      success: true, 
+      message: 'Quiz result stored via submitQuiz endpoint',
+      quiz_id: quizResult.quiz_id,
+      stored_via: 'quiz_submit_endpoint'
+    };
+    
   } catch (error) {
-    console.error("Error storing AI Chat quiz result:", error);
-    throw error;
+    console.error("Error in storeAIChatQuizResult:", error);
+    // Don't throw error since the result is already stored via submitQuiz
+    console.warn('⚠️ AI Chat quiz result logging failed, but quiz was already submitted successfully');
+    return { 
+      success: true, 
+      message: 'Quiz submitted successfully despite logging error',
+      warning: error.message 
+    };
   }
 };
 

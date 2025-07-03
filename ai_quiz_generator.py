@@ -185,9 +185,12 @@ def extract_json_from_response(response: str) -> Dict[str, Any]:
 def store_quiz_message(username: str, content: Dict[str, Any], role: str = "assistant"):
     """Store quiz message in chat_messages_collection with proper structure"""
     try:
+        # Use consistent session ID format matching AI Chat component
+        session_id = f"chat_session_{username}_{int(datetime.datetime.utcnow().timestamp() * 1000)}"
+        
         message = {
             "username": username,
-            "session_id": "quiz_session",  # Use a special session ID for quiz messages
+            "session_id": session_id,
             "role": role,
             "content": content,
             "message_type": "quiz",  # Use message_type instead of type to match chat service
@@ -197,7 +200,7 @@ def store_quiz_message(username: str, content: Dict[str, Any], role: str = "assi
         
         chat_messages_collection.insert_one(message)
         
-        logger.info(f"✅ Stored quiz message for user: {username}")
+        logger.info(f"✅ Stored quiz message for user: {username} with session: {session_id}")
         
     except Exception as e:
         logger.error(f"Error storing quiz message: {e}")
@@ -241,15 +244,9 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
                 detail=f"Generated quiz for '{request.topic}' has invalid structure. Please try a different topic."
             )
         
-        # Store user message first
-        store_quiz_message(
-            username=request.username, 
-            content=f"Generate a {request.difficulty} quiz about {request.topic} with {request.num_questions} questions",
-            role="user"
-        )
-        
-        # Store quiz response
-        store_quiz_message(request.username, quiz_json)
+        # Note: Message storage is handled by the frontend AIChat component
+        # to ensure proper session ID consistency. The frontend calls storeQuizMessage()
+        # after receiving the quiz response, which maintains the correct session flow.
         
         # Store quiz data for later reference and scoring
         quiz_data = {

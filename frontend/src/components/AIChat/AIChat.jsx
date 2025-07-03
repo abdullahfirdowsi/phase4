@@ -46,10 +46,12 @@ const AIChat = () => {
   const textareaRef = useRef(null);
   const sessionIdRef = useRef(null);
 
-  // Initialize session ID once
+  // Initialize session ID once - use consistent session for quiz integration
   useEffect(() => {
     if (!sessionIdRef.current) {
-      sessionIdRef.current = crypto.randomUUID();
+      // Use a consistent session ID format for better integration
+      const username = localStorage.getItem('username');
+      sessionIdRef.current = `chat_session_${username}_${Date.now()}`;
       console.log('🆔 Initialized session ID:', sessionIdRef.current);
     }
   }, []);
@@ -231,7 +233,7 @@ const AIChat = () => {
 
       // Store quiz messages to backend (single API call)
       try {
-        await storeQuizMessage(userMessage, aiMessage);
+        await storeQuizMessage(userMessage, aiMessage, sessionIdRef.current);
         console.log('✅ Quiz messages stored to backend');
       } catch (storeError) {
         console.warn('⚠️ Failed to store quiz messages:', storeError);
@@ -377,13 +379,50 @@ const AIChat = () => {
     setShowConfirmModal(false);
     
     try {
-      await clearChat();
+      console.log('🗑️ Starting chat clear process...');
+      
+      // Step 1: Clear chat from database
+      const clearResult = await clearChat();
+      console.log('✅ Clear API result:', clearResult);
+      
+      // Step 2: Clear local UI immediately
       setMessages([]);
       setError(null);
-      console.log('✅ Chat cleared from database');
+      
+      // Step 3: Verify clear by fetching fresh data
+      console.log('🔍 Verifying clear by fetching fresh chat history...');
+      setTimeout(async () => {
+        try {
+          const freshHistory = await fetchChatHistory();
+          
+          if (Array.isArray(freshHistory) && freshHistory.length > 0) {
+            console.warn('⚠️ Warning: Fresh history still contains messages after clear:', freshHistory.length);
+            console.warn('📋 Remaining messages:', freshHistory);
+            
+            // Show warning to user
+            setError(`Warning: Chat may not have been completely cleared. Found ${freshHistory.length} remaining messages.`);
+            
+            // Still set the fresh messages to show what's actually in DB
+            setMessages(freshHistory.map(msg => ({
+              id: msg.id || `msg_${Date.now()}_${Math.random()}`,
+              role: msg.role,
+              content: msg.content,
+              type: msg.type || (msg.role === 'user' ? 'content' : 'content'),
+              timestamp: msg.timestamp || new Date().toISOString()
+            })));
+          } else {
+            console.log('✅ Verification successful: No messages found in database after clear');
+            setMessages([]);
+          }
+        } catch (verifyError) {
+          console.error('❌ Error during verification:', verifyError);
+          setError('Chat cleared, but verification failed. Please refresh to confirm.');
+        }
+      }, 1000); // Wait 1 second for backend to process
+      
     } catch (error) {
       console.error('❌ Error clearing chat:', error);
-      setError('Failed to clear chat. Please try again.');
+      setError(`Failed to clear chat: ${error.message}. Please check console for details.`);
     }
   };
 
