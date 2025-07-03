@@ -510,19 +510,26 @@ async def get_assessments(username: str):
     
 @chat_router.delete("/clear")
 async def clear_chat(username: str):
-    """Clears the chat history for a specific user."""
+    """Clears the chat history for a specific user - Updated for new database structure."""
     try:
-        result = chats_collection.update_one(
-            {"username": username},
-            {"$set": {"messages": []}}
-        )
-
-        if result.matched_count == 0:
-            return {"message": "No chat history found for this user."}
-
-        return {"message": "Chat history cleared successfully."}
+        from services.chat_service import chat_service
+        
+        logger.info(f"🗑️ Clearing chat history for user: {username}")
+        
+        # Use the new chat service to clear messages
+        result = await chat_service.clear_chat_history(username)
+        
+        if not result.success:
+            logger.warning(f"⚠️ Chat service clear failed: {result.message}")
+            return {"message": result.message}
+        
+        deleted_count = result.data.get('deleted_count', 0)
+        logger.info(f"✅ Successfully cleared {deleted_count} messages for user: {username}")
+        
+        return {"message": f"Chat history cleared successfully. Deleted {deleted_count} messages."}
+        
     except Exception as e:
-        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error clearing chat: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # New API to store user preferences

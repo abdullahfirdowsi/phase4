@@ -456,34 +456,29 @@ export const clearChat = async () => {
   console.log('🗑️ Starting chat clear process for user:', username);
 
   try {
-    // Try multiple endpoints to ensure complete clearing
-    let successCount = 0;
-    let lastError = null;
-
-    // Endpoint 1: Legacy chat/clear
+    // Use the primary chat clear endpoint (new structure)
+    console.log('🗑️ Clearing chat via primary endpoint...');
+    const data = await apiRequest(
+      `${API_BASE_URL}/chat/clear?username=${encodeURIComponent(username)}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      }
+    );
+    
+    console.log('✅ Chat cleared successfully:', data);
+    return { success: true, message: data.message };
+    
+  } catch (error) {
+    console.error("❌ Primary clear endpoint failed, trying fallback:", error.message);
+    
+    // Fallback to legacy endpoint if primary fails
     try {
-      console.log('🗑️ Attempting to clear via /chat/clear...');
-      const data1 = await apiRequest(
-        `${API_BASE_URL}/chat/clear?username=${encodeURIComponent(username)}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-        }
-      );
-      console.log('✅ Chat cleared via /chat/clear:', data1);
-      successCount++;
-    } catch (error1) {
-      console.warn('⚠️ /chat/clear failed:', error1.message);
-      lastError = error1;
-    }
-
-    // Endpoint 2: New api/chat/clear
-    try {
-      console.log('🗑️ Attempting to clear via /api/chat/clear...');
-      const data2 = await apiRequest(
+      console.log('🗑️ Attempting fallback clear via /api/chat/clear...');
+      const fallbackData = await apiRequest(
         `${API_BASE_URL}/api/chat/clear?username=${encodeURIComponent(username)}`,
         {
           method: "DELETE",
@@ -493,45 +488,14 @@ export const clearChat = async () => {
           },
         }
       );
-      console.log('✅ Chat cleared via /api/chat/clear:', data2);
-      successCount++;
-    } catch (error2) {
-      console.warn('⚠️ /api/chat/clear failed:', error2.message);
-      lastError = error2;
+      
+      console.log('✅ Chat cleared via fallback:', fallbackData);
+      return { success: true, message: fallbackData.message };
+      
+    } catch (fallbackError) {
+      console.error("❌ All clear endpoints failed:", fallbackError.message);
+      throw new Error(`Failed to clear chat: ${error.message}. Fallback also failed: ${fallbackError.message}`);
     }
-
-    // Endpoint 3: Try POST method (some backends expect POST for clears)
-    try {
-      console.log('🗑️ Attempting to clear via POST /chat/clear...');
-      const data3 = await apiRequest(
-        `${API_BASE_URL}/chat/clear`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ username })
-        }
-      );
-      console.log('✅ Chat cleared via POST /chat/clear:', data3);
-      successCount++;
-    } catch (error3) {
-      console.warn('⚠️ POST /chat/clear failed:', error3.message);
-      lastError = error3;
-    }
-
-    // Check if any method succeeded
-    if (successCount > 0) {
-      console.log(`✅ Chat clearing succeeded via ${successCount} endpoint(s)`);
-      return { success: true, clearedVia: successCount };
-    } else {
-      console.error('❌ All chat clear endpoints failed');
-      throw lastError || new Error('All clear endpoints failed');
-    }
-  } catch (error) {
-    console.error("❌ Critical error in clearChat:", error);
-    throw error;
   }
 };
 

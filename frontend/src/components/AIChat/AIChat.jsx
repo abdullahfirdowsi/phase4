@@ -406,11 +406,37 @@ const AIChat = () => {
       localStorage.setItem(`chat_session_${username}`, sessionIdRef.current);
       console.log('🔄 Created new session ID for fresh conversation:', sessionIdRef.current);
       
-      // Step 3: Verify clear by fetching fresh data
+      // Step 3: Verify clear by fetching fresh data from the new API
       console.log('🔍 Verifying clear by fetching fresh chat history...');
       setTimeout(async () => {
         try {
-          const freshHistory = await fetchChatHistory();
+          // Use the new chat history endpoint that works with the current database structure
+          const username = localStorage.getItem('username');
+          const token = localStorage.getItem('token');
+          
+          const headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          };
+          
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+          
+          const response = await fetch(
+            `http://localhost:8000/chat/history?username=${encodeURIComponent(username)}`,
+            { 
+              method: "GET",
+              headers: headers
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          const freshHistory = data.history || [];
           
           if (Array.isArray(freshHistory) && freshHistory.length > 0) {
             console.warn('⚠️ Warning: Fresh history still contains messages after clear:', freshHistory.length);

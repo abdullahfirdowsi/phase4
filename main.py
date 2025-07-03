@@ -321,23 +321,22 @@ async def get_chat_history_api(username: str):
 
 @app.delete("/api/chat/clear")
 async def clear_chat_history_api(username: str):
-    """Clear chat history for frontend compatibility"""
+    """Clear chat history for frontend compatibility - Updated for new database structure"""
     try:
-        from database import chats_collection
+        from database import get_collections
+        from services.chat_service import chat_service
         
         logger.info(f"🗑️ Clearing chat history for username: {username}")
         
-        result = chats_collection.update_one(
-            {"username": username},
-            {"$set": {"messages": []}}
-        )
+        # Use the new chat service to clear messages
+        result = await chat_service.clear_chat_history(username)
         
-        if result.matched_count == 0:
-            logger.info(f"⚠️ No chat history found for username: {username}")
-            return {"message": "No chat history found for this user."}
+        if not result.success:
+            logger.warning(f"⚠️ Chat service clear failed: {result.message}")
+            return {"message": result.message}
         
-        logger.info(f"✅ Chat history cleared successfully for username: {username}")
-        return {"message": "Chat history cleared successfully."}
+        logger.info(f"✅ Chat history cleared successfully for username: {username}. Deleted {result.data.get('deleted_count', 0)} messages")
+        return {"message": f"Chat history cleared successfully. Deleted {result.data.get('deleted_count', 0)} messages."}
         
     except Exception as e:
         logger.error(f"❌ Error clearing chat history: {e}")
