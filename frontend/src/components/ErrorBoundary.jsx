@@ -1,9 +1,14 @@
 import React from 'react';
+import { Alert, Container, Button } from 'react-bootstrap';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { 
+      hasError: false, 
+      error: null,
+      errorInfo: null 
+    };
   }
 
   static getDerivedStateFromError(error) {
@@ -12,7 +17,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log the error
+    // Log the error details
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({
       error: error,
@@ -20,52 +25,47 @@ class ErrorBoundary extends React.Component {
     });
   }
 
+  handleReset = () => {
+    this.setState({ 
+      hasError: false, 
+      error: null,
+      errorInfo: null 
+    });
+  };
+
   render() {
     if (this.state.hasError) {
-      // Fallback UI
       return (
-        <div style={{
-          padding: '2rem',
-          margin: '1rem',
-          border: '1px solid #f5c6cb',
-          borderRadius: '8px',
-          backgroundColor: '#f8d7da',
-          color: '#721c24'
-        }}>
-          <h3>Something went wrong</h3>
-          <p>The component crashed, but the app is still running.</p>
-          {this.props.showDetails && (
-            <details style={{ marginTop: '1rem' }}>
-              <summary>Error Details</summary>
-              <pre style={{ 
-                whiteSpace: 'pre-wrap', 
-                fontSize: '12px', 
-                marginTop: '1rem',
-                padding: '1rem',
-                backgroundColor: '#f1f1f1',
-                borderRadius: '4px'
-              }}>
-                {this.state.error && this.state.error.toString()}
-                <br />
-                {this.state.errorInfo.componentStack}
-              </pre>
-            </details>
-          )}
-          <button 
-            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
-            style={{
-              marginTop: '1rem',
-              padding: '0.5rem 1rem',
-              backgroundColor: '#721c24',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Try Again
-          </button>
-        </div>
+        <Container className="mt-5">
+          <Alert variant="danger">
+            <Alert.Heading>Something went wrong!</Alert.Heading>
+            <p>
+              The component encountered an error and couldn't render properly.
+            </p>
+            <hr />
+            {this.state.error && (
+              <details style={{ whiteSpace: 'pre-wrap' }}>
+                <summary>Error Details (click to expand)</summary>
+                <p><strong>Error:</strong> {this.state.error.toString()}</p>
+                {this.state.errorInfo && (
+                  <p><strong>Component Stack:</strong> {this.state.errorInfo.componentStack}</p>
+                )}
+              </details>
+            )}
+            <div className="mt-3">
+              <Button variant="outline-danger" onClick={this.handleReset}>
+                Try Again
+              </Button>
+              <Button 
+                variant="primary" 
+                className="ms-2"
+                onClick={() => window.location.reload()}
+              >
+                Reload Page
+              </Button>
+            </div>
+          </Alert>
+        </Container>
       );
     }
 
