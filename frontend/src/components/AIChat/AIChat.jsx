@@ -93,7 +93,8 @@ const AIChat = () => {
             id: msg.id || `msg_${Date.now()}_${Math.random()}`,
             role: msg.role,
             content: msg.content,
-            type: msg.type || (msg.role === 'user' ? 'content' : 'content'),
+            // Fix: Map message_type to type for proper rendering
+            type: msg.type || msg.message_type || (msg.role === 'user' ? 'content' : 'content'),
             timestamp: msg.timestamp || new Date().toISOString()
           }))
           .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -450,7 +451,8 @@ const AIChat = () => {
               id: msg.id || `msg_${Date.now()}_${Math.random()}`,
               role: msg.role,
               content: msg.content,
-              type: msg.type || (msg.role === 'user' ? 'content' : 'content'),
+              // Fix: Map message_type to type for proper rendering
+              type: msg.type || msg.message_type || (msg.role === 'user' ? 'content' : 'content'),
               timestamp: msg.timestamp || new Date().toISOString()
             })));
           } else {
