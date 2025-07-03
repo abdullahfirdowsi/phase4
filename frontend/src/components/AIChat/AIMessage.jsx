@@ -102,10 +102,10 @@ const AIMessage = memo(({ message }) => {
           
           <QuizMessage 
             message={message} 
-            username={localStorage.getItem('username')}
+            username={localStorage.getItem('username')} // Only for authentication
             onQuizComplete={(result) => {
               console.log('Quiz completed:', result);
-              // You can add additional handling here
+              // Quiz results are stored directly in MongoDB via API
             }}
           />
         </div>

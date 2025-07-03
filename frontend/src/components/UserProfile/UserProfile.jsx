@@ -155,10 +155,7 @@ console.log('Sending user data:', JSON.stringify(userData, null, 2));
         profile: userData.profile
       });
 
-      // Update local storage with new avatar URL
-      if (avatarUrl) {
-        localStorage.setItem('avatarUrl', avatarUrl);
-      }
+      // NO localStorage caching - user data is managed directly in MongoDB
 
       setSuccess('Profile updated successfully!');
       

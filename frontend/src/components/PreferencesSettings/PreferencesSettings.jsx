@@ -98,7 +98,7 @@ const PreferencesSettings = () => {
       // Update profile with skill level
       if (skill_level) {
         const profileData = {
-          username: localStorage.getItem('username'),
+          username: localStorage.getItem('username'), // Only for authentication
           name: null, // Don't update name
           profile: { skill_level: skill_level }
         };

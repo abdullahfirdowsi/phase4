@@ -45,7 +45,7 @@ const LearningPaths = () => {
   const fetchLearningPaths = async () => {
     try {
       setLoading(true);
-      const username = localStorage.getItem("username");
+      const username = localStorage.getItem("username"); // Only for authentication
       
       // Enhanced cache-busting with multiple strategies
       const queryParams = new URLSearchParams({
@@ -85,7 +85,7 @@ const LearningPaths = () => {
           console.log(`  ${i + 1}. "${p.name}" - ${p.created_at} (ID: ${p.id})`);
         });
         
-        console.log('🔍 Current user:', localStorage.getItem('username'));
+        console.log('🔍 Current user:', localStorage.getItem('username')); // Only for debug
         
         // Backend already sorts the data (newest first), but let's double-check the order in frontend
         console.log('🔍 Before setting state - paths order:');
@@ -119,7 +119,7 @@ const LearningPaths = () => {
 
   const handleCreatePath = async () => {
     try {
-      const username = localStorage.getItem("username");
+      const username = localStorage.getItem("username"); // Only for authentication
       const response = await fetch(`${API_BASE_URL}/learning-paths/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,7 +151,7 @@ const LearningPaths = () => {
 
   const handleViewDetails = async (pathId) => {
     try {
-      const username = localStorage.getItem("username");
+      const username = localStorage.getItem("username"); // Only for authentication
       const response = await fetch(`${API_BASE_URL}/learning-paths/detail/${pathId}?username=${username}`);
       const data = await response.json();
       
@@ -169,7 +169,7 @@ const LearningPaths = () => {
 
   const handleUpdateProgress = async (pathId, topicIndex, completed) => {
     try {
-      const username = localStorage.getItem("username");
+      const username = localStorage.getItem("username"); // Only for authentication
       const response = await fetch(`${API_BASE_URL}/learning-paths/progress/update`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

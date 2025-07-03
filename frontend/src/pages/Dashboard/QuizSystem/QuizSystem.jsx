@@ -58,13 +58,15 @@ const QuizSystem = () => {
   useEffect(() => {
     // Add debugging to understand the loading sequence
     console.log('🚀 QuizSystem component mounting...');
-    console.log('🔍 Available localStorage keys:', Object.keys(localStorage));
-    console.log('🔍 localStorage contents:', {
-      username: localStorage.getItem('username'),
-      token: localStorage.getItem('token') ? 'exists' : 'missing',
-      isAdmin: localStorage.getItem('isAdmin'),
-      name: localStorage.getItem('name')
-    });
+    const username = localStorage.getItem('username');
+    const token = localStorage.getItem('token');
+    
+    if (!username || !token) {
+      console.log('❌ No authentication found. Please log in.');
+      setError('Please log in to access quiz system.');
+      setLoading(false);
+      return;
+    }
     
     // Check URL parameters for tab navigation
     const urlParams = new URLSearchParams(window.location.search);
@@ -86,48 +88,14 @@ const QuizSystem = () => {
 
   const fetchQuizzes = async () => {
     try {
-      // First, try to load from localStorage
       const username = localStorage.getItem("username");
-      console.log('🔍 DEBUG: Username from localStorage:', username);
-      const storedQuizzes = localStorage.getItem(`quizzes_${username}`);
-      console.log('🔍 DEBUG: Stored quizzes key:', `quizzes_${username}`);
-      console.log('🔍 DEBUG: Stored quizzes data:', storedQuizzes);
+      console.log('🔍 DEBUG: Fetching quizzes directly from MongoDB for username:', username);
       
-      if (storedQuizzes) {
-        try {
-          const parsedQuizzes = JSON.parse(storedQuizzes);
-          console.log('✅ DEBUG: Successfully loaded quizzes from localStorage:', parsedQuizzes);
-          
-          // Transform backend quiz format to frontend format
-          const transformedQuizzes = parsedQuizzes.map(quiz => {
-            // Check if it's backend format (has quiz_json) or frontend format
-            if (quiz.quiz_json && quiz.quiz_json.quiz_data) {
-              const quizData = quiz.quiz_json.quiz_data;
-              return {
-                id: quiz.quiz_id || `quiz_${Date.now()}`,
-                quiz_id: quiz.quiz_id, // Keep backend ID for submission
-                title: `${quizData.topic || 'Unknown'} Quiz`,
-                description: `Test your knowledge about ${quizData.topic || 'this topic'}`,
-                subject: quizData.topic || 'General',
-                difficulty: quizData.difficulty || 'medium',
-                time_limit: quizData.time_limit || 10,
-                questions: quizData.questions || [],
-                created_at: quiz.created_at || new Date().toISOString()
-              };
-            }
-            // If it's already in frontend format, return as-is
-            return quiz;
-          });
-          
-          console.log('🔄 DEBUG: Transformed quizzes:', transformedQuizzes);
-          setQuizzes(transformedQuizzes);
-          setLoading(false);
-          return;
-        } catch (parseError) {
-          console.log("❌ Error parsing stored quizzes, will fetch fresh data:", parseError);
-        }
-      } else {
-        console.log('ℹ️ DEBUG: No stored quizzes found in localStorage');
+      if (!username) {
+        console.log('❌ No username found. Please log in.');
+        setError('Please log in to access quizzes.');
+        setLoading(false);
+        return;
       }
       
       // Try to fetch quizzes from backend (both active quizzes and chat messages)
@@ -221,8 +189,7 @@ const QuizSystem = () => {
           
           console.log('🔄 DEBUG: Transformed backend quizzes:', sortedQuizzes);
           setQuizzes(sortedQuizzes);
-          // Save to localStorage
-          localStorage.setItem(`quizzes_${username}`, JSON.stringify(sortedQuizzes));
+          // NO localStorage caching - data loaded directly from MongoDB
       } catch (error) {
         console.log("Quiz API returned non-JSON response, creating sample quizzes");
         // Create sample quizzes since the API is not available
@@ -238,18 +205,9 @@ const QuizSystem = () => {
 
   const createSampleQuizzes = () => {
     const username = localStorage.getItem("username");
-    const existingQuizzes = localStorage.getItem(`quizzes_${username}`);
+    console.log('🔧 Creating sample quizzes for username:', username);
     
-    // Only create sample quizzes if none exist in localStorage
-    if (existingQuizzes) {
-      try {
-        const parsedQuizzes = JSON.parse(existingQuizzes);
-        setQuizzes(parsedQuizzes);
-        return;
-      } catch (error) {
-        console.log("Error parsing existing quizzes, creating fresh samples");
-      }
-    }
+    // NO localStorage checking - always create fresh samples when needed
     
     const sampleQuizzes = [
       {
@@ -303,30 +261,18 @@ const QuizSystem = () => {
     ];
     
     setQuizzes(sampleQuizzes);
-    // Save sample quizzes to localStorage
-    localStorage.setItem(`quizzes_${username}`, JSON.stringify(sampleQuizzes));
+    // NO localStorage caching - sample quizzes are temporary fallback only
   };
 
   const fetchQuizResults = async () => {
     try {
-      // First, try to load from localStorage
       const username = localStorage.getItem("username");
-      const storedResults = localStorage.getItem(`quizResults_${username}`);
+      console.log('🔍 DEBUG: Fetching quiz results directly from MongoDB for username:', username);
       
-      if (storedResults) {
-        try {
-          const parsedResults = JSON.parse(storedResults);
-          // Sort stored results by submission date (newest first)
-          const sortedResults = parsedResults.sort((a, b) => {
-            const dateA = new Date(a.submitted_at || 0);
-            const dateB = new Date(b.submitted_at || 0);
-            return dateB - dateA; // Descending order (newest first)
-          });
-          setQuizResults(sortedResults);
-          return;
-        } catch (parseError) {
-          console.log("Error parsing stored quiz results, will fetch fresh data");
-        }
+      if (!username) {
+        console.log('❌ No username found. Please log in.');
+        setError('Please log in to access quiz results.');
+        return;
       }
       
       // Try to fetch quiz results from backend
@@ -344,8 +290,7 @@ const QuizSystem = () => {
           });
           
           setQuizResults(sortedResults);
-          // Save to localStorage
-          localStorage.setItem(`quizResults_${username}`, JSON.stringify(sortedResults));
+          // NO localStorage caching - data loaded directly from MongoDB
         } else {
           console.log("Quiz results API returned non-JSON response, creating sample results");
           // Create sample quiz results since the API is not available
@@ -364,18 +309,9 @@ const QuizSystem = () => {
 
   const createSampleQuizResults = () => {
     const username = localStorage.getItem("username");
-    const existingResults = localStorage.getItem(`quizResults_${username}`);
+    console.log('🔧 Creating sample quiz results for username:', username);
     
-    // Only create sample results if none exist in localStorage
-    if (existingResults) {
-      try {
-        const parsedResults = JSON.parse(existingResults);
-        setQuizResults(parsedResults);
-        return;
-      } catch (error) {
-        console.log("Error parsing existing quiz results, creating fresh samples");
-      }
-    }
+    // NO localStorage checking - always create fresh samples when needed
     
     // Create sample quiz results since the API is not available
     const sampleResults = [
@@ -400,8 +336,7 @@ const QuizSystem = () => {
     ];
     
     setQuizResults(sampleResults);
-    // Save sample results to localStorage
-    localStorage.setItem(`quizResults_${username}`, JSON.stringify(sampleResults));
+    // NO localStorage caching - sample results are temporary fallback only
   };
 
   const handleCreateQuiz = async () => {
@@ -441,9 +376,7 @@ const QuizSystem = () => {
         
         const updatedQuizzes = [newQuiz, ...quizzes]; // Add new quiz at the beginning
         setQuizzes(updatedQuizzes);
-        // Save to localStorage
-        const username = localStorage.getItem("username");
-        localStorage.setItem(`quizzes_${username}`, JSON.stringify(updatedQuizzes));
+        // NO localStorage caching - quizzes are stored directly in MongoDB
         
         // Reset form and close modal
         setShowCreateModal(false);
@@ -534,9 +467,7 @@ const QuizSystem = () => {
           // Add the result to our local results for immediate display
           const updatedResults = [result, ...quizResults]; // Add new result at the beginning
           setQuizResults(updatedResults);
-          // Save results to localStorage
-          const username = localStorage.getItem("username");
-          localStorage.setItem(`quizResults_${username}`, JSON.stringify(updatedResults));
+          // NO localStorage caching - results are stored directly in MongoDB
           
           setQuizResult(result);
           setShowQuizModal(false);
@@ -745,9 +676,7 @@ const QuizSystem = () => {
       // Add to results (newest first)
       const updatedResults = [result, ...quizResults]; // Add new result at the beginning
       setQuizResults(updatedResults);
-      // Save results to localStorage
-      const username = localStorage.getItem("username");
-      localStorage.setItem(`quizResults_${username}`, JSON.stringify(updatedResults));
+      // NO localStorage caching - quiz results are stored directly in MongoDB
       setQuizResult(result);
       setShowQuizModal(false);
       setShowResultModal(true);
@@ -801,9 +730,7 @@ const QuizSystem = () => {
         
         const updatedQuizzes = [newQuiz, ...quizzes]; // Add new quiz at the beginning
         setQuizzes(updatedQuizzes);
-        // Save to localStorage
-        const username = localStorage.getItem("username");
-        localStorage.setItem(`quizzes_${username}`, JSON.stringify(updatedQuizzes));
+        // NO localStorage caching - quizzes are stored directly in MongoDB
         setTopic("");
         setError(null);
       } else {

@@ -41,41 +41,10 @@ const AIChat = () => {
     };
   }, []);
   
-  // Storage synchronization function to prevent data conflicts
+  // Remove storage synchronization as we're using direct MongoDB access
   const cleanupStorageConflicts = useCallback(() => {
-    const username = localStorage.getItem("username");
-    if (!username) return;
-    
-    const localStorageKey = `chat_messages_${username}`;
-    const cachedMessages = localStorage.getItem(localStorageKey);
-    
-    if (cachedMessages) {
-      try {
-        const parsedMessages = JSON.parse(cachedMessages);
-        // Remove any messages with invalid timestamps or duplicate content
-        const cleanedMessages = parsedMessages.filter((msg, index, arr) => {
-          // Check for valid timestamp
-          if (!msg.timestamp) return false;
-          
-          // Check for duplicate content (keep first occurrence)
-          const isDuplicate = arr.findIndex(other => 
-            other.role === msg.role && 
-            other.content === msg.content && 
-            other.timestamp !== msg.timestamp
-          ) < index;
-          
-          return !isDuplicate;
-        });
-        
-        if (cleanedMessages.length !== parsedMessages.length) {
-          localStorage.setItem(localStorageKey, JSON.stringify(cleanedMessages));
-          console.log('🧹 Cleaned up storage conflicts');
-        }
-      } catch (e) {
-        console.warn('⚠️ Failed to clean storage conflicts:', e);
-        localStorage.removeItem(localStorageKey);
-      }
-    }
+    // No longer needed - we fetch directly from MongoDB
+    console.log('🗑️ Storage conflicts cleanup disabled - using direct MongoDB access');
   }, []);
   
   // Helper function to detect if content is a learning path
@@ -140,15 +109,14 @@ const AIChat = () => {
   useEffect(() => {
     console.log('🔄 AIChat component mounted, loading chat history...');
     
-    // Set up test authentication if not exists (for testing purposes)
+  // Ensure user is authenticated - no localStorage fallback
     const currentUsername = localStorage.getItem('username');
     const currentToken = localStorage.getItem('token');
     
     if (!currentUsername || !currentToken) {
-      console.log('🔑 Setting up test authentication...');
-      localStorage.setItem('username', 'test@example.com');
-      localStorage.setItem('token', 'test-token-123');
-      localStorage.setItem('name', 'Test User');
+      console.log('❌ No authentication found. Please log in.');
+      setError('Please log in to access chat.');
+      return;
     }
     
     // Clean up any storage conflicts before loading
@@ -266,34 +234,17 @@ const AIChat = () => {
       const username = localStorage.getItem("username");
       
       if (!username) {
-        console.warn('⚠️ No username found in localStorage');
+        console.warn('⚠️ No username found. Please log in.');
         setError('Please log in to view chat history.');
         return;
       }
       
-      console.log('📚 Loading chat history for username:', username);
+      console.log('📚 Loading chat history directly from MongoDB Atlas for username:', username);
       
-      // First, try to load from localStorage for immediate display
-      const localStorageKey = `chat_messages_${username}`;
-      const cachedMessages = localStorage.getItem(localStorageKey);
-      
-      if (cachedMessages) {
-        try {
-          const parsedCachedMessages = JSON.parse(cachedMessages);
-          console.log('💾 Loaded cached messages from localStorage:', parsedCachedMessages.length);
-          if (parsedCachedMessages.length > 0) {
-            setMessages(parsedCachedMessages);
-          }
-        } catch (e) {
-          console.warn('⚠️ Failed to parse cached messages, will fetch from server');
-          localStorage.removeItem(localStorageKey); // Clear corrupted cache
-        }
-      }
-      
-      // Then fetch from server to get latest data
+      // Fetch directly from MongoDB Atlas - NO localStorage involvement
       try {
         const history = await fetchChatHistory();
-        console.log('📡 Fetched chat history from server:', history);
+        console.log('📡 Fetched chat history from MongoDB Atlas:', history);
         
         if (!history || !Array.isArray(history)) {
           console.warn('⚠️ Invalid history format received:', history);
@@ -436,15 +387,8 @@ const AIChat = () => {
         
         setMessages(processedHistory);
         
-        // Cache the processed messages in localStorage
-        try {
-          if (processedHistory.length > 0) {
-            localStorage.setItem(localStorageKey, JSON.stringify(processedHistory));
-            console.log('💾 Cached messages to localStorage');
-          }
-        } catch (e) {
-          console.warn('⚠️ Failed to cache messages to localStorage:', e);
-        }
+        // NO localStorage caching - data comes directly from MongoDB Atlas
+        console.log('✅ Messages loaded directly from MongoDB Atlas without localStorage caching');
       } catch (fetchError) {
         console.error('❌ Error fetching from server:', fetchError);
         // Don't set error if we have cached messages
@@ -543,16 +487,8 @@ const AIChat = () => {
     const updatedMessagesWithUser = [...messages, newUserMessage];
     setMessages(updatedMessagesWithUser);
     
-    // Cache the user message immediately
-    const username = localStorage.getItem("username");
-    const localStorageKey = `chat_messages_${username}`;
-      try {
-        localStorage.setItem(localStorageKey, JSON.stringify(updatedMessagesWithUser));
-        debugLogger.storageOperation('SET', localStorageKey, `${updatedMessagesWithUser.length} messages`);
-        console.log('💾 Cached user message to localStorage');
-    } catch (e) {
-      console.warn('⚠️ Failed to cache user message to localStorage:', e);
-    }
+    // NO localStorage caching - messages are stored directly in MongoDB via API calls
+    console.log('📡 User message added - will be persisted to MongoDB via API calls');
     
     setIsGenerating(true);
     
@@ -660,18 +596,8 @@ const AIChat = () => {
             console.warn('⚠️ Failed to store quiz to backend database:', storeError);
           }
           
-          // Cache the quiz messages to localStorage as backup
-          setTimeout(() => {
-            setMessages(currentMessages => {
-              try {
-                localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
-                console.log('💾 Cached quiz messages to localStorage');
-              } catch (e) {
-                console.warn('⚠️ Failed to cache quiz messages to localStorage:', e);
-              }
-              return currentMessages;
-            });
-          }, 100);
+          // NO localStorage caching - quiz messages are stored directly in MongoDB
+          console.log('📡 Quiz messages stored directly in MongoDB via storeQuizMessage API');
         } else {
           throw new Error('Failed to generate quiz');
         }
@@ -739,22 +665,8 @@ const AIChat = () => {
             // On complete
             setIsGenerating(false);
             
-            // Cache the completed messages to localStorage
-            const username = localStorage.getItem("username");
-            const localStorageKey = `chat_messages_${username}`;
-            
-            // Get current messages state and cache them
-            setTimeout(() => {
-              setMessages(currentMessages => {
-                try {
-                  localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
-                  console.log('💾 Cached completed messages to localStorage');
-                } catch (e) {
-                  console.warn('⚠️ Failed to cache completed messages to localStorage:', e);
-                }
-                return currentMessages; // Return unchanged
-              });
-            }, 100); // Small delay to ensure state is updated
+            // NO localStorage caching - messages are persisted to MongoDB via API calls
+            console.log('📡 Completed messages will be persisted to MongoDB via API calls');
           },
           false, // Don't pass isQuiz to askQuestion since we handle it separately
           wasLearningPath
@@ -808,15 +720,8 @@ const AIChat = () => {
     const updatedMessagesWithUser = [...messages, newUserMessage];
     setMessages(updatedMessagesWithUser);
     
-    // Cache the user message immediately
-    const username = localStorage.getItem("username");
-    const localStorageKey = `chat_messages_${username}`;
-    try {
-      localStorage.setItem(localStorageKey, JSON.stringify(updatedMessagesWithUser));
-      console.log('💾 Cached user message to localStorage');
-    } catch (e) {
-      console.warn('⚠️ Failed to cache user message to localStorage:', e);
-    }
+    // NO localStorage caching - user message will be persisted to MongoDB via API calls
+    console.log('📡 User message added - will be persisted to MongoDB via API calls');
     
     setIsGenerating(true);
     
@@ -925,20 +830,8 @@ const AIChat = () => {
             // Don't throw error as quiz is already generated and shown to user
           }
           
-          // Cache the quiz messages to localStorage as backup
-          const username = localStorage.getItem("username");
-          const localStorageKey = `chat_messages_${username}`;
-          setTimeout(() => {
-            setMessages(currentMessages => {
-              try {
-                localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
-                console.log('💾 Cached quiz messages to localStorage');
-              } catch (e) {
-                console.warn('⚠️ Failed to cache quiz messages to localStorage:', e);
-              }
-              return currentMessages;
-            });
-          }, 100);
+          // NO localStorage caching - quiz messages are stored directly in MongoDB
+          console.log('📡 Quiz messages stored directly in MongoDB via storeQuizMessage API');
         } else {
           throw new Error('Failed to generate quiz');
         }
@@ -1006,22 +899,8 @@ const AIChat = () => {
             // On complete
             setIsGenerating(false);
             
-            // Cache the completed messages to localStorage
-            const username = localStorage.getItem("username");
-            const localStorageKey = `chat_messages_${username}`;
-            
-            // Get current messages state and cache them
-            setTimeout(() => {
-              setMessages(currentMessages => {
-                try {
-                  localStorage.setItem(localStorageKey, JSON.stringify(currentMessages));
-                  console.log('💾 Cached completed messages to localStorage');
-                } catch (e) {
-                  console.warn('⚠️ Failed to cache completed messages to localStorage:', e);
-                }
-                return currentMessages; // Return unchanged
-              });
-            }, 100); // Small delay to ensure state is updated
+            // NO localStorage caching - messages are persisted to MongoDB via API calls
+            console.log('📡 Completed messages will be persisted to MongoDB via API calls');
           },
           false, // Don't pass isQuiz to askQuestion since we handle it separately
           isLearningPath
@@ -1048,11 +927,8 @@ const AIChat = () => {
       setMessages([]);
       setError(null);
       
-      // Also clear localStorage cache
-      const username = localStorage.getItem("username");
-      const localStorageKey = `chat_messages_${username}`;
-      localStorage.removeItem(localStorageKey);
-      console.log('💾 Cleared cached messages from localStorage');
+      // NO localStorage cache to clear - data is managed directly in MongoDB
+      console.log('📡 Chat cleared directly from MongoDB Atlas database');
     } catch (err) {
       console.error('Error clearing chat:', err);
       setError('Failed to clear chat history. Please try again.');

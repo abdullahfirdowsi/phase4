@@ -182,14 +182,16 @@ def extract_json_from_response(response: str) -> Dict[str, Any]:
     
     return None
 
-def store_quiz_message(username: str, content: Dict[str, Any]):
-    """Store quiz message in chat_messages_collection"""
+def store_quiz_message(username: str, content: Dict[str, Any], role: str = "assistant"):
+    """Store quiz message in chat_messages_collection with proper structure"""
     try:
         message = {
             "username": username,
-            "role": "assistant",
+            "session_id": "quiz_session",  # Use a special session ID for quiz messages
+            "role": role,
             "content": content,
-            "type": "quiz",
+            "message_type": "quiz",  # Use message_type instead of type to match chat service
+            "metadata": {},
             "timestamp": datetime.datetime.utcnow()
         }
         
@@ -240,11 +242,11 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
             )
         
         # Store user message first
-        store_quiz_message(request.username, {
-            "role": "user",
-            "content": f"Generate a {request.difficulty} quiz about {request.topic} with {request.num_questions} questions",
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        })
+        store_quiz_message(
+            username=request.username, 
+            content=f"Generate a {request.difficulty} quiz about {request.topic} with {request.num_questions} questions",
+            role="user"
+        )
         
         # Store quiz response
         store_quiz_message(request.username, quiz_json)

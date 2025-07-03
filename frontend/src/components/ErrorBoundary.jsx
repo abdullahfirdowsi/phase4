@@ -33,20 +33,24 @@ class ErrorBoundary extends React.Component {
 
   attemptStateRecovery = () => {
     try {
-      // Clear potentially corrupted localStorage data
+      // Clear any remaining corrupted localStorage data (legacy cleanup)
       const username = localStorage.getItem('username');
       if (username) {
-        const chatKey = `chat_messages_${username}`;
-        const corruptedData = localStorage.getItem(chatKey);
+        // Clean up any legacy data keys that might cause issues
+        const legacyKeys = [
+          `chat_messages_${username}`,
+          `quizzes_${username}`,
+          `quizResults_${username}`,
+          `learningPaths_${username}`
+        ];
         
-        if (corruptedData) {
-          try {
-            JSON.parse(corruptedData);
-          } catch (e) {
-            console.warn('🧹 Removing corrupted chat data');
-            localStorage.removeItem(chatKey);
+        legacyKeys.forEach(key => {
+          const data = localStorage.getItem(key);
+          if (data) {
+            console.warn(`🧹 Removing legacy data: ${key}`);
+            localStorage.removeItem(key);
           }
-        }
+        });
       }
       
       // Clear session storage that might cause issues
@@ -68,10 +72,17 @@ class ErrorBoundary extends React.Component {
   };
   
   handleClearData = () => {
-    // Clear all potentially problematic data
+    // Clear all potentially problematic legacy data
     const username = localStorage.getItem('username');
     if (username) {
-      localStorage.removeItem(`chat_messages_${username}`);
+      // Remove any legacy localStorage keys
+      const legacyKeys = [
+        `chat_messages_${username}`,
+        `quizzes_${username}`,
+        `quizResults_${username}`,
+        `learningPaths_${username}`
+      ];
+      legacyKeys.forEach(key => localStorage.removeItem(key));
     }
     sessionStorage.clear();
     

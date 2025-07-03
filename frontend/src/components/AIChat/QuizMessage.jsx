@@ -166,62 +166,16 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
         setShowResult(true);
         setIsActive(false);
         
-        // Save to localStorage for Quiz System
-        const username = localStorage.getItem("username");
-        const existingResults = localStorage.getItem(`quizResults_${username}`);
-        let results = [];
+        // NO localStorage caching - quiz results and data are stored directly in MongoDB
+        console.log('📡 Quiz result will be persisted to MongoDB via backend APIs');
         
-        if (existingResults) {
-          try {
-            results = JSON.parse(existingResults);
-          } catch (e) {
-            console.error('Error parsing existing results:', e);
-          }
-        }
-        
-        // Add new result
-        const newResult = {
+        // Add metadata for chat context
+        const enhancedResult = {
           ...result,
           source: 'ai_chat',
           chat_message_id: message.id,
           created_from_chat: true
         };
-        
-        results.unshift(newResult); // Add to beginning
-        localStorage.setItem(`quizResults_${username}`, JSON.stringify(results));
-        
-        // Also save the quiz itself for Quiz System
-        const existingQuizzes = localStorage.getItem(`quizzes_${username}`);
-        let quizzes = [];
-        
-        if (existingQuizzes) {
-          try {
-            quizzes = JSON.parse(existingQuizzes);
-          } catch (e) {
-            console.error('Error parsing existing quizzes:', e);
-          }
-        }
-        
-        // Check if quiz already exists
-        const quizExists = quizzes.some(q => q.quiz_id === quizData.quiz_id);
-        
-        if (!quizExists) {
-          const newQuiz = {
-            id: quizData.quiz_id,
-            quiz_id: quizData.quiz_id,
-            title: `${quizData.topic || 'Chat'} Quiz`,
-            description: `Quiz created from AI Chat about ${quizData.topic || 'various topics'}`,
-            subject: quizData.topic || 'General',
-            difficulty: quizData.difficulty || 'medium',
-            time_limit: quizData.time_limit || 10,
-            questions: quizData.questions || [],
-            created_at: new Date().toISOString(),
-            source: 'ai_chat'
-          };
-          
-          quizzes.unshift(newQuiz); // Add to beginning
-          localStorage.setItem(`quizzes_${username}`, JSON.stringify(quizzes));
-        }
         
         // Notify parent component
         if (onQuizComplete) {

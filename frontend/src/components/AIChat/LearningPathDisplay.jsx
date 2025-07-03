@@ -125,7 +125,7 @@ const LearningPathDisplay = memo(({ message }) => {
       const username = localStorage.getItem("username");
       if (!username) return false;
 
-      // Fetch current learning paths
+      // Fetch current learning paths from MongoDB
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/learning-paths/list?username=${username}`);
       const data = await response.json();
       
@@ -158,7 +158,7 @@ const LearningPathDisplay = memo(({ message }) => {
     setError(null);
     
     try {
-      // Check authentication first
+      // Check authentication first - only for validation
       const username = localStorage.getItem("username");
       const token = localStorage.getItem("token");
       
