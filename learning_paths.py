@@ -5,7 +5,7 @@ import datetime
 import logging
 import uuid
 from fastapi import APIRouter, HTTPException, Body, Query
-from database import chats_collection, users_collection, get_collections
+from database import chats_collection, users_collection, get_collections, learning_goals_collection
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
@@ -107,12 +107,14 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             "updated_at": datetime.datetime.utcnow()
         }
         
-        # Store in lessons collection
+        # Store ONLY in lessons collection (for lesson system)
+        # Learning paths will be saved manually by user via Save button
         collections = get_collections()
         lessons_collection = collections['lessons']
         lessons_collection.insert_one(lesson_doc)
         
         logger.info(f"✅ Created lesson document with ID: {lesson_id}")
+        logger.info(f"📄 Learning path ready for user to save manually")
         
         # Store response in chat history
         response_message = {
@@ -193,54 +195,53 @@ async def create_learning_path(
     username: str = Body(...),
     path_data: LearningPathCreate = Body(...)
 ):
-    """Create a new learning path"""
+    """Create a new learning path in dedicated learning_goals collection"""
     try:
-        # Create learning path document
-        learning_path = {
-            "id": f"path_{datetime.datetime.utcnow().timestamp()}",
+        # Create learning goal document directly in learning_goals collection
+        goal_id = f"goal_{datetime.datetime.utcnow().timestamp()}"
+        
+        learning_goal_doc = {
+            "goal_id": goal_id,
+            "username": username,
             "name": path_data.name,
             "description": path_data.description,
             "difficulty": path_data.difficulty,
             "duration": path_data.duration,
+            "progress": 0.0,
+            "status": "active",
             "prerequisites": path_data.prerequisites,
             "topics": path_data.topics,
             "tags": path_data.tags,
-            "created_by": username,
             "created_at": datetime.datetime.utcnow().isoformat() + "Z",
             "updated_at": datetime.datetime.utcnow().isoformat() + "Z",
-            "enrollments": 0,
-            "rating": 0.0,
-            "is_public": True
+            "source": "user_created"
         }
-
-        # Store in user's learning goals
-        chat_session = chats_collection.find_one({"username": username}) or {}
-        learning_goals = chat_session.get("learning_goals", [])
         
-        # Add as learning goal
-        new_goal = {
-            "name": path_data.name,
-            "duration": path_data.duration,
-            "study_plans": [learning_path],
-            "progress": 0,
-            "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-            "path_id": learning_path["id"]
-        }
-        learning_goals.append(new_goal)
+        # Store directly in learning_goals collection (separate from chat)
+        result = learning_goals_collection.insert_one(learning_goal_doc)
+        
+        logger.info(f"✅ Created learning path '{path_data.name}' in dedicated collection")
 
-        chats_collection.update_one(
-            {"username": username},
-            {"$set": {"learning_goals": learning_goals}},
-            upsert=True
-        )
+        # Create response without ObjectId to avoid serialization issues
+        response_path = {
+            "goal_id": goal_id,
+            "name": path_data.name,
+            "description": path_data.description,
+            "difficulty": path_data.difficulty,
+            "duration": path_data.duration,
+            "progress": 0.0,
+            "topics_count": len(path_data.topics),
+            "created_at": learning_goal_doc["created_at"],
+            "source": "user_created"
+        }
 
         return {
             "message": "Learning path created successfully",
-            "path_id": learning_path["id"],
-            "path": learning_path
+            "goal_id": goal_id,
+            "path": response_path
         }
     except Exception as e:
-        print(f"Error creating learning path: {e}")
+        logger.error(f"Error creating learning path: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @learning_paths_router.get("/list")
@@ -250,112 +251,57 @@ async def list_learning_paths(
     difficulty: Optional[str] = Query(None),
     tags: Optional[str] = Query(None)
 ):
-    """List available learning paths"""
+    """List available learning paths from dedicated learning_goals collection"""
     try:
-        chat_session = chats_collection.find_one({"username": username})
-        if not chat_session:
-            return {"learning_paths": []}
-
-        learning_goals = chat_session.get("learning_goals", [])
-        learning_paths = []
-
-        for goal in learning_goals:
-            for plan in goal.get("study_plans", []):
-                if public_only and not plan.get("is_public", True):
-                    continue
-                
-                if difficulty and plan.get("difficulty") != difficulty:
-                    continue
-                
-                if tags:
-                    tag_list = tags.split(",")
-                    plan_tags = plan.get("tags", [])
-                    if not any(tag in plan_tags for tag in tag_list):
-                        continue
-
-                learning_paths.append({
-                    "id": plan.get("id", goal["name"]),
-                    "name": plan.get("name", goal["name"]),
-                    "description": plan.get("description", ""),
-                    "difficulty": plan.get("difficulty", "Intermediate"),
-                    "duration": plan.get("duration", goal.get("duration", "")),
-                    "progress": goal.get("progress", 0),
-                    "topics_count": len(plan.get("topics", [])),
-                    "created_at": goal.get("created_at"),
-                    "tags": plan.get("tags", [])
-                })
-
-        # Sort learning paths by created_at date (newest first)
-        # Enhanced sorting with comprehensive datetime handling for both old and new data patterns
-        def get_sort_date(path):
-            # First priority: created_at from the path itself (from learning goal)
-            created_at = path.get("created_at", "")
-            
-            # Second priority: extract timestamp from path ID if available
-            if not created_at:
-                path_id = path.get("id", "")
-                if path_id and "path_" in path_id:
-                    try:
-                        timestamp = float(path_id.replace("path_", ""))
-                        return datetime.datetime.fromtimestamp(timestamp)
-                    except (ValueError, TypeError):
-                        pass
-                # If no valid timestamp found, return epoch for consistent sorting
-                return datetime.datetime.min
-                
-            # Parse the created_at timestamp
-            try:
-                if isinstance(created_at, str):
-                    # Remove Z suffix for fromisoformat compatibility
-                    if created_at.endswith('Z'):
-                        date_str = created_at[:-1]
-                    else:
-                        date_str = created_at
-                    
-                    # Try fromisoformat first
-                    try:
-                        return datetime.datetime.fromisoformat(date_str)
-                    except ValueError:
-                        # Try other common formats
-                        try:
-                            from dateutil import parser
-                            return parser.parse(created_at)
-                        except ImportError:
-                            # Fallback to basic strptime for ISO format
-                            if 'T' in created_at and created_at.endswith('Z'):
-                                return datetime.datetime.strptime(created_at, '%Y-%m-%dT%H:%M:%S.%fZ')
-                            return datetime.datetime.min
-                        
-                elif isinstance(created_at, datetime.datetime):
-                    return created_at
-                else:
-                    return datetime.datetime.min
-                    
-            except (ValueError, TypeError):
-                # Final fallback: try to extract timestamp from path ID
-                path_id = path.get("id", "")
-                if path_id and "path_" in path_id:
-                    try:
-                        timestamp = float(path_id.replace("path_", ""))
-                        return datetime.datetime.fromtimestamp(timestamp)
-                    except (ValueError, TypeError):
-                        pass
-                return datetime.datetime.min
+        # Query directly from learning_goals collection
+        query = {"username": username}
         
-        # Sort with detailed logging for debugging
+        if difficulty:
+            query["difficulty"] = difficulty
+            
+        if tags:
+            tag_list = tags.split(",")
+            query["tags"] = {"$in": tag_list}
+        
+        # Fetch learning goals directly from dedicated collection
+        learning_goals = list(learning_goals_collection.find(query).sort("created_at", -1))
+        
+        learning_paths = []
+        for goal in learning_goals:
+            # Ensure created_at is properly formatted as string
+            created_at = goal.get("created_at")
+            if hasattr(created_at, 'isoformat'):
+                # Convert datetime object to ISO string
+                created_at_str = created_at.isoformat() + "Z" if not str(created_at).endswith('Z') else created_at.isoformat()
+            elif isinstance(created_at, str):
+                created_at_str = created_at
+            else:
+                created_at_str = datetime.datetime.utcnow().isoformat() + "Z"
+            
+            learning_paths.append({
+                "id": goal.get("goal_id", str(goal.get("_id"))),
+                "name": goal.get("name", "Untitled Learning Path"),
+                "description": goal.get("description", ""),
+                "difficulty": goal.get("difficulty", "Intermediate"),
+                "duration": goal.get("duration", "4-6 weeks"),
+                "progress": goal.get("progress", 0),
+                "topics_count": len(goal.get("topics", [])),
+                "created_at": created_at_str,
+                "tags": goal.get("tags", []),
+                "source": goal.get("source", "unknown")
+            })
+
+        # Sort learning paths by created_at date (newest first) - simplified since we're using dedicated collection
         try:
-            learning_paths.sort(key=get_sort_date, reverse=True)
+            # learning_paths already sorted by database query (sort("created_at", -1))
             print(f"Successfully sorted {len(learning_paths)} learning paths")
             
             # Debug: print first few items after sorting
             for i, path in enumerate(learning_paths[:3]):
-                created_date = get_sort_date(path)
-                print(f"  Path {i+1}: '{path.get('name', 'Unknown')}' - {created_date}")
+                print(f"  Path {i+1}: '{path.get('name', 'Unknown')}' - {path.get('created_at')}")
                 
         except Exception as e:
             print(f"Error during sorting: {e}")
-            # Fallback: sort by name if datetime sorting fails
-            learning_paths.sort(key=lambda x: x.get("name", ""), reverse=True)
         
         return {"learning_paths": learning_paths}
     except Exception as e:
