@@ -453,13 +453,13 @@ export const clearChat = async () => {
 
   if (!username || !token) throw new Error("User not authenticated");
 
-  console.log('🗑️ Starting chat clear process for user:', username);
+  console.log('🗑️ Starting COMPLETE chat clear process for user:', username);
 
   try {
-    // Use the primary chat clear endpoint (new structure)
-    console.log('🗑️ Clearing chat via primary endpoint...');
+    // Use the clear-all endpoint to remove ALL messages (including learning paths and quizzes)
+    console.log('🗑️ Clearing ALL chat messages via clear-all endpoint...');
     const data = await apiRequest(
-      `${API_BASE_URL}/chat/clear?username=${encodeURIComponent(username)}`,
+      `${API_BASE_URL}/chat/clear-all?username=${encodeURIComponent(username)}`,
       {
         method: "DELETE",
         headers: {
@@ -469,17 +469,17 @@ export const clearChat = async () => {
       }
     );
     
-    console.log('✅ Chat cleared successfully:', data);
+    console.log('✅ All chat messages cleared successfully:', data);
     return { success: true, message: data.message };
     
   } catch (error) {
-    console.error("❌ Primary clear endpoint failed, trying fallback:", error.message);
+    console.error("❌ Clear-all endpoint failed, trying regular clear as fallback:", error.message);
     
-    // Fallback to legacy endpoint if primary fails
+    // Fallback to regular clear endpoint if clear-all fails
     try {
-      console.log('🗑️ Attempting fallback clear via /api/chat/clear...');
+      console.log('🗑️ Attempting fallback clear via /chat/clear...');
       const fallbackData = await apiRequest(
-        `${API_BASE_URL}/api/chat/clear?username=${encodeURIComponent(username)}`,
+        `${API_BASE_URL}/chat/clear?username=${encodeURIComponent(username)}`,
         {
           method: "DELETE",
           headers: {
@@ -489,7 +489,7 @@ export const clearChat = async () => {
         }
       );
       
-      console.log('✅ Chat cleared via fallback:', fallbackData);
+      console.log('✅ Chat cleared via fallback (content only):', fallbackData);
       return { success: true, message: fallbackData.message };
       
     } catch (fallbackError) {
