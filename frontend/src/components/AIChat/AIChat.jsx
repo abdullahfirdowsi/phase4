@@ -734,8 +734,8 @@ const AIChat = () => {
         onHide={() => setShowConfirmModal(false)}
         onConfirm={handleClearChat}
         title="Clear Chat History"
-        message="Are you sure you want to clear the chat history? This will remove regular chat messages but preserve your learning paths and quizzes. This action cannot be undone."
-        confirmText="Clear Chat"
+        message="Are you sure you want to clear ALL chat messages? This will remove everything including learning paths and quizzes from your chat history. This action cannot be undone."
+        confirmText="Clear All Messages"
       />
     </div>
   );
