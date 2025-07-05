@@ -197,6 +197,38 @@ async def create_learning_path(
 ):
     """Create a new learning path in dedicated learning_goals collection"""
     try:
+        # Check for duplicate learning paths in learning_goals collection
+        existing_goal = learning_goals_collection.find_one({
+            "username": username,
+            "name": path_data.name
+        })
+        
+        if existing_goal:
+            logger.warning(f"⚠️ Learning path '{path_data.name}' already exists for user {username}")
+            raise HTTPException(
+                status_code=409, 
+                detail=f"Learning path '{path_data.name}' already exists. Please choose a different name."
+            )
+        
+        # Check for preliminary paths in lessons collection and clean them up
+        collections = get_collections()
+        lessons_collection = collections['lessons']
+        
+        # Find and remove any preliminary paths with the same name and user
+        preliminary_paths = lessons_collection.find({
+            "created_by": username,
+            "title": path_data.name
+        })
+        
+        cleanup_count = 0
+        for prelim_path in preliminary_paths:
+            lessons_collection.delete_one({"_id": prelim_path["_id"]})
+            cleanup_count += 1
+            logger.info(f"🧹 Cleaned up preliminary path: {prelim_path.get('lesson_id', 'unknown')}")
+        
+        if cleanup_count > 0:
+            logger.info(f"✅ Cleaned up {cleanup_count} preliminary path(s) before saving user path")
+        
         # Create learning goal document directly in learning_goals collection
         goal_id = f"goal_{datetime.datetime.utcnow().timestamp()}"
         

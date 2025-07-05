@@ -324,12 +324,21 @@ const LearningPathDisplay = memo(({ message }) => {
       
       // Show more specific error messages
       let errorMessage = 'Failed to save learning path. Please try again.';
+      
+      // Handle specific error types
       if (error.message.includes('authenticated') || error.message.includes('login')) {
         errorMessage = 'Please log in to save learning paths.';
+      } else if (error.message.includes('409') || error.message.includes('already exists') || error.message.includes('duplicate')) {
+        errorMessage = `A learning path named "${pathData.name}" already exists in your collection. Please try regenerating with a different focus or rename this path.`;
+        // Mark as already saved to prevent further attempts
+        setHasBeenSaved(true);
       } else if (error.message.includes('Field required')) {
         errorMessage = 'Missing required data. Please try generating the learning path again.';
       } else if (error.message.includes('422')) {
         errorMessage = 'Invalid data format. Please try again.';
+      } else if (error.response && error.response.status === 409) {
+        errorMessage = `A learning path named "${pathData.name}" already exists in your collection. Please try regenerating with a different focus.`;
+        setHasBeenSaved(true);
       }
       
       setError(errorMessage);

@@ -1,3 +1,30 @@
+export const getUserSkillLevel = async () => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username || !token) throw new Error("User not authenticated");
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/skill-level`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.skillLevel;
+  } catch (error) {
+    console.error("Error fetching user skill level:", error);
+    throw error;
+  }
+};
+
 // Enhanced API configuration with better error handling and CORS support
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"; // Use environment variable if available
 
