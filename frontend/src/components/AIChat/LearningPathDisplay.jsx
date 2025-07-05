@@ -188,13 +188,33 @@ const LearningPathDisplay = memo(({ message }) => {
         throw new Error('Failed to regenerate learning path');
       }
       
-      // The regeneration will appear as a new message in the chat
-      // Reset the saved state since this is a new path
-      setHasBeenSaved(false);
-      setIsSaved(false);
+      // Get the response data
+      const responseData = await response.json();
+      console.log('📦 Regenerate API Response:', responseData);
       
-      // Show success message
-      console.log('✅ Learning path regenerated successfully');
+      // Extract the new learning path from the response
+      let newContent = null;
+      if (responseData && responseData.content) {
+        newContent = responseData.content;
+      } else if (typeof responseData === 'object' && responseData.topics) {
+        newContent = responseData;
+      }
+      
+      if (newContent) {
+        // Update the current component with the new content
+        setParsedContent(newContent);
+        
+        // Reset the saved state since this is a new path
+        setHasBeenSaved(false);
+        setIsSaved(false);
+        
+        console.log('✅ Learning path regenerated and updated in current view');
+      } else {
+        console.warn('⚠️ Regeneration successful but no content received');
+        // Still reset saved state even if content update failed
+        setHasBeenSaved(false);
+        setIsSaved(false);
+      }
       
     } catch (error) {
       console.error('Error regenerating learning path:', error);
@@ -287,7 +307,7 @@ const LearningPathDisplay = memo(({ message }) => {
       try {
         // Dispatch a custom event to notify Learning Paths page to refresh
         window.dispatchEvent(new CustomEvent('learningPathSaved', {
-          detail: { pathName: pathData.name }
+          detail: { pathName: pathData.name, timestamp: Date.now() }
         }));
         
         console.log('📢 Notified Learning Paths page to refresh');

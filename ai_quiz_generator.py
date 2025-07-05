@@ -12,7 +12,7 @@ import re
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
-from database import chats_collection, users_collection, quizzes_collection, chat_messages_collection
+from database import chats_collection, users_collection, quizzes_collection, chat_messages_collection, quiz_attempts_collection
 from constants import get_basic_environment_prompt
 import os
 import groq
@@ -26,6 +26,7 @@ client = groq.Client(api_key=os.getenv("API_KEY"))
 # Router for AI quiz generation
 ai_quiz_router = APIRouter()
 
+# Define Pydantic models first
 class QuizGenerationRequest(BaseModel):
     username: str
     topic: str
@@ -33,6 +34,7 @@ class QuizGenerationRequest(BaseModel):
     question_count: int = 5  # Change from num_questions to question_count to match frontend
     question_types: List[str] = ["mcq", "true_false", "short_answer"]
     time_limit: int = 10  # minutes
+    auto_adjust: bool = True  # Whether to auto-adjust parameters based on skill level
     
     @property
     def num_questions(self):
@@ -43,6 +45,75 @@ class QuizSubmissionRequest(BaseModel):
     username: str
     quiz_id: str
     answers: List[str]  # User's answers in order
+
+def detect_user_skill_level(username: str) -> str:
+    """Detect user's skill level based on recent quiz performance"""
+    try:
+        # Get user's recent quiz attempts (last 10)
+        recent_attempts = list(quiz_attempts_collection.find(
+            {"username": username, "completed": True}
+        ).sort("submitted_at", -1).limit(10))
+        
+        if not recent_attempts:
+            logger.info(f"No quiz history found for {username}, defaulting to medium")
+            return "medium"
+        
+        # Calculate average score from recent attempts
+        total_score = 0
+        valid_attempts = 0
+        
+        for attempt in recent_attempts:
+            score = attempt.get("score", 0)
+            if score is not None:
+                total_score += score
+                valid_attempts += 1
+        
+        if valid_attempts == 0:
+            logger.info(f"No valid quiz scores found for {username}, defaulting to medium")
+            return "medium"
+        
+        average_score = total_score / valid_attempts
+        
+        # Determine skill level based on average score
+        if average_score >= 85:
+            skill_level = "hard"
+        elif average_score >= 65:
+            skill_level = "medium"
+        else:
+            skill_level = "easy"
+        
+        logger.info(f"Detected skill level for {username}: {skill_level} (avg score: {average_score:.1f}% from {valid_attempts} attempts)")
+        return skill_level
+        
+    except Exception as e:
+        logger.error(f"Error detecting skill level for {username}: {e}")
+        return "medium"
+
+def adjust_quiz_parameters(request: QuizGenerationRequest, skill_level: str) -> QuizGenerationRequest:
+    """Adjust quiz parameters based on detected skill level"""
+    if not request.auto_adjust:
+        return request
+    
+    # Create a copy of the request to modify
+    adjusted_request = request.copy()
+    
+    # Adjust based on skill level
+    if skill_level == "easy":
+        # Easier quizzes: fewer questions, more time, simpler difficulty
+        adjusted_request.question_count = max(3, min(request.question_count, 5))
+        adjusted_request.time_limit = max(request.time_limit, 15)  # At least 15 minutes
+        if request.difficulty == "medium":
+            adjusted_request.difficulty = "easy"
+    elif skill_level == "hard":
+        # Harder quizzes: more questions, less time, advanced difficulty
+        adjusted_request.question_count = min(10, max(request.question_count, 7))
+        adjusted_request.time_limit = max(8, min(request.time_limit, 12))  # 8-12 minutes
+        if request.difficulty == "medium":
+            adjusted_request.difficulty = "hard"
+    # Medium skill level keeps original parameters
+    
+    logger.info(f"Adjusted quiz parameters for skill level {skill_level}: {adjusted_request.question_count} questions, {adjusted_request.time_limit} minutes, {adjusted_request.difficulty} difficulty")
+    return adjusted_request
 
 # Quiz generation prompts
 QUIZ_GENERATION_PROMPT = """
@@ -210,6 +281,11 @@ def store_quiz_message(username: str, content: Dict[str, Any], role: str = "assi
 async def generate_ai_quiz(request: QuizGenerationRequest):
     """Generate an AI-powered quiz in JSON format"""
     try:
+        # Detect user skill level and adjust parameters if enabled
+        if request.auto_adjust:
+            skill_level = detect_user_skill_level(request.username)
+            request = adjust_quiz_parameters(request, skill_level)
+        
         # Generate unique quiz ID
         quiz_id = f"quiz_{int(datetime.datetime.utcnow().timestamp())}"
         

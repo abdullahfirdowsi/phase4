@@ -165,8 +165,10 @@
             .form-check-label {
               font-weight: 500;
               cursor: pointer;
-              margin-left: 0.5rem;
+              margin-left: 0.25rem;
               color: var(--text-primary);
+              line-height: 1.4;
+              vertical-align: middle;
             }
           }
 

@@ -42,6 +42,23 @@ const LearningPaths = () => {
     fetchLearningPaths();
   }, [filter]);
 
+  // Listen for learning path save events from AI Chat
+  useEffect(() => {
+    const handleLearningPathSaved = (event) => {
+      console.log('📢 Received learning path saved notification:', event.detail);
+      // Refresh the learning paths list
+      fetchLearningPaths();
+    };
+
+    // Add event listener
+    window.addEventListener('learningPathSaved', handleLearningPathSaved);
+
+    // Cleanup event listener on unmount
+    return () => {
+      window.removeEventListener('learningPathSaved', handleLearningPathSaved);
+    };
+  }, []);
+
   const fetchLearningPaths = async () => {
     try {
       setLoading(true);
