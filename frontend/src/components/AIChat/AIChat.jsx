@@ -72,6 +72,40 @@ const AIChat = () => {
     loadChatHistory();
   }, []);
 
+  // Handle initial question and mode from sessionStorage (from Home page navigation)
+  useEffect(() => {
+    const handleInitialData = () => {
+      const initialQuestion = sessionStorage.getItem("initialQuestion");
+      const initialMode = sessionStorage.getItem("initialMode");
+      
+      console.log('🏠 Checking for initial data from Home page:', { initialQuestion, initialMode });
+      
+      if (initialQuestion) {
+        console.log('📝 Setting initial question:', initialQuestion);
+        setInputMessage(initialQuestion);
+        
+        // Clear from sessionStorage to prevent re-processing
+        sessionStorage.removeItem("initialQuestion");
+        
+        // Set mode if provided
+        if (initialMode) {
+          console.log('🎯 Setting initial mode:', initialMode);
+          setActiveMode(initialMode);
+          sessionStorage.removeItem("initialMode");
+        }
+        
+        // Auto-send the message after a short delay to ensure all state is set
+        setTimeout(() => {
+          console.log('🚀 Auto-sending initial message from Home page');
+          handleSendMessage();
+        }, 500);
+      }
+    };
+    
+    // Only run this once when component mounts
+    handleInitialData();
+  }, []); // Empty dependency array to run only once
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();

@@ -84,8 +84,8 @@ const fetchLearningContent = async () => {
   };
 
   const calculateProgress = (topics) => {
-    const totalTopics = topics.length;
-    const completedTopics = topics.filter(topic => topic.completed).length;
+    const totalTopics = (topics || []).length;
+    const completedTopics = (topics || []).filter(topic => topic.completed).length;
     return totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
   };
 
