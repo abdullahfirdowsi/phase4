@@ -1,29 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Card, Badge, ProgressBar } from 'react-bootstrap';
-import { 
-  BookmarkCheck, 
-  Clock, 
-  Award, 
-  CheckCircle, 
-  XCircle,
-  PlayCircleFill
-} from 'react-bootstrap-icons';
+import { BookmarkCheck, Clock, Award, PlayCircleFill, CheckCircle } from 'react-bootstrap-icons';
+import { getAllLearningPaths, getLearningPathDetail } from '../../api';
 import './LearningPathPreview.scss';
 
-const LearningPathPreview = ({ 
-  learningPath, 
-  hasLearningPath, 
-  topic, 
-  sectionsCount, 
-  objectivesCount,
-  timestamp 
-}) => {
-  // Extract the actual learning path data from the nested property
-  // Use optional chaining to safely access 'learning_path' and fallback if it's not present
-  const actualLearningPathData = learningPath?.learning_path || learningPath;
+const LearningPathPreview = () => {
+  const [learningPath, setLearningPath] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Add a check to ensure actualLearningPathData is available before proceeding
-  if (!hasLearningPath || !actualLearningPathData) {
+  useEffect(() => {
+    fetchLearningPathData();
+  }, []);
+
+  const fetchLearningPathData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const paths = await getAllLearningPaths();
+      
+      // Assuming you want the latest path
+      if (paths.length > 0) {
+        const pathDetails = await getLearningPathDetail(paths[0].id);
+        setLearningPath(pathDetails);
+      } else {
+        setLearningPath(null);
+      }
+    } catch (error) {
+      setError('Failed to load learning path');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
+  }
+
+  if (!learningPath) {
     return (
       <div className="learning-path-preview-loading">
         <p>No learning path available. Please generate one first.</p>
@@ -31,18 +51,14 @@ const LearningPathPreview = ({
     );
   }
 
-  // Use optional chaining for all properties to prevent errors
-  const sections = actualLearningPathData?.sections || [];
-  const objectives = actualLearningPathData?.objectives || [];
-  const dailyPlan = actualLearningPathData?.dailyPlan || [];
-  const pathTopic = actualLearningPathData?.topic || topic || "Learning Path";
-  
+  const { sections, objectives, dailyPlan, topic, progress } = learningPath;
+
   return (
     <div className="learning-path-preview">
       <Card className="preview-card">
         <Card.Header className="preview-header">
           <div className="header-content">
-            <h3 className="path-title">{pathTopic}</h3>
+            <h3 className="path-title">{topic || "Learning Path"}</h3>
             <div className="path-meta">
               <Badge bg="primary" className="sections-badge">
                 <BookmarkCheck className="me-1" />
@@ -61,9 +77,8 @@ const LearningPathPreview = ({
             </div>
           </div>
         </Card.Header>
-        
+
         <Card.Body>
-          {/* Objectives Section */}
           {objectives && objectives.length > 0 && (
             <div className="objectives-section mb-4">
               <h4 className="section-title">Learning Objectives</h4>
@@ -77,11 +92,10 @@ const LearningPathPreview = ({
               </ul>
             </div>
           )}
-          
-          {/* Sections Preview */}
+
           <div className="sections-preview">
             <h4 className="section-title">Course Sections</h4>
-            {sections && sections.map((section, index) => (
+            {sections.map((section, index) => (
               <Card key={index} className="section-card mb-3">
                 <Card.Body>
                   <div className="section-header">
@@ -90,10 +104,10 @@ const LearningPathPreview = ({
                       {section.title}
                     </h5>
                   </div>
-                  
+
                   <p className="section-description">{section.description}</p>
-                  
-                  {section.resources && section.resources.length > 0 && (
+
+                  {section.resources && (
                     <div className="section-resources">
                       <h6 className="resources-title">Resources</h6>
                       <div className="resources-list">
@@ -105,28 +119,11 @@ const LearningPathPreview = ({
                       </div>
                     </div>
                   )}
-                  
-                  <div className="section-status">
-                    <span className={`status-indicator ${section.completed ? 'completed' : 'pending'}`}>
-                      {section.completed ? (
-                        <>
-                          <CheckCircle className="me-1" />
-                          Completed
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="me-1" />
-                          Pending
-                        </>
-                      )}
-                    </span>
-                  </div>
                 </Card.Body>
               </Card>
             ))}
           </div>
-          
-          {/* Daily Plan Preview */}
+
           {dailyPlan && dailyPlan.length > 0 && (
             <div className="daily-plan-preview mt-4">
               <h4 className="section-title">Daily Study Plan</h4>
@@ -140,9 +137,8 @@ const LearningPathPreview = ({
                         {day.duration || "30 minutes"}
                       </Badge>
                     </div>
-                    
+
                     <p className="day-description">{day.activities}</p>
-                    
                     {day.focus && (
                       <div className="day-focus">
                         <h6 className="focus-title">Focus Areas</h6>
@@ -155,20 +151,20 @@ const LearningPathPreview = ({
             </div>
           )}
         </Card.Body>
-        
+
         <Card.Footer className="preview-footer">
           <div className="progress-section">
             <div className="progress-header">
               <span>Overall Progress</span>
-              <span>{Math.round(learningPath?.progress || 0)}%</span>
+              <span>{Math.round(progress || 0)}%</span>
             </div>
             <ProgressBar 
-              now={learningPath?.progress || 0} 
+              now={progress || 0} 
               variant="primary"
               className="progress-bar"
             />
           </div>
-          
+
           <div className="action-buttons">
             <Button variant="primary" className="start-btn">
               <PlayCircleFill className="me-2" />
