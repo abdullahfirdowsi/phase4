@@ -80,6 +80,15 @@ const apiRequest = async (url, options = {}) => {
     return data;
   } catch (error) {
     console.error(`🚨 API Request Failed: ${error.message}`);
+
+    // Log additional information
+    console.error('❌ Request URL:', url);
+    console.error('❌ Request Options:', JSON.stringify(defaultOptions, null, 2));
+    console.error('❌ Request Error:', error);
+
+    if (error.message.includes('Internal Server Error')) {
+      console.error('❌ Possible data issue:', JSON.stringify(defaultOptions.body, null, 2));
+    }
     
     // Handle specific error types
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
@@ -471,6 +480,146 @@ export const getAllLearningGoals = async () => {
     console.error("Error fetching learning goals:", error);
     // Return empty array instead of throwing to prevent UI crashes
     return [];
+  }
+};
+
+// Get All Learning Paths API Call
+export const getAllLearningPaths = async (filters = {}) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username) {
+    console.error("No username found in localStorage");
+    return [];
+  }
+
+  try {
+    // Build query parameters
+    const queryParams = new URLSearchParams({
+      username,
+      ...filters,
+      t: Date.now(), // Cache buster
+      r: Math.random().toString(36).substring(7) // Additional randomization
+    });
+
+    console.log('🔄 Fetching learning paths via API:', `${API_BASE_URL}/learning-paths/list?${queryParams}`);
+    console.log('🔄 Using username:', username);
+    console.log('🔄 Token present:', !!token);
+
+    // Try without apiRequest wrapper first for debugging
+    const response = await fetch(`${API_BASE_URL}/learning-paths/list?${queryParams}`, {
+      method: "GET",
+      headers: {
+        ...(token && { "Authorization": `Bearer ${token}` }),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`API request failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      return [];
+    }
+
+    const data = await response.json();
+    console.log('✅ Learning paths fetched successfully:', data);
+    console.log('📊 Number of paths:', data.learning_paths?.length || 0);
+    
+    return data.learning_paths || [];
+  } catch (error) {
+    console.error("Error fetching learning paths:", error);
+    console.error("Error details:", error.message);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
+  }
+};
+
+// Get Learning Path Detail API Call
+export const getLearningPathDetail = async (pathId) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username) {
+    console.error("No username found in localStorage");
+    return null;
+  }
+
+  try {
+    console.log('🔄 Fetching learning path detail:', pathId);
+    
+    const response = await fetch(`${API_BASE_URL}/learning-paths/detail/${encodeURIComponent(pathId)}?username=${encodeURIComponent(username)}`, {
+      method: "GET",
+      headers: {
+        ...(token && { "Authorization": `Bearer ${token}` }),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`API request failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('✅ Learning path detail fetched successfully:', data);
+    
+    return data.path || null;
+  } catch (error) {
+    console.error("Error fetching learning path detail:", error);
+    console.error("Error details:", error.message);
+    return null;
+  }
+};
+
+// Update Learning Path Progress API Call
+export const updateLearningPathProgress = async (pathId, topicIndex, completed) => {
+  const username = localStorage.getItem("username");
+  const token = localStorage.getItem("token");
+
+  if (!username) {
+    console.error("No username found in localStorage");
+    return null;
+  }
+
+  try {
+    console.log('🔄 Updating learning path progress:', pathId, topicIndex, completed);
+    
+    const response = await fetch(`${API_BASE_URL}/learning-paths/progress/update`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { "Authorization": `Bearer ${token}` }),
+      },
+      body: JSON.stringify({
+        username,
+        path_id: pathId,
+        topic_index: topicIndex,
+        completed
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`API request failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('✅ Learning path progress updated successfully:', data);
+    
+    return data;
+  } catch (error) {
+    console.error("Error updating learning path progress:", error);
+    console.error("Error details:", error.message);
+    return null;
   }
 };
 

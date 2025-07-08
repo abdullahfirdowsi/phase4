@@ -99,6 +99,10 @@ app.add_middleware(
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
+        "Cache-Control",
+        "Pragma",
+        "Expires",
+        "*"
     ],
     expose_headers=["*"],
     max_age=3600,
@@ -446,9 +450,6 @@ async def internal_error_handler(request, exc):
         }
     )
 
-@app.options("/{full_path:path}")
-async def options_handler(request):
-    return {"message": "OK"}
 
 if __name__ == "__main__":
     import uvicorn

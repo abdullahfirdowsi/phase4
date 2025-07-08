@@ -240,10 +240,11 @@ const LearningPathDisplay = memo(({ message }) => {
       const username = localStorage.getItem("username");
       const token = localStorage.getItem("token");
       
-      console.log('🔐 Auth check:', { 
+      console.log('🔐 Save Auth check:', { 
         hasUsername: !!username, 
         hasToken: !!token,
-        username: username 
+        username: username,
+        currentPath: parsedContent?.name 
       });
       
       if (!username || !token) {
@@ -309,15 +310,23 @@ const LearningPathDisplay = memo(({ message }) => {
       // Trigger refresh of Learning Paths page if user navigates there
       try {
         // Dispatch a custom event to notify Learning Paths page to refresh
+        const eventDetail = { 
+          pathName: pathData.name, 
+          timestamp: Date.now(),
+          pathId: result?.goal_id || result?.path?.id || result?.id,
+          username: username,
+          success: true
+        };
+        
         window.dispatchEvent(new CustomEvent('learningPathSaved', {
-          detail: { 
-            pathName: pathData.name, 
-            timestamp: Date.now(),
-            pathId: result?.goal_id || result?.path?.id
-          }
+          detail: eventDetail
         }));
         
-        console.log('📢 Notified Learning Paths page to refresh');
+        console.log('📢 Dispatched learningPathSaved event:', eventDetail);
+        
+        // Also try to force a storage event for cross-tab communication
+        localStorage.setItem('lastSavedLearningPath', JSON.stringify(eventDetail));
+        
       } catch (eventError) {
         console.warn('Could not dispatch event:', eventError);
       }

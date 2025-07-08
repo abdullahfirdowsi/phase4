@@ -13,7 +13,7 @@ import {
   CheckCircle,
   XCircle
 } from "react-bootstrap-icons";
-import { getAllLearningGoals, updateLearningPathProgress } from "../../../api";
+import { getAllLearningPaths, updateLearningPathProgress } from "../../../api";
 import "./Learning.scss";
 
 const Learning = () => {
@@ -32,20 +32,24 @@ const Learning = () => {
     fetchLearningContent();
   }, []);
 
-  const fetchLearningContent = async () => {
+const fetchLearningContent = async () => {
     try {
       setLoading(true);
       
       // Fetch user's learning paths
-      const learningGoals = await getAllLearningGoals();
+      const learningPaths = await getAllLearningPaths();
       
-      // Sort learning paths by created_at date (newest first)
-      const sortedLearningPaths = (learningGoals || []).sort((a, b) => {
+      // Sort and map learning paths to include topics properly
+      const sortedLearningPaths = (learningPaths || []).sort((a, b) => {
         const dateA = new Date(a.created_at || 0);
         const dateB = new Date(b.created_at || 0);
         return dateB.getTime() - dateA.getTime(); // newest first
-      });
-      
+      }).map(path => ({
+        ...path,
+        progress: calculateProgress(path.topics),
+        topics: path.topics || []
+      }));
+
       console.log('📋 Learning paths in Learning component (sorted newest first):');
       sortedLearningPaths.forEach((p, i) => {
         console.log(`  ${i + 1}. "${p.name}" - ${p.created_at}`);
@@ -77,6 +81,12 @@ const Learning = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateProgress = (topics) => {
+    const totalTopics = topics.length;
+    const completedTopics = topics.filter(topic => topic.completed).length;
+    return totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
   };
 
   const createSampleLessons = () => {
@@ -159,28 +169,22 @@ const Learning = () => {
     }
   };
 
-  const handleViewContent = async (contentId, contentType) => {
+const handleViewContent = async (contentId, contentType) => {
     try {
       if (contentType === "learning_path") {
         // Handle learning path details
         const pathData = myLearningPaths.find(path => path.name === contentId);
         if (pathData) {
-          // Process topics to ensure they have completed property
-          const processedTopics = pathData.study_plans && pathData.study_plans[0] && 
-            pathData.study_plans[0].topics ? 
-            pathData.study_plans[0].topics.map(topic => ({
-              ...topic,
-              completed: topic.completed || false
-            })) : [];
-          
           setSelectedContent({
             id: contentId,
             title: pathData.name,
-            description: pathData.description || "Personalized learning path",
-            content: pathData.study_plans,
-            progress: pathData.progress,
-            type: "learning_path",
-            topics: processedTopics
+            description: pathData.description || "A personalized learning path to help you master new skills.",
+            topics: pathData.topics.map(topic => ({
+              ...topic,
+              completed: topic.completed || false
+            })),
+            progress: calculateProgress(pathData.topics),
+            type: "learning_path"
           });
           setShowDetailModal(true);
           return;

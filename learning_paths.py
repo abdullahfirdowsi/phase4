@@ -4,7 +4,7 @@ import json
 import datetime
 import logging
 import uuid
-from fastapi import APIRouter, HTTPException, Body, Query
+from fastapi import APIRouter, HTTPException, Body, Query, Request
 from database import chats_collection, users_collection, get_collections, learning_goals_collection
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -84,7 +84,7 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
             
         logger.info("✅ Successfully parsed and validated JSON")
         
-        # Create lesson document
+        # Create lesson document for lesson system (separate from learning paths)
         lesson_id = f"lesson_{datetime.datetime.utcnow().timestamp()}"
         topic = learning_path_json.get("name", "") or user_prompt.split("learning path for ")[-1].split(" ")[0] or "Generated Lesson"
         
@@ -108,13 +108,15 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
         }
         
         # Store ONLY in lessons collection (for lesson system)
-        # Learning paths will be saved manually by user via Save button
+        # NOTE: Learning paths are NOT automatically saved to learning_goals collection
+        # They will only be saved when user clicks "Save to My Learning Paths" button
         collections = get_collections()
         lessons_collection = collections['lessons']
         lessons_collection.insert_one(lesson_doc)
         
         logger.info(f"✅ Created lesson document with ID: {lesson_id}")
-        logger.info(f"📄 Learning path ready for user to save manually")
+        logger.info(f"📄 Learning path generated but NOT saved to learning_goals collection")
+        logger.info(f"📄 User must click 'Save to My Learning Paths' button to save it")
         
         # Store response in chat history
         response_message = {
@@ -167,13 +169,26 @@ async def process_learning_path_query(user_prompt, username, generate_response, 
                 "content": error_message
             }
 
+class SubtopicItem(BaseModel):
+    name: str
+    description: str = ""
+
+class TopicItem(BaseModel):
+    name: str
+    description: str = ""
+    time_required: str = "1 hour"
+    links: List[str] = []
+    videos: List[str] = []
+    subtopics: List[SubtopicItem] = []
+    completed: bool = False
+
 class LearningPathCreate(BaseModel):
     name: str
     description: str
     difficulty: str
     duration: str
     prerequisites: List[str] = []
-    topics: List[Dict[str, Any]]
+    topics: List[TopicItem]
     tags: List[str] = []
 
 class LearningPathUpdate(BaseModel):
@@ -197,6 +212,8 @@ async def create_learning_path(
 ):
     """Create a new learning path in dedicated learning_goals collection"""
     try:
+        logger.info(f"🚀 Starting learning path creation for user: {username}")
+        logger.info(f"📝 Path data: {path_data.dict()}")
         # Check for duplicate learning paths in learning_goals collection
         existing_goal = learning_goals_collection.find_one({
             "username": username,
@@ -205,10 +222,80 @@ async def create_learning_path(
         
         if existing_goal:
             logger.warning(f"⚠️ Learning path '{path_data.name}' already exists for user {username}")
-            raise HTTPException(
-                status_code=409, 
-                detail=f"Learning path '{path_data.name}' already exists. Please choose a different name."
-            )
+            
+            # Instead of failing, update the existing path with new content
+            logger.info(f"🔄 Updating existing learning path '{path_data.name}' with new content")
+            
+            # Update the existing learning path with new topics and data
+            # Convert Pydantic models to dictionaries for MongoDB storage
+            topics_dict = []
+            for topic in path_data.topics:
+                topic_dict = {
+                    "name": topic.name,
+                    "description": topic.description,
+                    "time_required": topic.time_required,
+                    "links": topic.links,
+                    "videos": topic.videos,
+                    "subtopics": [{
+                        "name": subtopic.name,
+                        "description": subtopic.description
+                    } for subtopic in topic.subtopics],
+                    "completed": topic.completed
+                }
+                topics_dict.append(topic_dict)
+                
+            update_doc = {
+                "description": path_data.description,
+                "difficulty": path_data.difficulty,
+                "duration": path_data.duration,
+                "prerequisites": path_data.prerequisites,
+                "topics": topics_dict,  # Use converted dictionary instead of Pydantic model
+                "tags": path_data.tags,
+                "updated_at": datetime.datetime.utcnow().isoformat() + "Z"
+            }
+            
+            try:
+                result = learning_goals_collection.update_one(
+                    {"username": username, "name": path_data.name},
+                    {"$set": update_doc}
+                )
+                
+                if result.modified_count > 0:
+                    logger.info(f"✅ Successfully updated existing learning path '{path_data.name}'")
+                    
+                    # Create response for updated path
+                    response_path = {
+                        "goal_id": existing_goal.get("goal_id"),
+                        "name": path_data.name,
+                        "description": path_data.description,
+                        "difficulty": path_data.difficulty,
+                        "duration": path_data.duration,
+                        "progress": existing_goal.get("progress", 0.0),  # Keep existing progress
+                        "topics_count": len(path_data.topics),
+                        "created_at": existing_goal.get("created_at"),
+                        "updated_at": update_doc["updated_at"],
+                        "source": "user_created"
+                    }
+                    
+                    return {
+                        "message": "Learning path updated successfully",
+                        "goal_id": existing_goal.get("goal_id"),
+                        "path": response_path,
+                        "updated": True
+                    }
+                else:
+                    logger.error(f"❌ Failed to update existing learning path '{path_data.name}'")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail=f"Failed to update existing learning path '{path_data.name}'"
+                    )
+                    
+            except Exception as update_error:
+                logger.error(f"❌ Error updating existing learning path: {update_error}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to update existing learning path: {str(update_error)}"
+                )
         
         # Check for preliminary paths in lessons collection and clean them up
         collections = get_collections()
@@ -232,6 +319,23 @@ async def create_learning_path(
         # Create learning goal document directly in learning_goals collection
         goal_id = f"goal_{datetime.datetime.utcnow().timestamp()}"
         
+        # Convert Pydantic models to dictionaries for MongoDB storage
+        topics_dict = []
+        for topic in path_data.topics:
+            topic_dict = {
+                "name": topic.name,
+                "description": topic.description,
+                "time_required": topic.time_required,
+                "links": topic.links,
+                "videos": topic.videos,
+                "subtopics": [{
+                    "name": subtopic.name,
+                    "description": subtopic.description
+                } for subtopic in topic.subtopics],
+                "completed": topic.completed
+            }
+            topics_dict.append(topic_dict)
+        
         learning_goal_doc = {
             "goal_id": goal_id,
             "username": username,
@@ -242,7 +346,7 @@ async def create_learning_path(
             "progress": 0.0,
             "status": "active",
             "prerequisites": path_data.prerequisites,
-            "topics": path_data.topics,
+            "topics": topics_dict,  # Use converted dictionary instead of Pydantic model
             "tags": path_data.tags,
             "created_at": datetime.datetime.utcnow().isoformat() + "Z",
             "updated_at": datetime.datetime.utcnow().isoformat() + "Z",
@@ -276,19 +380,29 @@ async def create_learning_path(
             "goal_id": goal_id,
             "path": response_path
         }
+    except HTTPException as http_exc:
+        logger.error(f"HTTP Exception in learning path creation: {http_exc.detail}")
+        raise http_exc
     except Exception as e:
-        logger.error(f"Error creating learning path: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error creating learning path: {e}")
+        logger.exception("Full exception details:")
+        raise HTTPException(status_code=500, detail=f"Failed to create learning path: {str(e)}")
+
+# OPTIONS handling is managed by CORSMiddleware in main.py
 
 @learning_paths_router.get("/list")
 async def list_learning_paths(
-    username: str = Query(...),
+    username: Optional[str] = Query(None),
     public_only: bool = Query(False),
     difficulty: Optional[str] = Query(None),
     tags: Optional[str] = Query(None)
 ):
     """List available learning paths from dedicated learning_goals collection"""
     try:
+        # Validate username only for GET requests
+        if username is None:
+            raise HTTPException(status_code=400, detail="Username is required")
+    
         # Query directly from learning_goals collection
         query = {"username": username}
         

@@ -4,7 +4,13 @@
     "version": "1.0.0",
     "type": "module",
     "description": "AI-powered personalized learning platform with intelligent tutoring",
-    "keywords": ["ai", "tutor", "learning", "education", "personalized"],
+    "keywords": [
+        "ai",
+        "tutor",
+        "learning",
+        "education",
+        "personalized"
+    ],
     "scripts": {
         "dev": "vite",
         "build": "vite build",
@@ -17,6 +23,7 @@
         "bootstrap": "^5.3.3",
         "date-fns": "^4.1.0",
         "jwt-decode": "^4.0.0",
+        "node-fetch": "^3.3.2",
         "react": "^19.0.0",
         "react-bootstrap": "^2.10.9",
         "react-bootstrap-icons": "^1.11.5",

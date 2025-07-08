@@ -166,20 +166,13 @@ async def process_learning_path_request(username: str, session_id: str, user_pro
             store_chat_history, REGENRATE_OR_FILTER_JSON, prompt_with_preference
         )
         
-        # If successful, create learning goal
+        # NOTE: Learning paths are NOT automatically saved to user's collection
+        # They are only stored temporarily for lesson generation
+        # User must explicitly click "Save to My Learning Paths" to save permanently
         if result.get("response") == "JSON" and result.get("content"):
-            # Note: The learning path message is already stored in the process_learning_path_query function
-            # via the store_chat_history callback, so we don't need to store it again here
-            
-            learning_goal_data = {
-                "name": result["content"].get("name", "AI Generated Learning Path"),
-                "description": result["content"].get("description", ""),
-                "duration": result["content"].get("course_duration", ""),
-                "study_plans": [result["content"]],
-                "tags": result["content"].get("tags", [])
-            }
-            
-            await learning_service.create_learning_goal(username, learning_goal_data)
+            logger.info(f"📋 Learning path generated successfully: {result['content'].get('name', 'Unnamed')}")
+            logger.info(f"📋 Path ready for user to save manually via Save button")
+            # No automatic learning goal creation - user must save explicitly
         
         return result
         

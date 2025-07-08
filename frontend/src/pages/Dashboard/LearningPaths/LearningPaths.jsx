@@ -13,6 +13,7 @@ import {
   GraphUp
 } from "react-bootstrap-icons";
 import { formatLocalDate } from "../../../utils/dateUtils";
+import { getAllLearningPaths } from "../../../api";
 import "./LearningPaths.scss";
 
 // API Base URL
@@ -45,87 +46,96 @@ const LearningPaths = () => {
   // Listen for learning path save events from AI Chat
   useEffect(() => {
     const handleLearningPathSaved = (event) => {
-      console.log('📢 Received learning path saved notification:', event.detail);
-      // Refresh the learning paths list
+      console.log('📢 Received learningPathSaved event:', event.detail);
+      // Force refresh the learning paths list
       fetchLearningPaths();
     };
 
-    // Add event listener
-    window.addEventListener('learningPathSaved', handleLearningPathSaved);
+    const handleStorageChange = (event) => {
+      if (event.key === 'lastSavedLearningPath') {
+        console.log('📢 Detected learning path save via storage event');
+        // Small delay to ensure backend has processed the save
+        setTimeout(() => {
+          fetchLearningPaths();
+        }, 500);
+      }
+    };
 
-    // Cleanup event listener on unmount
+    // Add event listeners
+    window.addEventListener('learningPathSaved', handleLearningPathSaved);
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also listen for focus events to refresh when user switches back to this tab
+    const handleFocus = () => {
+      console.log('📢 Page focused - checking for new learning paths');
+      fetchLearningPaths();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    // Also listen for page visibility changes
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('📢 Page became visible - refreshing learning paths');
+        fetchLearningPaths();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Manual refresh every 10 seconds if the page is visible
+    const refreshInterval = setInterval(() => {
+      if (!document.hidden) {
+        console.log('📢 Periodic refresh - checking for new learning paths');
+        fetchLearningPaths();
+      }
+    }, 10000);
+
+    // Cleanup event listeners on unmount
     return () => {
       window.removeEventListener('learningPathSaved', handleLearningPathSaved);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(refreshInterval);
     };
   }, []);
 
-  const fetchLearningPaths = async () => {
+const fetchLearningPaths = async () => {
     try {
       setLoading(true);
-      const username = localStorage.getItem("username"); // Only for authentication
+      setError(null); // Clear any previous errors
+      const username = localStorage.getItem("username");
       
-      // Enhanced cache-busting with multiple strategies
-      const queryParams = new URLSearchParams({
-        username,
-        ...(filter.difficulty && { difficulty: filter.difficulty }),
-        ...(filter.tags && { tags: filter.tags }),
-        t: Date.now(), // Cache buster
-        r: Math.random().toString(36).substring(7) // Additional randomization
-      });
-
-      console.log('🔄 Fetching learning paths for user:', username);
-      console.log('🔄 Cache-busting params:', { t: Date.now(), r: Math.random().toString(36).substring(7) });
-      
-      const response = await fetch(`${API_BASE_URL}/learning-paths/list?${queryParams}`, {
-        method: 'GET',
-        cache: 'no-store', // Stronger cache prevention
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'If-Modified-Since': '0'
-        }
-      });
-      const data = await response.json();
-      
-      console.log('📥 Raw API Response:', {
-        url: `${API_BASE_URL}/learning-paths/list?${queryParams}`,
-        status: response.status,
-        data: data
-      });
-      
-      if (response.ok) {
-        const paths = data.learning_paths || [];
-        
-        console.log('📋 Learning paths from backend (already sorted newest first):');
-        paths.forEach((p, i) => {
-          console.log(`  ${i + 1}. "${p.name}" - ${p.created_at} (ID: ${p.id})`);
-        });
-        
-        console.log('🔍 Current user:', localStorage.getItem('username')); // Only for debug
-        
-        // Backend already sorts the data (newest first), but let's double-check the order in frontend
-        console.log('🔍 Before setting state - paths order:');
-        paths.forEach((p, i) => {
-          console.log(`  Frontend-${i + 1}. "${p.name}" - ${p.created_at}`);
-        });
-        
-        // Ensure the array is properly sorted newest first
-        const sortedPaths = paths.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0);
-          const dateB = new Date(b.created_at || 0);
-          return dateB.getTime() - dateA.getTime(); // newest first
-        });
-        
-        console.log('🔍 After frontend sorting - paths order:');
-        sortedPaths.forEach((p, i) => {
-          console.log(`  Sorted-${i + 1}. "${p.name}" - ${p.created_at}`);
-        });
-        
-        setLearningPaths(sortedPaths);
-      } else {
-        setError(data.detail || "Failed to fetch learning paths");
+      if (!username) {
+        setError("Please log in to view your learning paths");
+        setLoading(false);
+        return;
       }
+      
+      console.log('🔄 Fetching learning paths for user:', username);
+      
+      // Use the new getAllLearningPaths API function
+      const paths = await getAllLearningPaths(filter);
+      
+      console.log('📋 Learning paths from API:', paths);
+      paths.forEach((p, i) => {
+        console.log(`  ${i + 1}. "${p.name}" - ${p.created_at} (ID: ${p.id})`);
+      });
+      
+      console.log('🔍 Current user:', localStorage.getItem('username')); // Only for debug
+      
+      // Ensure the array is properly sorted newest first
+      const sortedPaths = paths.sort((a, b) => {
+        const dateA = new Date(a.created_at || 0);
+        const dateB = new Date(b.created_at || 0);
+        return dateB.getTime() - dateA.getTime(); // newest first
+      });
+      
+      console.log('🔍 After frontend sorting - paths order:');
+      sortedPaths.forEach((p, i) => {
+        console.log(`  Sorted-${i + 1}. "${p.name}" - ${p.created_at}`);
+      });
+      
+      setLearningPaths(sortedPaths);
     } catch (error) {
       console.error("Error fetching learning paths:", error);
       setError("Failed to fetch learning paths");
