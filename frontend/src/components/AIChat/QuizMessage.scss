@@ -157,6 +157,11 @@
               border-color: var(--border-light);
             }
 
+            .form-check-input {
+              margin-top: 0.125rem;
+              vertical-align: top;
+            }
+
             .form-check-input:checked {
               background-color: var(--primary-color);
               border-color: var(--primary-color);
@@ -165,8 +170,11 @@
             .form-check-label {
               font-weight: 500;
               cursor: pointer;
-              margin-left: 0.5rem;
+              margin-left: 0.125rem;
               color: var(--text-primary);
+              line-height: 1.4;
+              vertical-align: middle;
+              display: inline-block;
             }
           }
 

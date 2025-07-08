@@ -16,6 +16,55 @@ import { formatLocalDate } from "../../../utils/dateUtils";
 import { generateQuiz, submitQuiz, getQuizHistory } from "../../../api";
 import "./QuizSystem.scss";
 
+// Function to generate unique quiz titles
+const generateUniqueQuizTitle = (topic, difficulty = 'medium', source = '') => {
+  // Properly capitalize the topic (Title Case)
+  const capitalizedTopic = topic
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  
+  // Creative title templates based on difficulty and topic
+  const titleTemplates = {
+    easy: [
+      `${capitalizedTopic} Fundamentals`,
+      `Introduction to ${capitalizedTopic}`,
+      `${capitalizedTopic} Basics`,
+      `Getting Started with ${capitalizedTopic}`,
+      `${capitalizedTopic} Essentials`
+    ],
+    medium: [
+      `${capitalizedTopic} Challenge`,
+      `${capitalizedTopic} Mastery Test`,
+      `Exploring ${capitalizedTopic}`,
+      `${capitalizedTopic} Deep Dive`,
+      `${capitalizedTopic} Assessment`,
+      `${capitalizedTopic} Knowledge Check`
+    ],
+    hard: [
+      `Advanced ${capitalizedTopic}`,
+      `${capitalizedTopic} Expert Challenge`,
+      `${capitalizedTopic} Mastery`,
+      `${capitalizedTopic} Pro Test`,
+      `Ultimate ${capitalizedTopic} Challenge`,
+      `${capitalizedTopic} Expert Level`
+    ]
+  };
+  
+  // Add source-specific prefixes
+  const sourcePrefix = source === 'AI' ? 'AI-Generated ' : '';
+  
+  // Get appropriate templates based on difficulty
+  const templates = titleTemplates[difficulty] || titleTemplates.medium;
+  
+  // Use timestamp to ensure uniqueness and select template
+  const templateIndex = Math.floor(Date.now() / 1000) % templates.length;
+  const selectedTemplate = templates[templateIndex];
+  
+  return sourcePrefix + selectedTemplate;
+};
+
 const QuizSystem = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [quizResults, setQuizResults] = useState([]);
@@ -89,133 +138,101 @@ const QuizSystem = () => {
   const fetchQuizzes = async () => {
     try {
       const username = localStorage.getItem("username");
-      console.log('🔍 DEBUG: Fetching quizzes directly from MongoDB for username:', username);
+      const token = localStorage.getItem("token");
+      console.log('🔍 Fetching quizzes for username:', username);
       
-      if (!username) {
-        console.log('❌ No username found. Please log in.');
+      if (!username || !token) {
+        console.log('❌ No credentials found. Please log in.');
         setError('Please log in to access quizzes.');
         setLoading(false);
         return;
       }
       
-      // Try to fetch quizzes from backend (both active quizzes and chat messages)
-      try {
-        const [activeQuizzesResponse, chatHistoryResponse] = await Promise.all([
-          fetch(`http://localhost:8000/quiz/active-quizzes?username=${username}`),
-          fetch(`http://localhost:8000/chat/history?username=${username}`)
-        ]);
-        
-        let transformedQuizzes = [];
-        
-        // Process active quizzes
-        if (activeQuizzesResponse.ok) {
-          const activeData = await activeQuizzesResponse.json();
-          const backendQuizzes = activeData.active_quizzes || [];
-          transformedQuizzes = backendQuizzes.map(quiz => {
-            if (quiz.quiz_json && quiz.quiz_json.quiz_data) {
-              const quizData = quiz.quiz_json.quiz_data;
+      // Use token in API calls to ensure proper authentication
+      const headers = { "Authorization": `Bearer ${token}` };
+      const [activeQuizzesResponse, chatHistoryResponse] = await Promise.all([
+        fetch(`http://localhost:8000/quiz/active-quizzes?username=${username}`, { headers }),
+        fetch(`http://localhost:8000/chat/history?username=${username}`, { headers })
+      ]);
+
+      console.log('🔍 Fetch responses:', {
+        activeQuizzesStatus: activeQuizzesResponse.status,
+        chatHistoryStatus: chatHistoryResponse.status
+      });
+
+      let transformedQuizzes = [];
+
+      if (activeQuizzesResponse.ok) {
+        const activeData = await activeQuizzesResponse.json();
+        const backendQuizzes = activeData.active_quizzes || [];
+
+        console.log('📊 Fetched quizzes:', backendQuizzes);
+
+        transformedQuizzes = backendQuizzes.map(quiz => ({
+          id: quiz.id || quiz.quiz_id || `quiz_${Date.now()}`,
+          quiz_id: quiz.quiz_id || quiz.id,
+          title: quiz.title || 'Untitled Quiz',
+          description: quiz.description || 'No description available',
+          subject: quiz.subject || 'General',
+          difficulty: quiz.difficulty || 'medium',
+          time_limit: quiz.time_limit || 10,
+          questions: quiz.questions || [],
+          created_at: quiz.created_at || new Date().toISOString(),
+          source: quiz.source || 'unknown',
+          status: quiz.status || 'active'
+        }));
+
+        console.log('✅ Transformed quizzes:', transformedQuizzes);
+      } else {
+        console.error('❌ Issue with active quizzes response:', activeQuizzesResponse.status);
+        setError('Failed to load quizzes. Please try again later.');
+      }
+
+      if (chatHistoryResponse.ok) {
+        const chatData = await chatHistoryResponse.json();
+        const messages = chatData.history || [];
+
+        const chatQuizzes = messages
+          .filter(msg => msg.type === 'quiz' && msg.role === 'assistant' && msg.content)
+          .map(msg => {
+            const quizContent = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+            if (quizContent && quizContent.quiz_data) {
+              const quizData = quizContent.quiz_data;
               return {
-                id: quiz.quiz_id || `quiz_${Date.now()}`,
-                quiz_id: quiz.quiz_id,
-                title: `${quizData.topic || 'Unknown'} Quiz`,
-                description: `Test your knowledge about ${quizData.topic || 'this topic'}`,
+                id: quizData.quiz_id || `ai_chat_quiz_${Date.now()}`,
+                quiz_id: quizData.quiz_id,
+                title: quizData.quiz_title || 'AI Quiz',
+                description: `AI-generated quiz about ${quizData.topic}`,
                 subject: quizData.topic || 'General',
                 difficulty: quizData.difficulty || 'medium',
                 time_limit: quizData.time_limit || 10,
                 questions: quizData.questions || [],
-                created_at: quiz.created_at || new Date().toISOString(),
-                source: 'ai_quiz_system'
+                created_at: msg.timestamp || new Date().toISOString(),
+                source: 'ai_chat'
               };
             }
-            return quiz;
-          });
-        }
-        
-        // Process chat history for quiz messages from AI Chat
-        // Only include quizzes that were generated through AI Chat interactions
-        if (chatHistoryResponse.ok) {
-          const chatData = await chatHistoryResponse.json();
-          const messages = chatData.history || [];
-          
-          console.log('🔍 Processing chat history for AI-generated quizzes...');
-          
-          const chatQuizzes = messages
-            .filter(msg => {
-              // Only include quiz messages that came from AI Chat (assistant role)
-              return msg.type === 'quiz' && msg.role === 'assistant' && msg.content;
-            })
-            .map(msg => {
-              try {
-                let quizContent;
-                if (typeof msg.content === 'string') {
-                  // Try to parse JSON content
-                  const jsonMatch = msg.content.match(/\{[\s\S]*\}/);
-                  if (jsonMatch) {
-                    quizContent = JSON.parse(jsonMatch[0]);
-                  }
-                } else {
-                  quizContent = msg.content;
-                }
-                
-                if (quizContent && quizContent.quiz_data) {
-                  const quizData = quizContent.quiz_data;
-                  return {
-                    id: quizData.quiz_id || `ai_chat_quiz_${Date.now()}`,
-                    quiz_id: quizData.quiz_id,
-                    title: `${quizData.topic || 'AI Chat'} Quiz`,
-                    description: `AI-generated quiz about ${quizData.topic || 'various topics'} from AI Chat`,
-                    subject: quizData.topic || 'General',
-                    difficulty: quizData.difficulty || 'medium',
-                    time_limit: quizData.time_limit || 10,
-                    questions: quizData.questions || [],
-                    created_at: msg.timestamp || new Date().toISOString(),
-                    source: 'ai_chat', // Mark as AI Chat source
-                    chat_message_id: msg.id,
-                    isAIGenerated: true // Flag to distinguish from manually created quizzes
-                  };
-                }
-              } catch (e) {
-                console.error('Error parsing AI Chat quiz:', e);
-              }
-              return null;
-            })
-            .filter(quiz => quiz !== null);
-          
-          console.log(`✅ Found ${chatQuizzes.length} AI-generated quizzes from chat history`);
-          
-          // Combine quizzes: Manual quizzes first, then AI Chat quizzes
-          // Mark manual quizzes to distinguish them
-          const manualQuizzes = transformedQuizzes.map(quiz => ({
-            ...quiz,
-            source: 'manual',
-            isAIGenerated: false
-          }));
-          
-          // Combine and remove duplicates based on quiz_id
-          const allQuizzes = [...manualQuizzes, ...chatQuizzes];
-          const uniqueQuizzes = allQuizzes.filter((quiz, index, self) => 
-            index === self.findIndex(q => q.quiz_id === quiz.quiz_id)
-          );
-          
-          transformedQuizzes = uniqueQuizzes;
-        }
-          
-          // Sort quizzes by creation time (latest first)
-          const sortedQuizzes = transformedQuizzes.sort((a, b) => {
-            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-          });
-          
-          console.log('🔄 DEBUG: Transformed backend quizzes:', sortedQuizzes);
-          setQuizzes(sortedQuizzes);
-          // NO localStorage caching - data loaded directly from MongoDB
-      } catch (error) {
-        console.log("Quiz API returned non-JSON response, creating sample quizzes");
-        // Create sample quizzes since the API is not available
-        createSampleQuizzes();
+            return null;
+          }).filter(Boolean);
+
+        transformedQuizzes = transformedQuizzes.concat(chatQuizzes);
+        console.log('✅ Quizzes from chat:', chatQuizzes);
+      } else {
+        console.warn('⚠️ Issue with chat history response:', chatHistoryResponse.status);
       }
-    } catch (error) {
-      console.error("Error fetching quizzes:", error);
-      createSampleQuizzes();
+      
+      // Add sample quizzes if no active quizzes are available
+      if (transformedQuizzes.length === 0) {
+        console.log('🔧 No active quizzes found, creating sample quizzes...');
+        const sampleQuizzes = createSampleQuizzes();
+        console.log('📝 Sample quizzes created:', sampleQuizzes);
+        transformedQuizzes = sampleQuizzes || [];
+      }
+
+      setQuizzes(transformedQuizzes);
+      setError(null);
+    } catch (e) {
+      console.error('Error fetching quizzes:', e);
+      setError('Failed to load quizzes. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -278,8 +295,10 @@ const QuizSystem = () => {
       }
     ];
     
+    console.log('✅ Sample quizzes created successfully:', sampleQuizzes);
     setQuizzes(sampleQuizzes);
-    // NO localStorage caching - sample quizzes are temporary fallback only
+    // Also return the sample quizzes for use in fetchQuizzes
+    return sampleQuizzes;
   };
 
   const fetchQuizResults = async () => {
@@ -830,7 +849,7 @@ const QuizSystem = () => {
         const newQuiz = {
           id: result.quiz_data.quiz_id || `quiz_${Date.now()}`,
           quiz_id: result.quiz_data.quiz_id, // Backend quiz ID for submission
-          title: `${topic} Quiz`,
+          title: result.quiz_data.quiz_title || generateUniqueQuizTitle(topic, result.quiz_data.difficulty),
           description: `Test your knowledge about ${topic}`,
           subject: topic,
           difficulty: result.quiz_data.difficulty || "medium",

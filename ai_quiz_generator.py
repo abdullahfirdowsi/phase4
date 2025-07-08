@@ -12,7 +12,7 @@ import re
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
-from database import chats_collection, users_collection, quizzes_collection, chat_messages_collection
+from database import chats_collection, users_collection, quizzes_collection, chat_messages_collection, quiz_attempts_collection
 from constants import get_basic_environment_prompt
 import os
 import groq
@@ -26,6 +26,7 @@ client = groq.Client(api_key=os.getenv("API_KEY"))
 # Router for AI quiz generation
 ai_quiz_router = APIRouter()
 
+# Define Pydantic models first
 class QuizGenerationRequest(BaseModel):
     username: str
     topic: str
@@ -33,6 +34,7 @@ class QuizGenerationRequest(BaseModel):
     question_count: int = 5  # Change from num_questions to question_count to match frontend
     question_types: List[str] = ["mcq", "true_false", "short_answer"]
     time_limit: int = 10  # minutes
+    auto_adjust: bool = True  # Whether to auto-adjust parameters based on skill level
     
     @property
     def num_questions(self):
@@ -43,6 +45,75 @@ class QuizSubmissionRequest(BaseModel):
     username: str
     quiz_id: str
     answers: List[str]  # User's answers in order
+
+def detect_user_skill_level(username: str) -> str:
+    """Detect user's skill level based on recent quiz performance"""
+    try:
+        # Get user's recent quiz attempts (last 10)
+        recent_attempts = list(quiz_attempts_collection.find(
+            {"username": username, "completed": True}
+        ).sort("submitted_at", -1).limit(10))
+        
+        if not recent_attempts:
+            logger.info(f"No quiz history found for {username}, defaulting to medium")
+            return "medium"
+        
+        # Calculate average score from recent attempts
+        total_score = 0
+        valid_attempts = 0
+        
+        for attempt in recent_attempts:
+            score = attempt.get("score", 0)
+            if score is not None:
+                total_score += score
+                valid_attempts += 1
+        
+        if valid_attempts == 0:
+            logger.info(f"No valid quiz scores found for {username}, defaulting to medium")
+            return "medium"
+        
+        average_score = total_score / valid_attempts
+        
+        # Determine skill level based on average score
+        if average_score >= 85:
+            skill_level = "hard"
+        elif average_score >= 65:
+            skill_level = "medium"
+        else:
+            skill_level = "easy"
+        
+        logger.info(f"Detected skill level for {username}: {skill_level} (avg score: {average_score:.1f}% from {valid_attempts} attempts)")
+        return skill_level
+        
+    except Exception as e:
+        logger.error(f"Error detecting skill level for {username}: {e}")
+        return "medium"
+
+def adjust_quiz_parameters(request: QuizGenerationRequest, skill_level: str) -> QuizGenerationRequest:
+    """Adjust quiz parameters based on detected skill level"""
+    if not request.auto_adjust:
+        return request
+    
+    # Create a copy of the request to modify
+    adjusted_request = request.copy()
+    
+    # Adjust based on skill level
+    if skill_level == "easy":
+        # Easier quizzes: fewer questions, more time, simpler difficulty
+        adjusted_request.question_count = max(3, min(request.question_count, 5))
+        adjusted_request.time_limit = max(request.time_limit, 15)  # At least 15 minutes
+        if request.difficulty == "medium":
+            adjusted_request.difficulty = "easy"
+    elif skill_level == "hard":
+        # Harder quizzes: more questions, less time, advanced difficulty
+        adjusted_request.question_count = min(10, max(request.question_count, 7))
+        adjusted_request.time_limit = max(8, min(request.time_limit, 12))  # 8-12 minutes
+        if request.difficulty == "medium":
+            adjusted_request.difficulty = "hard"
+    # Medium skill level keeps original parameters
+    
+    logger.info(f"Adjusted quiz parameters for skill level {skill_level}: {adjusted_request.question_count} questions, {adjusted_request.time_limit} minutes, {adjusted_request.difficulty} difficulty")
+    return adjusted_request
 
 # Quiz generation prompts
 QUIZ_GENERATION_PROMPT = """
@@ -56,7 +127,7 @@ Your response must be ONLY a valid JSON object in this exact format:
     "type": "quiz",
     "quiz_data": {{
         "quiz_id": "{quiz_id}",
-        "quiz_title": "[Generate a creative, unique title for this quiz - NOT just '{topic} Quiz']",
+        "quiz_title": "[Generate a creative, engaging title that captures the essence of {topic}. CRITICAL: Use proper capitalization for the topic - each word should be capitalized (e.g., 'React Native' not 'react native', 'Machine Learning' not 'machine learning'). Examples: 'Mastering React Native', 'React Native Deep Dive', 'Advanced React Native Challenge', 'React Native Fundamentals', 'Exploring React Native', 'React Native Expert Test'. AVOID generic patterns like 'React Native Quiz']",
         "topic": "{topic}",
         "difficulty": "{difficulty}",
         "total_questions": {num_questions},
@@ -152,6 +223,48 @@ def generate_ai_response(prompt: str) -> str:
         logger.error(f"Error generating AI response: {e}")
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 
+def generate_proper_quiz_title(topic: str, difficulty: str = 'medium') -> str:
+    """Generate a properly capitalized quiz title as fallback"""
+    # Properly capitalize the topic (Title Case)
+    capitalized_topic = ' '.join(word.capitalize() for word in topic.split())
+    
+    # Creative title templates based on difficulty and topic
+    title_templates = {
+        "easy": [
+            f"{capitalized_topic} Fundamentals",
+            f"Introduction to {capitalized_topic}",
+            f"{capitalized_topic} Basics",
+            f"Getting Started with {capitalized_topic}",
+            f"{capitalized_topic} Essentials"
+        ],
+        "medium": [
+            f"{capitalized_topic} Challenge",
+            f"{capitalized_topic} Mastery Test",
+            f"Exploring {capitalized_topic}",
+            f"{capitalized_topic} Deep Dive",
+            f"{capitalized_topic} Assessment",
+            f"{capitalized_topic} Knowledge Check"
+        ],
+        "hard": [
+            f"Advanced {capitalized_topic}",
+            f"{capitalized_topic} Expert Challenge",
+            f"{capitalized_topic} Mastery",
+            f"{capitalized_topic} Pro Test",
+            f"Ultimate {capitalized_topic} Challenge",
+            f"{capitalized_topic} Expert Level"
+        ]
+    }
+    
+    # Get appropriate templates based on difficulty
+    templates = title_templates.get(difficulty, title_templates["medium"])
+    
+    # Use timestamp to ensure uniqueness and select template
+    import time
+    template_index = int(time.time()) % len(templates)
+    selected_template = templates[template_index]
+    
+    return selected_template
+
 def extract_json_from_response(response: str) -> Dict[str, Any]:
     """Extract JSON from AI response"""
     try:
@@ -210,6 +323,11 @@ def store_quiz_message(username: str, content: Dict[str, Any], role: str = "assi
 async def generate_ai_quiz(request: QuizGenerationRequest):
     """Generate an AI-powered quiz in JSON format"""
     try:
+        # Detect user skill level and adjust parameters if enabled
+        if request.auto_adjust:
+            skill_level = detect_user_skill_level(request.username)
+            request = adjust_quiz_parameters(request, skill_level)
+        
         # Generate unique quiz ID
         quiz_id = f"quiz_{int(datetime.datetime.utcnow().timestamp())}"
         
@@ -255,16 +373,35 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
             "username": request.username,
             "quiz_json": quiz_json,
             "created_at": datetime.datetime.utcnow(),
-            "status": "active"
+            "status": "active",
+            "topic": request.topic,
+            "difficulty": request.difficulty,
+            "source": "ai_generated"
         }
         
-        # Store in quizzes collection for proper organization
-        result = quizzes_collection.update_one(
-            {"quiz_id": quiz_id, "username": request.username},
-            {"$set": quiz_data},
-            upsert=True
-        )
-        logger.info(f"✅ Stored quiz in quizzes collection - matched: {result.matched_count}, modified: {result.modified_count}, upserted: {result.upserted_id}")
+# Store in quizzes collection for proper organization with enhanced error handling
+        try:
+            # Check if quiz already exists to prevent duplicates
+            existing_quiz = quizzes_collection.find_one({
+                "quiz_id": quiz_id,
+                "username": request.username
+            })
+            
+            if existing_quiz:
+                logger.info(f"🔄 Quiz {quiz_id} already exists, updating instead of inserting duplicate")
+                quizzes_collection.update_one(
+                    {"quiz_id": quiz_id, "username": request.username},
+                    {"$set": quiz_data}
+                )
+            else:
+                insert_result = quizzes_collection.insert_one(quiz_data)
+                logger.info(f"✅ New quiz stored with ID: {insert_result.inserted_id}")
+            
+            logger.info(f"📊 Quiz document stored: {quiz_id} for user {request.username}")
+        except Exception as storage_error:
+            logger.error(f"❌ Failed to store quiz in database: {storage_error}")
+            import traceback
+            logger.error(f"❌ Storage traceback: {traceback.format_exc()}")
         
         # Don't create initial quiz attempt record - only create when submitting
         # This avoids duplicate records
@@ -412,7 +549,7 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
         frontend_result = {
             "id": f"result_{int(datetime.datetime.utcnow().timestamp())}",
             "quiz_id": request.quiz_id,
-            "quiz_title": quiz_info.get('quiz_title', quiz_info.get('topic', 'Knowledge Challenge')),  # Use AI-generated title or topic as fallback
+            "quiz_title": quiz_info.get('quiz_title') or generate_proper_quiz_title(quiz_info.get('topic', 'Knowledge Challenge'), quiz_info.get('difficulty', 'medium')),  # Use AI-generated title or properly capitalized fallback
             "score_percentage": score_percentage,
             "correct_answers": correct_answers,
             "total_questions": total_questions,
@@ -529,7 +666,7 @@ async def get_quiz_history(username: str):
             quiz_info = {
                 "id": result_data.get("id", attempt.get("attempt_id")),
                 "quiz_id": attempt.get("quiz_id"),
-                "quiz_title": result_data.get("quiz_title", "Quiz"),
+                "quiz_title": result_data.get("quiz_title") or generate_proper_quiz_title("Quiz", "medium"),
                 "score_percentage": result_data.get("score_percentage", attempt.get("score", 0)),
                 "correct_answers": result_data.get("correct_answers", 0),
                 "total_questions": result_data.get("total_questions", 0),

@@ -1,13 +1,13 @@
-LEARNING_PATH_PROMPT = """As a {userRole}, generate a study plan in very details, 
-week by week. My daily spend time is {timeValue} hrs, my language preference is {language}, 
-and my age group is {ageGroup}. 
-Most importantly, your response for this query should be in JSON format with all details like course_duration, 
-keep the videos links latest and updated, name, topics, subtopics, time required, links. 
-Not a single character outside the JSON. Strict JSON format only. 
-Do not format the JSON for markdown, just give pure string form which is directly convertible to JSON using JSON.parse().
-Also remove any \\ or \\/ which may cause unexpected token error from the string. 
-Strictly generate the entire response in less than 8000 tokens and the format should be strictly JSON only. 
-The fields should be in this format only, there shouldn't be any extra field in the response:
+LEARNING_PATH_PROMPT = """As a {userRole}, generate a comprehensive study plan with detailed weekly breakdown. 
+Daily study time: {timeValue} hrs, Language: {language}, Target audience: {ageGroup}. 
+
+Create a creative, engaging course title that reflects the subject matter without generic terms like 
+'for beginners', 'basics', or age references. Focus on the core topic and make it sound interesting.
+
+Provide detailed learning path in JSON format with course duration, updated video links, topics, subtopics, time estimates, and resources.
+Ensure JSON is valid and parseable - no markdown formatting, no extra characters, no backslashes that could cause parsing errors.
+Limit response to under 8000 tokens. Use only the specified JSON structure:
+
 ```json
 {{
     "course_duration": "",

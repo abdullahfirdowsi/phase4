@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo, useMemo } from 'react';
 import { Card, Badge, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaExternalLinkAlt, FaVideo, FaBook, FaClock, FaSave, FaCheck } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaVideo, FaBook, FaClock, FaSave, FaCheck, FaRedo } from 'react-icons/fa';
 import { saveLearningPath } from '../../api';
 import './LearningPathDisplay.scss';
 
@@ -11,8 +11,7 @@ const LearningPathDisplay = memo(({ message }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [hasBeenSaved, setHasBeenSaved] = useState(false);
-
-  // Only log in development mode
+  const [isRegenerating, setIsRegenerating] = useState(false);
   if (process.env.NODE_ENV === 'development') {
     console.log('🎯 LearningPathDisplay rendering with message:', message);
   }
@@ -133,8 +132,16 @@ const LearningPathDisplay = memo(({ message }) => {
         // Check if a path with the same name already exists
         const pathName = parsedContent.name || parsedContent.topic || "Learning Path";
         const existingPath = data.learning_paths.find(path => 
-          path.name && path.name.toLowerCase() === pathName.toLowerCase()
+          path.name && path.name.toLowerCase() === pathName.toLowerCase() &&
+          path.source === "user_created"  // Only consider manually saved paths
         );
+        
+        console.log('🔍 Checking if already saved:', {
+          pathName,
+          existingPaths: data.learning_paths.length,
+          foundExisting: !!existingPath,
+          existingPath: existingPath
+        });
         
         return !!existingPath;
       }
@@ -142,7 +149,78 @@ const LearningPathDisplay = memo(({ message }) => {
       return false;
     } catch (error) {
       console.warn('Could not check for existing paths:', error);
-      return false;
+      return false;  // If check fails, allow saving
+    }
+  };
+
+  // Regenerate learning path function
+  const handleRegenerateLearningPath = async () => {
+    setIsRegenerating(true);
+    setError(null);
+    
+    try {
+      const username = localStorage.getItem("username");
+      const token = localStorage.getItem("token");
+      
+      if (!username || !token) {
+        throw new Error('You must be logged in to regenerate learning paths');
+      }
+      
+      // Extract the original topic from the current learning path
+      const originalTopic = parsedContent.name || parsedContent.topic || "learning path";
+      const regeneratePrompt = `Create a learning path for ${originalTopic}`;
+      
+      // Call the chat API to regenerate
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/chat/ask`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_prompt: regeneratePrompt,
+          username: username,
+          isLearningPath: true
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to regenerate learning path');
+      }
+      
+      // Get the response data
+      const responseData = await response.json();
+      console.log('📦 Regenerate API Response:', responseData);
+      
+      // Extract the new learning path from the response
+      let newContent = null;
+      if (responseData && responseData.content) {
+        newContent = responseData.content;
+      } else if (typeof responseData === 'object' && responseData.topics) {
+        newContent = responseData;
+      }
+      
+      if (newContent) {
+        // Update the current component with the new content
+        setParsedContent(newContent);
+        
+        // Reset the saved state since this is a new path
+        setHasBeenSaved(false);
+        setIsSaved(false);
+        
+        console.log('✅ Learning path regenerated and updated in current view');
+      } else {
+        console.warn('⚠️ Regeneration successful but no content received');
+        // Still reset saved state even if content update failed
+        setHasBeenSaved(false);
+        setIsSaved(false);
+      }
+      
+    } catch (error) {
+      console.error('Error regenerating learning path:', error);
+      setError(`Failed to regenerate: ${error.message}`);
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -158,7 +236,7 @@ const LearningPathDisplay = memo(({ message }) => {
     setError(null);
     
     try {
-      // Check authentication first - only for validation
+      // Check authentication first
       const username = localStorage.getItem("username");
       const token = localStorage.getItem("token");
       
@@ -221,9 +299,28 @@ const LearningPathDisplay = memo(({ message }) => {
       console.log('📝 Sending Path Data:', pathData);
       console.log('📝 Path Data JSON:', JSON.stringify(pathData, null, 2));
       
-      await saveLearningPath(pathData);
+      // Save to backend with better error handling
+      const result = await saveLearningPath(pathData);
+      console.log('✅ Learning path saved successfully:', result);
+      
       setIsSaved(true);
       setHasBeenSaved(true); // Mark as permanently saved
+      
+      // Trigger refresh of Learning Paths page if user navigates there
+      try {
+        // Dispatch a custom event to notify Learning Paths page to refresh
+        window.dispatchEvent(new CustomEvent('learningPathSaved', {
+          detail: { 
+            pathName: pathData.name, 
+            timestamp: Date.now(),
+            pathId: result?.goal_id || result?.path?.id
+          }
+        }));
+        
+        console.log('📢 Notified Learning Paths page to refresh');
+      } catch (eventError) {
+        console.warn('Could not dispatch event:', eventError);
+      }
       
       // Keep success message visible longer
       setTimeout(() => {
@@ -234,12 +331,23 @@ const LearningPathDisplay = memo(({ message }) => {
       
       // Show more specific error messages
       let errorMessage = 'Failed to save learning path. Please try again.';
+      
+      // Handle specific error types
       if (error.message.includes('authenticated') || error.message.includes('login')) {
         errorMessage = 'Please log in to save learning paths.';
+      } else if (error.message.includes('409') || error.message.includes('already exists') || error.message.includes('duplicate')) {
+        const pathName = parsedContent?.name || parsedContent?.topic || "this learning path";
+        errorMessage = `A learning path named "${pathName}" already exists in your collection. Please try regenerating with a different focus or rename this path.`;
+        // Mark as already saved to prevent further attempts
+        setHasBeenSaved(true);
       } else if (error.message.includes('Field required')) {
         errorMessage = 'Missing required data. Please try generating the learning path again.';
       } else if (error.message.includes('422')) {
         errorMessage = 'Invalid data format. Please try again.';
+      } else if (error.response && error.response.status === 409) {
+        const pathName = parsedContent?.name || parsedContent?.topic || "this learning path";
+        errorMessage = `A learning path named "${pathName}" already exists in your collection. Please try regenerating with a different focus.`;
+        setHasBeenSaved(true);
       }
       
       setError(errorMessage);
@@ -397,7 +505,28 @@ const LearningPathDisplay = memo(({ message }) => {
                 {parsedContent.topics.length} Topics
               </Badge>
             </div>
-            <div className="path-actions">
+            <div className="path-actions d-flex gap-2">
+              {/* Regenerate Button */}
+              <Button 
+                variant="outline-secondary" 
+                onClick={handleRegenerateLearningPath}
+                disabled={isRegenerating || isSaving}
+                title="Generate a new version of this learning path"
+              >
+                {isRegenerating ? (
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" />
+                    Regenerating...
+                  </>
+                ) : (
+                  <>
+                    <FaRedo className="me-2" />
+                    Regenerate
+                  </>
+                )}
+              </Button>
+              
+              {/* Save Button */}
               {isSaved || hasBeenSaved ? (
                 <Button variant="success" disabled>
                   <FaCheck className="me-2" />
