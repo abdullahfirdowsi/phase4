@@ -117,6 +117,15 @@ const AIChat = () => {
       setError(null);
       console.log('📚 Loading chat history from MongoDB...');
       
+      // Check authentication first
+      const username = localStorage.getItem('username');
+      const token = localStorage.getItem('token');
+      
+      if (!username || !token) {
+        console.warn('⚠️ User not authenticated, skipping chat history load');
+        return;
+      }
+      
       const history = await fetchChatHistory();
       
       if (Array.isArray(history)) {
@@ -138,7 +147,13 @@ const AIChat = () => {
       }
     } catch (error) {
       console.error('❌ Error loading chat history:', error);
-      setError('Failed to load chat history. Please try again.');
+      
+      // Handle specific authentication errors
+      if (error.message.includes('authenticated') || error.message.includes('401')) {
+        setError('Please log in to view your chat history.');
+      } else {
+        setError('Failed to load chat history. Please try again.');
+      }
     }
   };
 
