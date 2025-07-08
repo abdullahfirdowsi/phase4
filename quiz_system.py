@@ -3,6 +3,7 @@
 import json
 import datetime
 import random
+import time
 from fastapi import APIRouter, HTTPException, Body, Query
 from database import chats_collection, users_collection
 from typing import List, Dict, Any, Optional
@@ -400,9 +401,23 @@ async def generate_quiz_from_topic(
             for i in range(num_questions)
         ]
 
+        # Generate unique title based on topic and difficulty with proper capitalization
+        capitalized_topic = ' '.join(word.capitalize() for word in topic.split())
+        
+        title_templates = {
+            "easy": [f"{capitalized_topic} Fundamentals", f"Introduction to {capitalized_topic}", f"{capitalized_topic} Basics"],
+            "medium": [f"{capitalized_topic} Challenge", f"{capitalized_topic} Mastery Test", f"Exploring {capitalized_topic}"],
+            "hard": [f"Advanced {capitalized_topic}", f"{capitalized_topic} Expert Challenge", f"{capitalized_topic} Mastery"]
+        }
+        
+        # Select template based on difficulty and add timestamp for uniqueness
+        templates = title_templates.get(difficulty, title_templates["medium"])
+        template_index = (int(time.time()) % len(templates))
+        unique_title = templates[template_index]
+        
         quiz_data = QuizCreate(
-            title=f"{topic} Quiz",
-            description=f"Auto-generated quiz on {topic}",
+            title=unique_title,
+            description=f"Test your knowledge about {topic}",
             subject=topic,
             difficulty=difficulty,
             time_limit=num_questions * 2,  # 2 minutes per question

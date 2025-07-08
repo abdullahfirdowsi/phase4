@@ -127,7 +127,7 @@ Your response must be ONLY a valid JSON object in this exact format:
     "type": "quiz",
     "quiz_data": {{
         "quiz_id": "{quiz_id}",
-        "quiz_title": "[Generate a creative, unique title for this quiz - NOT just '{topic} Quiz']",
+        "quiz_title": "[Generate a creative, engaging title that captures the essence of {topic}. CRITICAL: Use proper capitalization for the topic - each word should be capitalized (e.g., 'React Native' not 'react native', 'Machine Learning' not 'machine learning'). Examples: 'Mastering React Native', 'React Native Deep Dive', 'Advanced React Native Challenge', 'React Native Fundamentals', 'Exploring React Native', 'React Native Expert Test'. AVOID generic patterns like 'React Native Quiz']",
         "topic": "{topic}",
         "difficulty": "{difficulty}",
         "total_questions": {num_questions},
@@ -222,6 +222,48 @@ def generate_ai_response(prompt: str) -> str:
     except Exception as e:
         logger.error(f"Error generating AI response: {e}")
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+
+def generate_proper_quiz_title(topic: str, difficulty: str = 'medium') -> str:
+    """Generate a properly capitalized quiz title as fallback"""
+    # Properly capitalize the topic (Title Case)
+    capitalized_topic = ' '.join(word.capitalize() for word in topic.split())
+    
+    # Creative title templates based on difficulty and topic
+    title_templates = {
+        "easy": [
+            f"{capitalized_topic} Fundamentals",
+            f"Introduction to {capitalized_topic}",
+            f"{capitalized_topic} Basics",
+            f"Getting Started with {capitalized_topic}",
+            f"{capitalized_topic} Essentials"
+        ],
+        "medium": [
+            f"{capitalized_topic} Challenge",
+            f"{capitalized_topic} Mastery Test",
+            f"Exploring {capitalized_topic}",
+            f"{capitalized_topic} Deep Dive",
+            f"{capitalized_topic} Assessment",
+            f"{capitalized_topic} Knowledge Check"
+        ],
+        "hard": [
+            f"Advanced {capitalized_topic}",
+            f"{capitalized_topic} Expert Challenge",
+            f"{capitalized_topic} Mastery",
+            f"{capitalized_topic} Pro Test",
+            f"Ultimate {capitalized_topic} Challenge",
+            f"{capitalized_topic} Expert Level"
+        ]
+    }
+    
+    # Get appropriate templates based on difficulty
+    templates = title_templates.get(difficulty, title_templates["medium"])
+    
+    # Use timestamp to ensure uniqueness and select template
+    import time
+    template_index = int(time.time()) % len(templates)
+    selected_template = templates[template_index]
+    
+    return selected_template
 
 def extract_json_from_response(response: str) -> Dict[str, Any]:
     """Extract JSON from AI response"""
@@ -488,7 +530,7 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
         frontend_result = {
             "id": f"result_{int(datetime.datetime.utcnow().timestamp())}",
             "quiz_id": request.quiz_id,
-            "quiz_title": quiz_info.get('quiz_title', quiz_info.get('topic', 'Knowledge Challenge')),  # Use AI-generated title or topic as fallback
+            "quiz_title": quiz_info.get('quiz_title') or generate_proper_quiz_title(quiz_info.get('topic', 'Knowledge Challenge'), quiz_info.get('difficulty', 'medium')),  # Use AI-generated title or properly capitalized fallback
             "score_percentage": score_percentage,
             "correct_answers": correct_answers,
             "total_questions": total_questions,
@@ -605,7 +647,7 @@ async def get_quiz_history(username: str):
             quiz_info = {
                 "id": result_data.get("id", attempt.get("attempt_id")),
                 "quiz_id": attempt.get("quiz_id"),
-                "quiz_title": result_data.get("quiz_title", "Quiz"),
+                "quiz_title": result_data.get("quiz_title") or generate_proper_quiz_title("Quiz", "medium"),
                 "score_percentage": result_data.get("score_percentage", attempt.get("score", 0)),
                 "correct_answers": result_data.get("correct_answers", 0),
                 "total_questions": result_data.get("total_questions", 0),

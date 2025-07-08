@@ -16,6 +16,55 @@ import { formatLocalDate } from "../../../utils/dateUtils";
 import { generateQuiz, submitQuiz, getQuizHistory } from "../../../api";
 import "./QuizSystem.scss";
 
+// Function to generate unique quiz titles
+const generateUniqueQuizTitle = (topic, difficulty = 'medium', source = '') => {
+  // Properly capitalize the topic (Title Case)
+  const capitalizedTopic = topic
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  
+  // Creative title templates based on difficulty and topic
+  const titleTemplates = {
+    easy: [
+      `${capitalizedTopic} Fundamentals`,
+      `Introduction to ${capitalizedTopic}`,
+      `${capitalizedTopic} Basics`,
+      `Getting Started with ${capitalizedTopic}`,
+      `${capitalizedTopic} Essentials`
+    ],
+    medium: [
+      `${capitalizedTopic} Challenge`,
+      `${capitalizedTopic} Mastery Test`,
+      `Exploring ${capitalizedTopic}`,
+      `${capitalizedTopic} Deep Dive`,
+      `${capitalizedTopic} Assessment`,
+      `${capitalizedTopic} Knowledge Check`
+    ],
+    hard: [
+      `Advanced ${capitalizedTopic}`,
+      `${capitalizedTopic} Expert Challenge`,
+      `${capitalizedTopic} Mastery`,
+      `${capitalizedTopic} Pro Test`,
+      `Ultimate ${capitalizedTopic} Challenge`,
+      `${capitalizedTopic} Expert Level`
+    ]
+  };
+  
+  // Add source-specific prefixes
+  const sourcePrefix = source === 'AI' ? 'AI-Generated ' : '';
+  
+  // Get appropriate templates based on difficulty
+  const templates = titleTemplates[difficulty] || titleTemplates.medium;
+  
+  // Use timestamp to ensure uniqueness and select template
+  const templateIndex = Math.floor(Date.now() / 1000) % templates.length;
+  const selectedTemplate = templates[templateIndex];
+  
+  return sourcePrefix + selectedTemplate;
+};
+
 const QuizSystem = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [quizResults, setQuizResults] = useState([]);
@@ -117,7 +166,7 @@ const QuizSystem = () => {
               return {
                 id: quiz.quiz_id || `quiz_${Date.now()}`,
                 quiz_id: quiz.quiz_id,
-                title: `${quizData.topic || 'Unknown'} Quiz`,
+                title: quizData.quiz_title || generateUniqueQuizTitle(quizData.topic || 'Unknown', quizData.difficulty),
                 description: `Test your knowledge about ${quizData.topic || 'this topic'}`,
                 subject: quizData.topic || 'General',
                 difficulty: quizData.difficulty || 'medium',
@@ -162,7 +211,7 @@ const QuizSystem = () => {
                   return {
                     id: quizData.quiz_id || `ai_chat_quiz_${Date.now()}`,
                     quiz_id: quizData.quiz_id,
-                    title: `${quizData.topic || 'AI Chat'} Quiz`,
+                    title: quizData.quiz_title || generateUniqueQuizTitle(quizData.topic || 'AI Chat', quizData.difficulty, 'AI'),
                     description: `AI-generated quiz about ${quizData.topic || 'various topics'} from AI Chat`,
                     subject: quizData.topic || 'General',
                     difficulty: quizData.difficulty || 'medium',
@@ -830,7 +879,7 @@ const QuizSystem = () => {
         const newQuiz = {
           id: result.quiz_data.quiz_id || `quiz_${Date.now()}`,
           quiz_id: result.quiz_data.quiz_id, // Backend quiz ID for submission
-          title: `${topic} Quiz`,
+          title: result.quiz_data.quiz_title || generateUniqueQuizTitle(topic, result.quiz_data.difficulty),
           description: `Test your knowledge about ${topic}`,
           subject: topic,
           difficulty: result.quiz_data.difficulty || "medium",
