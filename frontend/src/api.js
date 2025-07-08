@@ -1376,8 +1376,8 @@ export const saveLearningPath = async (learningPathData) => {
   }
 };
 
-// Update Learning Path Progress API Call
-export const updateLearningPathProgress = async (pathId, topicId, completed = true) => {
+// Update Learning Path Progress API Call (from chat)
+export const updateLearningPathProgressFromChat = async (pathId, topicId, completed = true) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
 
