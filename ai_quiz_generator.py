@@ -373,16 +373,35 @@ async def generate_ai_quiz(request: QuizGenerationRequest):
             "username": request.username,
             "quiz_json": quiz_json,
             "created_at": datetime.datetime.utcnow(),
-            "status": "active"
+            "status": "active",
+            "topic": request.topic,
+            "difficulty": request.difficulty,
+            "source": "ai_generated"
         }
         
-        # Store in quizzes collection for proper organization
-        result = quizzes_collection.update_one(
-            {"quiz_id": quiz_id, "username": request.username},
-            {"$set": quiz_data},
-            upsert=True
-        )
-        logger.info(f"✅ Stored quiz in quizzes collection - matched: {result.matched_count}, modified: {result.modified_count}, upserted: {result.upserted_id}")
+# Store in quizzes collection for proper organization with enhanced error handling
+        try:
+            # Check if quiz already exists to prevent duplicates
+            existing_quiz = quizzes_collection.find_one({
+                "quiz_id": quiz_id,
+                "username": request.username
+            })
+            
+            if existing_quiz:
+                logger.info(f"🔄 Quiz {quiz_id} already exists, updating instead of inserting duplicate")
+                quizzes_collection.update_one(
+                    {"quiz_id": quiz_id, "username": request.username},
+                    {"$set": quiz_data}
+                )
+            else:
+                insert_result = quizzes_collection.insert_one(quiz_data)
+                logger.info(f"✅ New quiz stored with ID: {insert_result.inserted_id}")
+            
+            logger.info(f"📊 Quiz document stored: {quiz_id} for user {request.username}")
+        except Exception as storage_error:
+            logger.error(f"❌ Failed to store quiz in database: {storage_error}")
+            import traceback
+            logger.error(f"❌ Storage traceback: {traceback.format_exc()}")
         
         # Don't create initial quiz attempt record - only create when submitting
         # This avoids duplicate records

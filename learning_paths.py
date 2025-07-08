@@ -250,9 +250,13 @@ async def create_learning_path(
         }
         
         # Store directly in learning_goals collection (separate from chat)
-        result = learning_goals_collection.insert_one(learning_goal_doc)
-        
-        logger.info(f"✅ Created learning path '{path_data.name}' in dedicated collection")
+        try:
+            result = learning_goals_collection.insert_one(learning_goal_doc)
+            logger.info(f"✅ Created learning path '{path_data.name}' in dedicated collection")
+            logger.info(f"📊 Inserted document with ID: {result.inserted_id}")
+        except Exception as insert_error:
+            logger.error(f"❌ Failed to insert learning path: {insert_error}")
+            raise HTTPException(status_code=500, detail=f"Failed to save learning path: {str(insert_error)}")
 
         # Create response without ObjectId to avoid serialization issues
         response_path = {
@@ -342,34 +346,60 @@ async def list_learning_paths(
 
 @learning_paths_router.get("/detail/{path_id}")
 async def get_learning_path_detail(path_id: str, username: str = Query(...)):
-    """Get detailed information about a learning path"""
+    """Get detailed information about a learning path from dedicated learning_goals collection"""
     try:
-        chat_session = chats_collection.find_one({"username": username})
-        if not chat_session:
-            raise HTTPException(status_code=404, detail="Learning path not found")
-
-        learning_goals = chat_session.get("learning_goals", [])
+        # Query directly from learning_goals collection using the new data structure
+        learning_goal = learning_goals_collection.find_one({
+            "$or": [
+                {"goal_id": path_id, "username": username},
+                {"_id": path_id, "username": username}  # Fallback for ObjectId
+            ]
+        })
         
-        for goal in learning_goals:
-            for plan in goal.get("study_plans", []):
-                if plan.get("id") == path_id or goal["name"] == path_id:
-                    return {
-                        "path": {
-                            "id": plan.get("id", goal["name"]),
-                            "name": plan.get("name", goal["name"]),
-                            "description": plan.get("description", ""),
-                            "difficulty": plan.get("difficulty", "Intermediate"),
-                            "duration": plan.get("duration", goal.get("duration", "")),
-                            "progress": goal.get("progress", 0),
-                            "topics": plan.get("topics", []),
-                            "prerequisites": plan.get("prerequisites", []),
-                            "tags": plan.get("tags", []),
-                            "created_at": goal.get("created_at"),
-                            "updated_at": goal.get("updated_at")
-                        }
-                    }
-
-        raise HTTPException(status_code=404, detail="Learning path not found")
+        if not learning_goal:
+            # Try to find by name as fallback
+            learning_goal = learning_goals_collection.find_one({
+                "name": path_id, 
+                "username": username
+            })
+        
+        if not learning_goal:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        
+        # Format created_at properly
+        created_at = learning_goal.get("created_at")
+        if hasattr(created_at, 'isoformat'):
+            created_at_str = created_at.isoformat() + "Z" if not str(created_at).endswith('Z') else created_at.isoformat()
+        elif isinstance(created_at, str):
+            created_at_str = created_at
+        else:
+            created_at_str = datetime.datetime.utcnow().isoformat() + "Z"
+        
+        # Format updated_at properly
+        updated_at = learning_goal.get("updated_at")
+        if hasattr(updated_at, 'isoformat'):
+            updated_at_str = updated_at.isoformat() + "Z" if not str(updated_at).endswith('Z') else updated_at.isoformat()
+        elif isinstance(updated_at, str):
+            updated_at_str = updated_at
+        else:
+            updated_at_str = created_at_str  # Use created_at as fallback
+        
+        return {
+            "path": {
+                "id": learning_goal.get("goal_id", str(learning_goal.get("_id"))),
+                "name": learning_goal.get("name", "Untitled Learning Path"),
+                "description": learning_goal.get("description", ""),
+                "difficulty": learning_goal.get("difficulty", "Intermediate"),
+                "duration": learning_goal.get("duration", "4-6 weeks"),
+                "progress": learning_goal.get("progress", 0),
+                "topics": learning_goal.get("topics", []),
+                "prerequisites": learning_goal.get("prerequisites", []),
+                "tags": learning_goal.get("tags", []),
+                "created_at": created_at_str,
+                "updated_at": updated_at_str,
+                "source": learning_goal.get("source", "unknown")
+            }
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -472,39 +502,52 @@ async def update_progress(
     topic_index: int = Body(...),
     completed: bool = Body(...)
 ):
-    """Update progress for a specific topic in a learning path"""
+    """Update progress for a specific topic in a learning path using learning_goals collection"""
     try:
-        chat_session = chats_collection.find_one({"username": username})
-        if not chat_session:
-            raise HTTPException(status_code=404, detail="User session not found")
-
-        learning_goals = chat_session.get("learning_goals", [])
-        updated = False
-
-        for goal in learning_goals:
-            if goal.get("path_id") == path_id or goal["name"] == path_id:
-                for plan in goal.get("study_plans", []):
-                    topics = plan.get("topics", [])
-                    if 0 <= topic_index < len(topics):
-                        topics[topic_index]["completed"] = completed
-                        
-                        # Calculate overall progress
-                        total_topics = len(topics)
-                        completed_topics = sum(1 for topic in topics if topic.get("completed", False))
-                        goal["progress"] = (completed_topics / total_topics) * 100 if total_topics > 0 else 0
-                        
-                        updated = True
-                        break
-
-        if not updated:
-            raise HTTPException(status_code=404, detail="Learning path or topic not found")
-
-        chats_collection.update_one(
-            {"username": username},
-            {"$set": {"learning_goals": learning_goals}}
-        )
-
-        return {"message": "Progress updated successfully"}
+        # Query directly from learning_goals collection
+        learning_goal = learning_goals_collection.find_one({
+            "$or": [
+                {"goal_id": path_id, "username": username},
+                {"name": path_id, "username": username}
+            ]
+        })
+        
+        if not learning_goal:
+            raise HTTPException(status_code=404, detail="Learning path not found")
+        
+        topics = learning_goal.get("topics", [])
+        
+        if 0 <= topic_index < len(topics):
+            # Update the specific topic's completion status
+            topics[topic_index]["completed"] = completed
+            
+            # Calculate overall progress
+            total_topics = len(topics)
+            completed_topics = sum(1 for topic in topics if topic.get("completed", False))
+            new_progress = (completed_topics / total_topics) * 100 if total_topics > 0 else 0
+            
+            # Update the learning goal in the database
+            learning_goals_collection.update_one(
+                {"$or": [
+                    {"goal_id": path_id, "username": username},
+                    {"name": path_id, "username": username}
+                ]},
+                {"$set": {
+                    "topics": topics,
+                    "progress": new_progress,
+                    "updated_at": datetime.datetime.utcnow().isoformat() + "Z"
+                }}
+            )
+            
+            return {
+                "message": "Progress updated successfully",
+                "new_progress": new_progress,
+                "completed_topics": completed_topics,
+                "total_topics": total_topics
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Topic index out of range")
+            
     except HTTPException:
         raise
     except Exception as e:

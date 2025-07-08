@@ -236,7 +236,7 @@ const LearningPathDisplay = memo(({ message }) => {
     setError(null);
     
     try {
-      // Check authentication first - only for validation
+      // Check authentication first
       const username = localStorage.getItem("username");
       const token = localStorage.getItem("token");
       
@@ -299,7 +299,10 @@ const LearningPathDisplay = memo(({ message }) => {
       console.log('📝 Sending Path Data:', pathData);
       console.log('📝 Path Data JSON:', JSON.stringify(pathData, null, 2));
       
-      await saveLearningPath(pathData);
+      // Save to backend with better error handling
+      const result = await saveLearningPath(pathData);
+      console.log('✅ Learning path saved successfully:', result);
+      
       setIsSaved(true);
       setHasBeenSaved(true); // Mark as permanently saved
       
@@ -307,7 +310,11 @@ const LearningPathDisplay = memo(({ message }) => {
       try {
         // Dispatch a custom event to notify Learning Paths page to refresh
         window.dispatchEvent(new CustomEvent('learningPathSaved', {
-          detail: { pathName: pathData.name, timestamp: Date.now() }
+          detail: { 
+            pathName: pathData.name, 
+            timestamp: Date.now(),
+            pathId: result?.goal_id || result?.path?.id
+          }
         }));
         
         console.log('📢 Notified Learning Paths page to refresh');
@@ -329,7 +336,8 @@ const LearningPathDisplay = memo(({ message }) => {
       if (error.message.includes('authenticated') || error.message.includes('login')) {
         errorMessage = 'Please log in to save learning paths.';
       } else if (error.message.includes('409') || error.message.includes('already exists') || error.message.includes('duplicate')) {
-        errorMessage = `A learning path named "${pathData.name}" already exists in your collection. Please try regenerating with a different focus or rename this path.`;
+        const pathName = parsedContent?.name || parsedContent?.topic || "this learning path";
+        errorMessage = `A learning path named "${pathName}" already exists in your collection. Please try regenerating with a different focus or rename this path.`;
         // Mark as already saved to prevent further attempts
         setHasBeenSaved(true);
       } else if (error.message.includes('Field required')) {
@@ -337,7 +345,8 @@ const LearningPathDisplay = memo(({ message }) => {
       } else if (error.message.includes('422')) {
         errorMessage = 'Invalid data format. Please try again.';
       } else if (error.response && error.response.status === 409) {
-        errorMessage = `A learning path named "${pathData.name}" already exists in your collection. Please try regenerating with a different focus.`;
+        const pathName = parsedContent?.name || parsedContent?.topic || "this learning path";
+        errorMessage = `A learning path named "${pathName}" already exists in your collection. Please try regenerating with a different focus.`;
         setHasBeenSaved(true);
       }
       

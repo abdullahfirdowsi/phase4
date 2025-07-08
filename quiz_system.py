@@ -4,6 +4,7 @@ import json
 import datetime
 import random
 import time
+import logging
 from fastapi import APIRouter, HTTPException, Body, Query
 from database import chats_collection, users_collection
 from typing import List, Dict, Any, Optional
@@ -11,6 +12,9 @@ from pydantic import BaseModel
 
 # Router for quiz system
 quiz_router = APIRouter()
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 class QuizQuestion(BaseModel):
     id: str
@@ -374,6 +378,196 @@ async def get_quiz_analytics(username: str = Query(...)):
     except Exception as e:
         print(f"Error getting quiz analytics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@quiz_router.get("/quiz-history")
+async def get_quiz_history(username: str = Query(...)):
+    """Get user's quiz history from quiz_attempts collection"""
+    try:
+        from database import quiz_attempts_collection
+        
+        logger.info(f"🔍 Fetching quiz history for user: {username}")
+        
+        if not username:
+            logger.warning("❌ No username provided")
+            return {"quiz_history": []}
+        
+        # Get quiz attempts from quiz_attempts collection
+        quiz_attempts = list(quiz_attempts_collection.find(
+            {"username": username, "completed": True}
+        ).sort("submitted_at", -1).limit(100))
+        
+        logger.info(f"📊 Found {len(quiz_attempts)} quiz attempts")
+        
+        # Format results for display
+        history = []
+        for attempt in quiz_attempts:
+            try:
+                result_data = attempt.get("result", {})
+                
+                quiz_info = {
+                    "id": result_data.get("id", attempt.get("attempt_id", f"result_{int(datetime.datetime.utcnow().timestamp())}")) ,
+                    "quiz_id": attempt.get("quiz_id"),
+                    "quiz_title": result_data.get("quiz_title", "Quiz"),
+                    "score_percentage": result_data.get("score_percentage", attempt.get("score", 0)),
+                    "correct_answers": result_data.get("correct_answers", 0),
+                    "total_questions": result_data.get("total_questions", 0),
+                    "submitted_at": attempt.get("submitted_at"),
+                    "answerReview": result_data.get("answerReview", []),
+                    "source": "ai_chat"
+                }
+                
+                # Format submitted_at properly
+                submitted_at = quiz_info["submitted_at"]
+                if hasattr(submitted_at, 'isoformat'):
+                    quiz_info["submitted_at"] = submitted_at.isoformat() + "Z" if not str(submitted_at).endswith('Z') else submitted_at.isoformat()
+                elif not isinstance(submitted_at, str):
+                    quiz_info["submitted_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+                
+                history.append(quiz_info)
+                logger.info(f"  ✅ Quiz {quiz_info['quiz_id']}: {quiz_info['score_percentage']}%")
+                
+            except Exception as format_error:
+                logger.error(f"❌ Error formatting quiz attempt: {format_error}")
+                continue
+        
+        return {"quiz_history": history}
+        
+    except Exception as e:
+        logger.error(f"❌ Error in get_quiz_history: {e}")
+        return {"quiz_history": []}
+
+@quiz_router.get("/active-quizzes")
+async def get_active_quizzes(username: str = Query(...)):
+    """Get user's active quizzes from both AI-generated and manual sources with proper authentication"""
+    try:
+        from database import quizzes_collection
+        from bson import ObjectId
+        
+        logger.info(f"🔍 Fetching active quizzes for user: {username}")
+        
+        # Verify user authentication
+        if not username:
+            logger.warning("❌ No username provided for quiz fetching")
+            return {"active_quizzes": []}
+        
+        # Get all quizzes from quizzes_collection with proper error handling
+        ai_quizzes_raw = []
+        try:
+            ai_quizzes_raw = list(quizzes_collection.find(
+                {"username": username}
+            ).sort("created_at", -1))
+            logger.info(f"📊 Found {len(ai_quizzes_raw)} quizzes in database")
+        except Exception as db_error:
+            logger.error(f"❌ Database query failed: {db_error}")
+            # Continue with empty list rather than failing
+        
+        # Transform AI quizzes to frontend-compatible format
+        transformed_quizzes = []
+        for quiz in ai_quizzes_raw:
+            try:
+                # Get quiz data structure
+                quiz_json = quiz.get("quiz_json", {})
+                quiz_data = quiz_json.get("quiz_data", {}) if isinstance(quiz_json, dict) else {}
+                
+                # Ensure we have all required fields
+                quiz_id = quiz.get("quiz_id")
+                if not quiz_id:
+                    logger.warning(f"⚠️ Skipping quiz without quiz_id: {quiz.get('_id')}")
+                    continue
+                
+                # Get title from quiz_data or generate one
+                title = quiz_data.get("quiz_title")
+                if not title:
+                    topic = quiz.get('topic', 'Knowledge')
+                    title = f"{topic.title()} Challenge"
+                
+                # Format created_at properly
+                created_at = quiz.get("created_at")
+                if hasattr(created_at, 'isoformat'):
+                    created_at_str = created_at.isoformat() + "Z" if not str(created_at).endswith('Z') else created_at.isoformat()
+                elif isinstance(created_at, str):
+                    created_at_str = created_at
+                else:
+                    import datetime
+                    created_at_str = datetime.datetime.utcnow().isoformat() + "Z"
+                
+                # Create frontend-compatible quiz object
+                transformed_quiz = {
+                    "id": quiz_id,
+                    "quiz_id": quiz_id,
+                    "title": title,
+                    "description": f"Test your knowledge about {quiz.get('topic', 'this topic')}",
+                    "subject": quiz.get("topic", "General"),
+                    "difficulty": quiz.get("difficulty", "medium"),
+                    "time_limit": quiz_data.get("time_limit", 10),
+                    "questions": quiz_data.get("questions", []),
+                    "created_at": created_at_str,
+                    "source": quiz.get("source", "ai_generated"),
+                    "status": quiz.get("status", "active"),
+                    "_id": str(quiz.get("_id", ""))
+                }
+                
+                # Validate that we have questions
+                if not transformed_quiz["questions"] or len(transformed_quiz["questions"]) == 0:
+                    logger.warning(f"⚠️ Quiz {quiz_id} has no questions, skipping")
+                    continue
+                
+                transformed_quizzes.append(transformed_quiz)
+                logger.info(f"✅ Transformed quiz: {transformed_quiz['title']} ({quiz_id}) - Status: {transformed_quiz['status']}")
+                
+            except Exception as transform_error:
+                logger.error(f"❌ Error transforming quiz {quiz.get('quiz_id', 'unknown')}: {transform_error}")
+                import traceback
+                logger.error(f"❌ Transform traceback: {traceback.format_exc()}")
+                continue
+        
+        # Get manual quizzes from chat sessions (legacy storage)
+        try:
+            chat_session = chats_collection.find_one({"username": username})
+            manual_count = 0
+            if chat_session and "quizzes" in chat_session:
+                manual_quizzes = chat_session.get("quizzes", [])
+                # Filter only active quizzes and transform to consistent format
+                for quiz in manual_quizzes:
+                    if quiz.get("is_active", True) and quiz.get("questions"):
+                        # Ensure proper ID format
+                        quiz_id = quiz.get("id") or f"manual_{int(datetime.datetime.utcnow().timestamp())}"
+                        
+                        manual_quiz = {
+                            "id": quiz_id,
+                            "quiz_id": quiz_id,
+                            "title": quiz.get("title", "Manual Quiz"),
+                            "description": quiz.get("description", "Manually created quiz"),
+                            "subject": quiz.get("subject", "General"),
+                            "difficulty": quiz.get("difficulty", "medium"),
+                            "time_limit": quiz.get("time_limit", 10),
+                            "questions": quiz.get("questions", []),
+                            "created_at": quiz.get("created_at", datetime.datetime.utcnow().isoformat() + "Z"),
+                            "source": "manual",
+                            "status": "active"
+                        }
+                        transformed_quizzes.append(manual_quiz)
+                        manual_count += 1
+            
+            logger.info(f"📊 Found {manual_count} manual quizzes")
+        except Exception as manual_error:
+            logger.error(f"❌ Error fetching manual quizzes: {manual_error}")
+        
+        # Sort by creation time (newest first)
+        try:
+            transformed_quizzes.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        except Exception as sort_error:
+            logger.warning(f"⚠️ Could not sort quizzes by created_at: {sort_error}")
+        
+        logger.info(f"✅ Returning {len(transformed_quizzes)} total quizzes")
+        
+        return {"active_quizzes": transformed_quizzes}
+        
+    except Exception as e:
+        logger.error(f"❌ Error in get_active_quizzes: {e}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        return {"active_quizzes": []}
 
 @quiz_router.post("/generate")
 async def generate_quiz_from_topic(
