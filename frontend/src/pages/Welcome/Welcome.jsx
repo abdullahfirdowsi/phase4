@@ -128,32 +128,26 @@ const Welcome = () => {
 
   const features = [
     {
-      icon: <FaUserGraduate />,
-      title: "Personalized Learning Paths",
-      description: "Get custom study plans tailored to your learning style, pace, and goals. Our AI analyzes your progress and adapts accordingly.",
-      color: "primary"
+      icon: <FaBrain />,
+      title: "AI-Powered Learning",
+      description: "Get personalized help and explanations from our AI tutor."
     },
     {
       icon: <FaRocket />,
-      title: "Instant AI Assistance",
-      description: "Get immediate help with any question. Our AI tutor is available 24/7 to provide explanations, examples, and guidance.",
-      color: "success"
+      title: "Instant Support",
+      description: "Ask questions anytime and get immediate responses."
     },
     {
-      icon: <FaChartLine />,
-      title: "Progress Tracking",
-      description: "Monitor your learning journey with detailed analytics, achievements, and insights to keep you motivated and on track.",
-      color: "warning"
+      icon: <FaGraduationCap />,
+      title: "Custom Learning Paths",
+      description: "Create study plans tailored to your specific goals."
     }
   ];
 
   const benefits = [
-    "AI-powered personalized learning",
-    "24/7 instant support and guidance",
-    "Adaptive study plans that evolve",
-    "Real-time progress tracking",
-    "Interactive quizzes and assessments",
-    "Multi-language support"
+    "AI-powered tutoring",
+    "24/7 availability",
+    "Personalized learning"
   ];
 
   return (
@@ -170,13 +164,12 @@ const Welcome = () => {
                 </div>
                 
                 <h1 className="hero-title">
-                  Transform Your Learning with 
-                  <span className="brand-highlight"> AI Tutor</span>
+                  Learn Smarter with 
+                  <span className="brand-highlight">AI Tutor</span>
                 </h1>
                 
                 <p className="hero-subtitle">
-                  Experience personalized education powered by artificial intelligence. 
-                  Create custom study plans, get instant help, and achieve your learning goals faster than ever.
+                  Get personalized help with any subject. Ask questions, create study plans, and learn at your own pace.
                 </p>
 
                 {/* Quick Start Input */}
@@ -230,7 +223,7 @@ const Welcome = () => {
                 </div>
 
                 <div className="benefits-list">
-                  {benefits.slice(0, 3).map((benefit, index) => (
+                  {benefits.map((benefit, index) => (
                     <div key={index} className="benefit-item">
                       <FaCheck className="check-icon" />
                       <span>{benefit}</span>
@@ -243,10 +236,10 @@ const Welcome = () => {
                     variant="primary" 
                     size="lg" 
                     className="cta-button"
-                    onClick={() => handleQuickStart("Create a learning path for Python programming")}
+                    onClick={() => handleQuickStart("What can you help me learn?")}
                   >
                     <FaPlay className="me-2" />
-                    Start Learning Today
+                    Get Started
                   </Button>
                   <Button 
                     variant="outline-light" 
@@ -256,21 +249,6 @@ const Welcome = () => {
                   >
                     Sign In
                   </Button>
-                </div>
-                
-                <div className="hero-stats">
-                  <div className="stat-item">
-                    <div className="stat-number">10K+</div>
-                    <div className="stat-label">Active Students</div>
-                  </div>
-                  <div className="stat-item">
-                    <div className="stat-number">500+</div>
-                    <div className="stat-label">Learning Paths</div>
-                  </div>
-                  <div className="stat-item">
-                    <div className="stat-number">95%</div>
-                    <div className="stat-label">Success Rate</div>
-                  </div>
                 </div>
               </div>
             </Col>
@@ -311,9 +289,9 @@ const Welcome = () => {
                 <FaRocket className="me-2" />
                 Features
               </div>
-              <h2 className="section-title">Why Choose AI Tutor?</h2>
+              <h2 className="section-title">How AI Tutor Helps You</h2>
               <p className="section-subtitle">
-                Experience the future of learning with our advanced AI technology
+                Simple, effective AI-powered learning tools
               </p>
             </Col>
           </Row>
@@ -321,14 +299,11 @@ const Welcome = () => {
             {features.map((feature, index) => (
               <Col lg={4} md={6} key={index} className="feature-col">
                 <div className="enhanced-feature-card">
-                  <div className={`feature-icon bg-${feature.color}`}>
+                  <div className="feature-icon">
                     {feature.icon}
                   </div>
                   <h3>{feature.title}</h3>
                   <p>{feature.description}</p>
-                  <div className="feature-arrow">
-                    <FaRocket />
-                  </div>
                 </div>
               </Col>
             ))}
@@ -342,18 +317,10 @@ const Welcome = () => {
           <Row>
             <Col lg={8} className="mx-auto text-center">
               <div className="cta-content">
-                <h2 className="cta-title">Ready to Transform Your Learning?</h2>
+                <h2 className="cta-title">Ready to Start Learning?</h2>
                 <p className="cta-subtitle">
-                  Join thousands of students who are already learning smarter with AI Tutor
+                  Begin your personalized learning journey with AI Tutor today
                 </p>
-                <div className="cta-benefits">
-                  {benefits.slice(3).map((benefit, index) => (
-                    <div key={index} className="cta-benefit">
-                      <FaCheck className="check-icon" />
-                      <span>{benefit}</span>
-                    </div>
-                  ))}
-                </div>
                 <Button 
                   variant="primary" 
                   size="lg" 
@@ -361,7 +328,7 @@ const Welcome = () => {
                   onClick={() => handleQuickStart("What can you help me learn?")}
                 >
                   <FaPlay className="me-2" />
-                  Get Started for Free
+                  Get Started
                 </Button>
               </div>
             </Col>
