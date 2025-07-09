@@ -117,8 +117,34 @@ const fetchLearningPaths = async () => {
       const paths = await getAllLearningPaths(filter);
       
       console.log('📋 Learning paths from API:', paths);
+      console.log('📋 Raw API response structure:');
       paths.forEach((p, i) => {
-        console.log(`  ${i + 1}. "${p.name}" - ${p.created_at} (ID: ${p.id})`);
+        console.log(`\n=== PATH ${i + 1} ===`);
+        console.log(`Name: "${p.name}"`);
+        console.log(`ID: ${p.id}`);
+        console.log(`Created: ${p.created_at}`);
+        console.log(`Topics Count: ${p.topics_count}`);
+        console.log(`Progress: ${p.progress}`);
+        console.log(`Topics Array:`, p.topics);
+        console.log(`Topics Length:`, p.topics?.length || 'undefined');
+        console.log(`Full Path Object:`, p);
+        
+        // Check if topics exist but are empty
+        if (p.topics) {
+          console.log(`Topics details:`);
+          p.topics.forEach((topic, tIndex) => {
+            console.log(`  Topic ${tIndex + 1}:`, {
+              name: topic.name,
+              description: topic.description,
+              subtopics: topic.subtopics,
+              links: topic.links,
+              videos: topic.videos
+            });
+          });
+        } else {
+          console.log(`❌ No topics array found for "${p.name}"`);
+        }
+        console.log(`===================\n`);
       });
       
       console.log('🔍 Current user:', localStorage.getItem('username')); // Only for debug
@@ -179,13 +205,40 @@ const fetchLearningPaths = async () => {
   const handleViewDetails = async (pathId) => {
     try {
       const username = localStorage.getItem("username"); // Only for authentication
+      console.log('🔍 Fetching path details for ID:', pathId);
       const response = await fetch(`${API_BASE_URL}/learning-paths/detail/${pathId}?username=${username}`);
       const data = await response.json();
       
+      console.log('📋 API Response for path detail:', data);
+      console.log('📋 Path data structure:', data.path);
+      
       if (response.ok) {
-        setSelectedPath(data.path);
-        setShowDetailModal(true);
+        if (data.path) {
+          console.log('✅ Path topics:', data.path.topics);
+          console.log('✅ Topics count:', data.path.topics?.length || 0);
+          
+          // Debug each topic structure
+          if (data.path.topics) {
+            data.path.topics.forEach((topic, index) => {
+              console.log(`📖 Topic ${index + 1}:`, {
+                name: topic.name,
+                description: topic.description,
+                subtopics: topic.subtopics,
+                links: topic.links,
+                videos: topic.videos,
+                time_required: topic.time_required
+              });
+            });
+          }
+          
+          setSelectedPath(data.path);
+          setShowDetailModal(true);
+        } else {
+          console.error('❌ No path data in response');
+          setError('No path data found');
+        }
       } else {
+        console.error('❌ API error:', data.detail || 'Unknown error');
         setError(data.detail || "Failed to fetch path details");
       }
     } catch (error) {
@@ -327,7 +380,7 @@ const fetchLearningPaths = async () => {
                         </div>
                         <div className="meta-item">
                           <BookHalf size={14} />
-                          <span>{path.topics_count} lessons</span>
+                          <span>{path.topics_count || 0} modules</span>
                         </div>
                         {path.created_at && (
                           <div className="meta-item">
@@ -418,32 +471,91 @@ const fetchLearningPaths = async () => {
                       </div>
 
                       <div className="topics-section">
-                        <h5>Lessons</h5>
-                        {selectedPath.topics?.map((topic, index) => (
-                          <Card key={index} className="topic-card">
-                            <Card.Body>
-                              <div className="topic-header">
-                                <h6>{topic.name}</h6>
-                                <Form.Check
-                                  type="checkbox"
-                                  checked={topic.completed || false}
-                                  onChange={(e) => handleUpdateProgress(
-                                    selectedPath.id, 
-                                    index, 
-                                    e.target.checked
-                                  )}
-                                />
-                              </div>
-                              <p className="topic-description">{topic.description}</p>
-                              {topic.time_required && (
-                                <small className="text-muted">
-                                  <Clock size={12} className="me-1" />
-                                  {topic.time_required}
-                                </small>
-                              )}
-                            </Card.Body>
-                          </Card>
-                        ))}
+                        <h5>Learning Modules</h5>
+                        {selectedPath.topics && selectedPath.topics.length > 0 ? (
+                          selectedPath.topics.map((topic, index) => (
+                            <Card key={index} className="topic-card mb-3">
+                              <Card.Body>
+                                <div className="topic-header">
+                                  <h6>{topic.name || `Topic ${index + 1}`}</h6>
+                                  <Form.Check
+                                    type="checkbox"
+                                    checked={topic.completed || false}
+                                    onChange={(e) => handleUpdateProgress(
+                                      selectedPath.id, 
+                                      index, 
+                                      e.target.checked
+                                    )}
+                                  />
+                                </div>
+                                <p className="topic-description">{topic.description || 'No description available'}</p>
+                                {topic.time_required && (
+                                  <small className="text-muted">
+                                    <Clock size={12} className="me-1" />
+                                    {topic.time_required}
+                                  </small>
+                                )}
+                                
+                                {/* Display subtopics if available */}
+                                {topic.subtopics && topic.subtopics.length > 0 && (
+                                  <div className="subtopics-section mt-3">
+                                    <h6>Subtopics:</h6>
+                                    <ul className="subtopics-list">
+                                      {topic.subtopics.map((subtopic, subIndex) => (
+                                        <li key={subIndex}>
+                                          {typeof subtopic === 'string' ? (
+                                            <span>{subtopic}</span>
+                                          ) : (
+                                            <>
+                                              <strong>{subtopic.name}</strong>
+                                              {subtopic.description && <p className="text-muted small">{subtopic.description}</p>}
+                                            </>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                
+                                {/* Display resource links if available */}
+                                {topic.links && topic.links.length > 0 && (
+                                  <div className="resource-links mt-3">
+                                    <h6>Resource Links:</h6>
+                                    <ul className="resource-list">
+                                      {topic.links.map((link, linkIndex) => (
+                                        <li key={linkIndex}>
+                                          <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary">
+                                            {link.replace(/^https?:\/\//, '').split('/')[0]}
+                                          </a>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                
+                                {/* Display video resources if available */}
+                                {topic.videos && topic.videos.length > 0 && (
+                                  <div className="video-resources mt-3">
+                                    <h6>Video Resources:</h6>
+                                    <ul className="resource-list">
+                                      {topic.videos.map((video, videoIndex) => (
+                                        <li key={videoIndex}>
+                                          <a href={video} target="_blank" rel="noopener noreferrer" className="text-primary">
+                                            {video.includes('youtube') ? 'YouTube Video' : 'Video Resource'}
+                                          </a>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </Card.Body>
+                            </Card>
+                          ))
+                        ) : (
+                          <div className="alert alert-info">
+                            <p>No learning modules found for this path.</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Col>

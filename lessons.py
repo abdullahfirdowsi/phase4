@@ -116,10 +116,18 @@ async def create_user_lesson(
         # Create lesson ID
         lesson_id = f"lesson_{uuid.uuid4()}"
         
+        # Check if user is admin
+        user = users_collection.find_one({"username": username})
+        is_admin = user.get("is_admin", False) if user else False
+        
+        # Determine lesson type and featured status
+        lesson_type = "admin_lesson" if is_admin else "user_lesson"
+        is_featured = is_admin  # Admin lessons are automatically featured
+        
         # Create lesson document
         lesson_doc = {
             "lesson_id": lesson_id,
-            "type": "user_lesson",
+            "type": lesson_type,
             "title": lesson_data.title,
             "description": lesson_data.description,
             "content": lesson_data.content,
@@ -137,7 +145,10 @@ async def create_user_lesson(
             "views": 0,
             "likes": 0,
             "dislikes": 0,
-            "comments": []
+            "comments": [],
+            "featured": is_featured,
+            "featured_at": datetime.datetime.utcnow().isoformat() + "Z" if is_featured else None,
+            "featured_by": username if is_featured else None
         }
         
         # Insert into database
