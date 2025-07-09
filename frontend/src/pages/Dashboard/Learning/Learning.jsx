@@ -245,29 +245,23 @@ const handleViewContent = async (contentId, contentType) => {
     setMyLearningPaths(prevPaths => {
       return prevPaths.map(path => {
         if (path.name === selectedContent.title) {
-          // Find the study plan
-          const updatedStudyPlans = path.study_plans.map(plan => {
-            const updatedTopics = [...(plan.topics || [])];
-            if (updatedTopics[topicIndex]) {
-              updatedTopics[topicIndex] = {
-                ...updatedTopics[topicIndex],
-                completed: completed
-              };
-            }
-            return {
-              ...plan,
-              topics: updatedTopics
+          // Update topics directly (new data structure)
+          const updatedTopics = [...(path.topics || [])];
+          if (updatedTopics[topicIndex]) {
+            updatedTopics[topicIndex] = {
+              ...updatedTopics[topicIndex],
+              completed: completed
             };
-          });
+          }
           
           // Calculate new progress
-          const totalTopics = path.study_plans[0]?.topics?.length || 0;
-          const completedTopics = path.study_plans[0]?.topics?.filter(topic => topic.completed).length || 0;
+          const totalTopics = updatedTopics.length;
+          const completedTopics = updatedTopics.filter(topic => topic.completed).length;
           const newProgress = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
           
           return {
             ...path,
-            study_plans: updatedStudyPlans,
+            topics: updatedTopics,
             progress: newProgress
           };
         }
