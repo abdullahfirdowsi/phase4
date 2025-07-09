@@ -53,17 +53,19 @@ const Sidebar = ({
       screen: "quiz-system",
       path: "/dashboard/quiz-system"
     },
-    {
+  ];
+
+  // Add admin-only menu items
+  if (isAdmin) {
+    menuItems.push({
       id: "user-lessons",
       text: "My Lessons",
       icon: <FileEarmarkText size={20} />,
       screen: "user-lessons",
-      path: "/dashboard/lessons"
-    }
-  ];
-
-  // Add admin menu item if user is admin
-  if (isAdmin) {
+      path: "/dashboard/lessons",
+      isAdmin: true
+    });
+    
     menuItems.push({
       id: "admin",
       text: "Admin Panel",

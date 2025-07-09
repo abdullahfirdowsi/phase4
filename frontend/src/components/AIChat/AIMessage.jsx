@@ -46,6 +46,31 @@ const AIMessage = memo(({ message }) => {
     }
   };
 
+  // Enhanced learning path detection
+  const isLearningPathContent = (content) => {
+    try {
+      // If content is already an object with learning path structure
+      if (typeof content === 'object' && content !== null) {
+        return (content.topics && Array.isArray(content.topics)) ||
+               (content.name && content.course_duration) ||
+               (content.learning_path && content.topics);
+      }
+      
+      // If content is a string, check if it contains learning path-like JSON
+      if (typeof content === 'string') {
+        const contentStr = content.toLowerCase();
+        return (contentStr.includes('"topics"') && contentStr.includes('"course_duration"')) ||
+               (contentStr.includes('"learning_path"') && contentStr.includes('"topics"')) ||
+               (contentStr.includes('"name"') && contentStr.includes('"topics"') && contentStr.includes('"description"'));
+      }
+      
+      return false;
+    } catch (error) {
+      console.warn('Error in learning path content detection:', error);
+      return false;
+    }
+  };
+
   // Enhanced quiz detection and logging
   const shouldRenderAsQuiz = type === 'quiz' || isQuizContent(content);
   

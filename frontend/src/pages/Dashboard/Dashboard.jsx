@@ -80,21 +80,27 @@ const Dashboard = () => {
               <UserProfile />
             </ErrorBoundary>
           } />
-          <Route path="/lessons" element={
-            <ErrorBoundary>
-              <UserLessons />
-            </ErrorBoundary>
-          } />
-          <Route path="/lessons/view/:lessonId" element={
-            <ErrorBoundary>
-              <LessonView />
-            </ErrorBoundary>
-          } />
-          <Route path="/lessons/edit/:lessonId" element={
-            <ErrorBoundary>
-              <LessonEdit />
-            </ErrorBoundary>
-          } />
+          {isAdmin && (
+            <Route path="/lessons" element={
+              <ErrorBoundary>
+                <UserLessons />
+              </ErrorBoundary>
+            } />
+          )}
+          {isAdmin && (
+            <Route path="/lessons/view/:lessonId" element={
+              <ErrorBoundary>
+                <LessonView />
+              </ErrorBoundary>
+            } />
+          )}
+          {isAdmin && (
+            <Route path="/lessons/edit/:lessonId" element={
+              <ErrorBoundary>
+                <LessonEdit />
+              </ErrorBoundary>
+            } />
+          )}
           {isAdmin && (
             <Route path="/admin" element={
               <ErrorBoundary>

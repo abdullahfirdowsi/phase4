@@ -290,8 +290,7 @@ export const fetchChatHistory = async () => {
   
   if (!token) {
     console.warn("User not authenticated - missing token");
-    // Don't throw error for missing token, try without authentication
-    console.log("Attempting to fetch chat history without token...");
+    throw new Error("Please log in to view chat history");
   }
 
   console.log(`📚 Fetching chat history for user: ${username}`);
@@ -300,12 +299,9 @@ export const fetchChatHistory = async () => {
     // Use the working legacy endpoint first (this is where messages are actually stored)
     const headers = {
       "Content-Type": "application/json",
-      "Accept": "application/json"
+      "Accept": "application/json",
+      "Authorization": `Bearer ${token}`
     };
-    
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
     
     const data = await apiRequest(
       `${API_BASE_URL}/chat/history?username=${encodeURIComponent(username)}&limit=100`,
@@ -320,20 +316,32 @@ export const fetchChatHistory = async () => {
       messageCount: data.history?.length || 0,
       data: data
     });
-    return data.history || [];
+    
+    // Process messages to ensure proper structure
+    const processedHistory = (data.history || []).map(msg => ({
+      ...msg,
+      // Ensure proper type mapping
+      type: msg.type || msg.message_type || (msg.role === 'user' ? 'content' : 'content'),
+      // Ensure ID exists
+      id: msg.id || `msg_${Date.now()}_${Math.random()}`
+    }));
+    
+    return processedHistory;
   } catch (error) {
     console.error("Error fetching chat history from working API:", error);
+    
+    // Handle specific error types
+    if (error.message.includes('401') || error.message.includes('authenticated')) {
+      throw new Error("Authentication failed. Please log in again.");
+    }
     
     // Fallback to new endpoint if legacy fails
     try {
       const headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Authorization": `Bearer ${token}`
       };
-      
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
       
       const data = await apiRequest(
         `${API_BASE_URL}/api/chat/history?username=${encodeURIComponent(username)}&limit=100`,
@@ -348,9 +356,25 @@ export const fetchChatHistory = async () => {
         messageCount: data.history?.length || 0,
         data: data
       });
-      return data.history || [];
+      
+      // Process messages to ensure proper structure
+      const processedHistory = (data.history || []).map(msg => ({
+        ...msg,
+        // Ensure proper type mapping
+        type: msg.type || msg.message_type || (msg.role === 'user' ? 'content' : 'content'),
+        // Ensure ID exists
+        id: msg.id || `msg_${Date.now()}_${Math.random()}`
+      }));
+      
+      return processedHistory;
     } catch (fallbackError) {
       console.error("Fallback chat history fetch also failed:", fallbackError);
+      
+      // Handle specific error types
+      if (fallbackError.message.includes('401') || fallbackError.message.includes('authenticated')) {
+        throw new Error("Authentication failed. Please log in again.");
+      }
+      
       // Return empty array instead of throwing to prevent UI crashes
       console.warn("Returning empty chat history due to API failures");
       return [];

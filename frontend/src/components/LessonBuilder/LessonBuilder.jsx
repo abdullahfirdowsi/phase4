@@ -20,6 +20,21 @@ import { uploadFile } from '../../api';
 import './LessonBuilder.scss';
 
 const LessonBuilder = ({ onSave, initialData = null }) => {
+  // Check if user is admin
+  const isAdmin = localStorage.getItem("isAdmin") === "true";
+  
+  // Early return if not admin
+  if (!isAdmin) {
+    return (
+      <div className="lesson-builder-unauthorized">
+        <Alert variant="danger">
+          <h4>Access Denied</h4>
+          <p>Only administrators can create and edit lessons.</p>
+        </Alert>
+      </div>
+    );
+  }
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',

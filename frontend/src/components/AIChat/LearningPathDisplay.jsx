@@ -277,7 +277,17 @@ const LearningPathDisplay = memo(({ message }) => {
           time_required: topic.time_required || topic.duration || "1 hour",
           links: topic.links || [],
           videos: topic.videos || [],
-          subtopics: topic.subtopics || [],
+          subtopics: (topic.subtopics || []).map(subtopic => {
+            // If subtopic is already an object with name and description, keep it as is
+            if (typeof subtopic === 'object' && subtopic !== null && subtopic.name) {
+              return subtopic;
+            }
+            // If subtopic is a string, convert to object format expected by backend
+            return {
+              name: typeof subtopic === 'string' ? subtopic : subtopic.name || 'Subtopic',
+              description: typeof subtopic === 'string' ? `Learn about ${subtopic}` : subtopic.description || 'Subtopic description'
+            };
+          }),
           completed: false
         })),
         tags: parsedContent.tags || []

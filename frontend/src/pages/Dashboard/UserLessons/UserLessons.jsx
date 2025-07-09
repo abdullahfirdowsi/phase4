@@ -32,6 +32,17 @@ const UserLessons = () => {
   });
   
   const navigate = useNavigate();
+  
+  // Check if user is admin
+  const isAdmin = localStorage.getItem("isAdmin") === "true";
+  
+  // Redirect non-admins to dashboard
+  useEffect(() => {
+    if (!isAdmin) {
+      navigate('/dashboard');
+      return;
+    }
+  }, [isAdmin, navigate]);
 
   useEffect(() => {
     fetchLessons();
