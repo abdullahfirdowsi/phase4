@@ -656,7 +656,7 @@ const AIChat = () => {
               <div className="welcome-content">
                 <img 
                   src="/icons/aitutor-short-no-bg.png" 
-                  alt="AI Tutor" 
+                  alt="AI Tutor"
                   className="welcome-logo"
                 />
                 <h2 className="welcome-title">How can I help you today?</h2>
@@ -709,7 +709,7 @@ const AIChat = () => {
                 <div className="dot"></div>
                 <div className="dot"></div>
               </div>
-              <span>AI Tutor is thinking...</span>
+              <span>AI is thinking...</span>
             </div>
           )}
           

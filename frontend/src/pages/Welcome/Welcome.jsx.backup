@@ -1,0 +1,484 @@
+import React, { useState, useEffect } from "react";
+import { Tab, Tabs, Button, Form, Modal, Alert, Spinner, Container, Row, Col, Card } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import { login, signup } from "../../api";
+import "./Welcome.scss";
+import { FaBrain, FaRocket, FaGraduationCap, FaPlay, FaCheck, FaArrowRight, FaCode, FaBook, FaCalculator, FaLightbulb, FaChartLine, FaUsers } from "react-icons/fa";
+import GoogleLoginButton from "../../components/GoogleLoginButton/GoogleLoginButton";
+import PasswordSetupModal from "../../components/PasswordSetupModal/PasswordSetupModal";
+
+const Welcome = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [showPasswordSetupModal, setShowPasswordSetupModal] = useState(false);
+  const [passwordSetupUsername, setPasswordSetupUsername] = useState("");
+  const [activeTab, setActiveTab] = useState("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [initialQuestion, setInitialQuestion] = useState("");
+  const navigate = useNavigate();
+
+  const clearForm = () => {
+    setName("");
+    setEmail("");
+    setPassword("");
+    setError(null);
+  };
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError("Email and Password are required!");
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await login(email, password);
+      localStorage.setItem("username", email);
+      
+      // If there's an initial question, store it in sessionStorage
+      if (initialQuestion.trim()) {
+        sessionStorage.setItem("initialQuestion", initialQuestion.trim());
+        navigate("/dashboard/chat");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      // Check if this is a Google OAuth user who needs to set a password
+      if (err.code === "PASSWORD_SETUP_REQUIRED") {
+        setPasswordSetupUsername(email);
+        setShowPasswordSetupModal(true);
+        setShowModal(false); // Close the login modal
+      } else {
+        setError(err.message || "Login failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle successful password setup
+  const handlePasswordSetupSuccess = () => {
+    setShowPasswordSetupModal(false);
+    setError("Password setup successful! Please try logging in again with your new password.");
+    setShowModal(true); // Show login modal again
+    setPassword(""); // Clear the password field
+  };
+
+
+  const handleSignup = async () => {
+    if (!name || !email || !password) {
+      setError("All fields are required!");
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await signup(name, email, password);
+      setActiveTab("login");
+      clearForm();
+      setError(null);
+      
+      setTimeout(() => {
+        setError("Account created successfully! Please sign in.");
+      }, 100);
+    } catch (err) {
+      setError(err.message || "Signup failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLoginSuccess = (data) => {
+    // If there's an initial question, store it in sessionStorage
+    if (initialQuestion.trim()) {
+      sessionStorage.setItem("initialQuestion", initialQuestion.trim());
+      navigate("/dashboard/chat");
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  const handleGoogleLoginError = (errorMessage) => {
+    setError(errorMessage || "Google login failed. Please try again.");
+  };
+
+  const handleAuthModalOpen = () => {
+    setShowModal(true);
+    clearForm();
+  };
+
+  const handleQuickStart = (question) => {
+    setInitialQuestion(question);
+    handleAuthModalOpen();
+  };
+
+  useEffect(() => {
+    const authTriggers = document.querySelectorAll('.auth-modal-trigger');
+    authTriggers.forEach(trigger => {
+      trigger.addEventListener('click', handleAuthModalOpen);
+    });
+
+    return () => {
+      authTriggers.forEach(trigger => {
+        trigger.removeEventListener('click', handleAuthModalOpen);
+      });
+    };
+  }, []);
+
+  const features = [
+    {
+      icon: <FaBrain />,
+      title: "AI-Powered Learning",
+      description: "Get personalized help and explanations from our advanced AI tutor.",
+      color: "primary"
+    },
+    {
+      icon: <FaRocket />,
+      title: "Instant Support",
+      description: "Ask questions anytime and get immediate, intelligent responses.",
+      color: "success"
+    },
+    {
+      icon: <FaGraduationCap />,
+      title: "Custom Learning Paths",
+      description: "Create personalized study plans tailored to your goals and pace.",
+      color: "info"
+    },
+    {
+      icon: <FaChartLine />,
+      title: "Progress Tracking",
+      description: "Monitor your learning journey with detailed analytics and insights.",
+      color: "warning"
+    }
+  ];
+
+  const suggestionChips = [
+    {
+      icon: <FaCode />,
+      text: "Learn Python programming",
+      query: "Create a learning path for Python programming"
+    },
+    {
+      icon: <FaCalculator />,
+      text: "Math & Calculus help",
+      query: "Help me understand calculus concepts"
+    },
+    {
+      icon: <FaBook />,
+      text: "Machine Learning basics",
+      query: "Explain machine learning fundamentals"
+    },
+    {
+      icon: <FaLightbulb />,
+      text: "Study strategies",
+      query: "What are effective study techniques?"
+    }
+  ];
+
+  const benefits = [
+    "AI-powered tutoring",
+    "24/7 availability",
+    "Personalized learning",
+    "Progress tracking"
+  ];
+
+  return (
+    <div className="viztalk-welcome">
+      {/* Hero Section */}
+      <section className="hero-section">
+        <Container>
+          <Row className="justify-content-center">
+            <Col lg={10} xl={8}>
+              <div className="hero-content">
+                {/* Brand Logo Section */}
+                <div className="hero-brand">
+                  <div className="brand-logo">
+                    <img
+                      src="/icons/aitutor-short-no-bg.png"
+                      alt="AI Tutor"
+                      className="logo-image"
+                    />
+                  </div>
+                  <div className="brand-text">
+                    <h1 className="brand-title">
+                      <span className="ai-text">AI</span>
+                      <span className="tutor-text">Tutor</span>
+                    </h1>
+                    <p className="brand-subtitle">powered by VizTalk AI</p>
+                  </div>
+                </div>
+
+                {/* Hero Content */}
+                <div className="hero-content-section">
+                  <h2 className="hero-title">
+                    Transform Your Learning with AI
+                  </h2>
+                  <p className="hero-description">
+                    Experience personalized education powered by artificial intelligence. 
+                    Get instant help, create custom study plans, and achieve your learning goals faster.
+                  </p>
+                </div>
+
+                {/* Quick Start Examples */}
+                <div className="quick-start-section">
+                  <h3 className="quick-start-title">What can AI Tutor help you with?</h3>
+                  <div className="example-grid">
+                    {suggestionChips.map((chip, index) => (
+                      <div
+                        key={index}
+                        className="example-card"
+                        onClick={() => handleQuickStart(chip.query)}
+                      >
+                        <div className="example-icon">{chip.icon}</div>
+                        <div className="example-text">{chip.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Call to Action */}
+                <div className="cta-section">
+                  <div className="cta-buttons">
+                    <Button 
+                      variant="primary"
+                      size="lg"
+                      className="primary-cta"
+                      onClick={() => handleQuickStart("What can you help me learn?")}
+                    >
+                      <FaPlay className="me-2" />
+                      Start Learning Now
+                    </Button>
+                    <Button 
+                      variant="outline-primary"
+                      size="lg"
+                      className="secondary-cta"
+                      onClick={() => setShowModal(true)}
+                    >
+                      <FaUsers className="me-2" />
+                      Sign In
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+
+      {/* Features Section */}
+      <section className="features-section">
+        <Container>
+          <Row>
+            <Col lg={12} className="text-center">
+              <div className="section-header">
+                <h2 className="section-title">Why Choose AI Tutor?</h2>
+                <p className="section-subtitle">
+                  Experience the future of personalized learning with our advanced AI technology
+                </p>
+              </div>
+            </Col>
+          </Row>
+          <Row className="g-4">
+            {features.map((feature, index) => (
+              <Col lg={3} md={6} key={index}>
+                <Card className="feature-card h-100">
+                  <Card.Body className="text-center">
+                    <div className={`feature-icon ${feature.color}`}>
+                      {feature.icon}
+                    </div>
+                    <h5 className="feature-title">{feature.title}</h5>
+                    <p className="feature-description">{feature.description}</p>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </Container>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="benefits-section">
+        <Container>
+          <Row className="justify-content-center">
+            <Col lg={8} className="text-center">
+              <h3 className="benefits-title">Everything You Need to Succeed</h3>
+              <div className="benefits-grid">
+                {benefits.map((benefit, index) => (
+                  <div key={index} className="benefit-item">
+                    <FaCheck className="check-icon" />
+                    <span>{benefit}</span>
+                  </div>
+                ))}
+              </div>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+
+      {/* Enhanced Authentication Modal */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg" className="auth-modal">
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title className="d-flex align-items-center">
+            <img
+              src="/icons/aitutor-short-no-bg.png"
+              alt="AI Tutor"
+              width="32"
+              height="32"
+              className="me-2"
+            />
+            {activeTab === "login" ? "Welcome Back to AI Tutor" : "Join AI Tutor Today"}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          {error && (
+            <Alert variant={error.includes("successfully") ? "success" : "danger"} className="mb-3">
+              {error}
+            </Alert>
+          )}
+          
+          {initialQuestion && (
+            <Alert variant="info" className="mb-3">
+              <strong>Ready to get started with:</strong> "{initialQuestion}"
+            </Alert>
+          )}
+          
+          <Tabs 
+            activeKey={activeTab} 
+            onSelect={(k) => { setActiveTab(k); clearForm(); }} 
+            className="mb-4 enhanced-tabs"
+          >
+            <Tab eventKey="login" title="Sign In">
+              <div className="auth-form">
+                <GoogleLoginButton 
+                  onSuccess={handleGoogleLoginSuccess}
+                  onError={handleGoogleLoginError}
+                />
+                
+                <div className="separator">
+                  <span>or sign in with email</span>
+                </div>
+                
+                <Form>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Email Address</Form.Label>
+                    <Form.Control
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="enhanced-input"
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-4">
+                    <Form.Label>Password</Form.Label>
+                    <Form.Control
+                      type="password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="enhanced-input"
+                    />
+                  </Form.Group>
+                  <Button
+                    variant="primary"
+                    className="w-100 mb-3 enhanced-button"
+                    onClick={handleLogin}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Spinner size="sm" animation="border" className="me-2" />
+                        Signing In...
+                      </>
+                    ) : (
+                      <>
+                        <FaPlay className="me-2" />
+                        Sign In
+                      </>
+                    )}
+                  </Button>
+                </Form>
+              </div>
+            </Tab>
+
+            <Tab eventKey="signup" title="Sign Up">
+              <div className="auth-form">
+                <GoogleLoginButton 
+                  onSuccess={handleGoogleLoginSuccess}
+                  onError={handleGoogleLoginError}
+                  buttonText="Sign up with Google"
+                />
+                
+                <div className="separator">
+                  <span>or sign up with email</span>
+                </div>
+                
+                <Form>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Full Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="enhanced-input"
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Email Address</Form.Label>
+                    <Form.Control
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="enhanced-input"
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-4">
+                    <Form.Label>Password</Form.Label>
+                    <Form.Control
+                      type="password"
+                      placeholder="Create a strong password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="enhanced-input"
+                    />
+                  </Form.Group>
+                  <Button
+                    variant="primary"
+                    className="w-100 mb-3 enhanced-button"
+                    onClick={handleSignup}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Spinner size="sm" animation="border" className="me-2" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        <FaRocket className="me-2" />
+                        Create Account
+                      </>
+                    )}
+                  </Button>
+                </Form>
+              </div>
+            </Tab>
+          </Tabs>
+        </Modal.Body>
+      </Modal>
+
+      {/* Password Setup Modal for Google OAuth Users */}
+      <PasswordSetupModal
+        show={showPasswordSetupModal}
+        onHide={() => setShowPasswordSetupModal(false)}
+        username={passwordSetupUsername}
+        onSuccess={handlePasswordSetupSuccess}
+      />
+    </div>
+  );
+};
+
+export default Welcome;

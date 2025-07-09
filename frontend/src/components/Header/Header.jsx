@@ -56,16 +56,22 @@ const Header = ({ onMobileMenuToggle }) => {
     return (
       <Navbar className="clean-navbar welcome" fixed="top">
         <Container fluid className="navbar-container">
-          <Navbar.Brand className="brand-section" href="#home">
+        <Navbar.Brand className="brand-section" href="#home">
+          <div className="brand-logo">
             <img
               src="/icons/aitutor-short-no-bg.png"
               alt="AI Tutor"
-              width="40"
-              height="40"
-              className="brand-logo"
+              className="logo-image"
             />
-            <span className="brand-name">AI Tutor</span>
-          </Navbar.Brand>
+          </div>
+          <div className="brand-text">
+            <h1 className="brand-title">
+              <span className="ai-text">AI</span>
+              <span className="tutor-text">Tutor</span>
+            </h1>
+            <p className="brand-subtitle">powered by VizTalk AI</p>
+          </div>
+        </Navbar.Brand>
 
           <div className="header-actions">
             <ThemeToggle />
@@ -98,14 +104,22 @@ const Header = ({ onMobileMenuToggle }) => {
         )}
         
         <Navbar.Brand className="brand-section" onClick={handleNavigateToChat} style={{ cursor: 'pointer' }}>
-          <img
-            src="/icons/aitutor-short-no-bg.png"
-            alt="AI Tutor"
-            width="40"
-            height="40"
-            className="brand-logo"
-          />
-          <span className="brand-name">AI Tutor</span>
+          <div className="brand-logo">
+            <img
+              src="/icons/aitutor-short-no-bg.png"
+              alt="AI Tutor"
+              width="40"
+              height="40"
+              className="logo-image"
+            />
+          </div>
+          <div className="brand-text">
+            <h1 className="brand-title">
+              <span className="ai-text">AI</span>
+              <span className="tutor-text">Tutor</span>
+            </h1>
+            <p className="brand-subtitle">powered by VizTalk AI</p>
+          </div>
         </Navbar.Brand>
 
         <div className="header-actions">

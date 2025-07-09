@@ -1,120 +1,101 @@
 import React, { useState, useEffect } from "react";
-import { Tab, Tabs, Button, Form, Modal, Alert, Spinner, Container, Row, Col } from "react-bootstrap";
+import { Tab, Tabs, Button, Form, Modal, Alert, Spinner, Container, Row, Col, Card } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { login, signup } from "../../api";
 import "./Welcome.scss";
-import { FaUserGraduate, FaRocket, FaChartLine, FaBrain, FaGraduationCap, FaLightbulb, FaPlay, FaCheck } from "react-icons/fa";
+import { FaBrain, FaRocket, FaGraduationCap, FaPlay, FaCheck, FaCode, FaBook, FaCalculator, FaLightbulb, FaChartLine, FaUsers, FaStar, FaArrowRight } from "react-icons/fa";
 import GoogleLoginButton from "../../components/GoogleLoginButton/GoogleLoginButton";
 import PasswordSetupModal from "../../components/PasswordSetupModal/PasswordSetupModal";
 
 const Welcome = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [showPasswordSetupModal, setShowPasswordSetupModal] = useState(false);
-  const [passwordSetupUsername, setPasswordSetupUsername] = useState("");
   const [activeTab, setActiveTab] = useState("login");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    username: "",
+    password: "",
+    confirmPassword: "",
+    name: "",
+    email: "",
+  });
+  const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [initialQuestion, setInitialQuestion] = useState("");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [googleUserData, setGoogleUserData] = useState(null);
   const navigate = useNavigate();
 
-  const clearForm = () => {
-    setName("");
-    setEmail("");
-    setPassword("");
-    setError(null);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      navigate("/dashboard");
+    }
+  }, [navigate]);
+
+  const handleQuickStart = (query) => {
+    localStorage.setItem("initialQuestion", query);
+    navigate("/dashboard");
   };
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError("Email and Password are required!");
-      return;
-    }
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
     setLoading(true);
+
     try {
-      const data = await login(email, password);
-      localStorage.setItem("username", email);
-      
-      // If there's an initial question, store it in sessionStorage
-      if (initialQuestion.trim()) {
-        sessionStorage.setItem("initialQuestion", initialQuestion.trim());
-        navigate("/dashboard/chat");
+      if (activeTab === "login") {
+        await login(formData.username, formData.password);
+        navigate("/dashboard");
       } else {
+        if (formData.password !== formData.confirmPassword) {
+          setError("Passwords do not match");
+          return;
+        }
+        await signup(formData.username, formData.password, formData.name, formData.email);
         navigate("/dashboard");
       }
-    } catch (err) {
-      // Check if this is a Google OAuth user who needs to set a password
-      if (err.code === "PASSWORD_SETUP_REQUIRED") {
-        setPasswordSetupUsername(email);
-        setShowPasswordSetupModal(true);
-        setShowModal(false); // Close the login modal
-      } else {
-        setError(err.message || "Login failed. Please try again.");
-      }
+    } catch (error) {
+      setError(error.message || "An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle successful password setup
-  const handlePasswordSetupSuccess = () => {
-    setShowPasswordSetupModal(false);
-    setError("Password setup successful! Please try logging in again with your new password.");
-    setShowModal(true); // Show login modal again
-    setPassword(""); // Clear the password field
-  };
-
-
-  const handleSignup = async () => {
-    if (!name || !email || !password) {
-      setError("All fields are required!");
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await signup(name, email, password);
-      setActiveTab("login");
-      clearForm();
-      setError(null);
-      
-      setTimeout(() => {
-        setError("Account created successfully! Please sign in.");
-      }, 100);
-    } catch (err) {
-      setError(err.message || "Signup failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLoginSuccess = (data) => {
-    // If there's an initial question, store it in sessionStorage
-    if (initialQuestion.trim()) {
-      sessionStorage.setItem("initialQuestion", initialQuestion.trim());
-      navigate("/dashboard/chat");
+  const handleGoogleSuccess = (userData) => {
+    if (userData.needsPassword) {
+      setGoogleUserData(userData);
+      setShowPasswordModal(true);
     } else {
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   };
 
-  const handleGoogleLoginError = (errorMessage) => {
-    setError(errorMessage || "Google login failed. Please try again.");
+  const handleGoogleError = (error) => {
+    setError(error.message || "Google authentication failed");
   };
 
-  const handleAuthModalOpen = () => {
-    setShowModal(true);
-    clearForm();
+  const handlePasswordSetup = async (password) => {
+    try {
+      await login(googleUserData.email, password);
+      navigate("/dashboard");
+    } catch (error) {
+      setError(error.message || "Password setup failed");
+    }
   };
 
-  const handleQuickStart = (question) => {
-    setInitialQuestion(question);
-    handleAuthModalOpen();
-  };
-
+  // Set up modal trigger for auth
   useEffect(() => {
     const authTriggers = document.querySelectorAll('.auth-modal-trigger');
+    const handleAuthModalOpen = () => {
+      setShowModal(true);
+    };
+
     authTriggers.forEach(trigger => {
       trigger.addEventListener('click', handleAuthModalOpen);
     });
@@ -130,215 +111,255 @@ const Welcome = () => {
     {
       icon: <FaBrain />,
       title: "AI-Powered Learning",
-      description: "Get personalized help and explanations from our AI tutor."
+      description: "Get personalized help and explanations from our advanced AI tutor.",
+      color: "primary"
     },
     {
       icon: <FaRocket />,
       title: "Instant Support",
-      description: "Ask questions anytime and get immediate responses."
+      description: "Ask questions anytime and get immediate, intelligent responses.",
+      color: "success"
     },
     {
       icon: <FaGraduationCap />,
       title: "Custom Learning Paths",
-      description: "Create study plans tailored to your specific goals."
+      description: "Create personalized study plans tailored to your goals and pace.",
+      color: "info"
+    },
+    {
+      icon: <FaChartLine />,
+      title: "Progress Tracking",
+      description: "Monitor your learning journey with detailed analytics and insights.",
+      color: "warning"
     }
   ];
 
-  const benefits = [
-    "AI-powered tutoring",
-    "24/7 availability",
-    "Personalized learning"
+  const quickStartExamples = [
+    {
+      icon: <FaCode />,
+      title: "Programming",
+      description: "Learn Python, JavaScript, and more",
+      query: "Create a learning path for Python programming"
+    },
+    {
+      icon: <FaCalculator />,
+      title: "Mathematics",
+      description: "Master calculus, algebra, and statistics",
+      query: "Help me understand calculus concepts"
+    },
+    {
+      icon: <FaBook />,
+      title: "Science",
+      description: "Explore physics, chemistry, and biology",
+      query: "Explain quantum physics basics"
+    },
+    {
+      icon: <FaLightbulb />,
+      title: "Study Skills",
+      description: "Improve your learning techniques",
+      query: "What are effective study techniques?"
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: "Sarah Johnson",
+      role: "Computer Science Student",
+      content: "AI Tutor helped me understand complex algorithms in ways my textbooks never could. The personalized explanations are incredible!",
+      rating: 5
+    },
+    {
+      name: "Michael Chen",
+      role: "High School Student",
+      content: "Getting help with calculus at 2 AM? No problem! AI Tutor is always there when I need it most.",
+      rating: 5
+    },
+    {
+      name: "Emily Rodriguez",
+      role: "Medical Student",
+      content: "The custom study plans helped me organize my learning and stay on track. It's like having a personal tutor 24/7.",
+      rating: 5
+    }
   ];
 
   return (
-    <div className="optimized-welcome">
-      {/* Enhanced Hero Section */}
-      <section className="enhanced-hero">
-        <Container fluid>
+    <div className="welcome-page">
+      {/* Hero Section */}
+      <section className="hero-section">
+        <Container>
           <Row className="align-items-center min-vh-100">
             <Col lg={6} className="hero-content">
-              <div className="content-wrapper">
-                <div className="hero-badge">
-                  <FaBrain className="me-2" />
-                  AI-Powered Learning Platform
+              <div className="brand-section">
+                <div className="brand-logo">
+                  <img
+                    src="/icons/aitutor-short-no-bg.png"
+                    alt="AI Tutor"
+                    className="logo-image"
+                  />
                 </div>
-                
-                <h1 className="hero-title">
-                  Learn Smarter with 
-                  <span className="brand-highlight">AI Tutor</span>
-                </h1>
-                
-                <p className="hero-subtitle">
-                  Get personalized help with any subject. Ask questions, create study plans, and learn at your own pace.
+                <div className="brand-text">
+                  <h1 className="brand-title">
+                    <span className="ai-text">AI</span>
+                    <span className="tutor-text">Tutor</span>
+                  </h1>
+                  <p className="brand-subtitle">powered by VizTalk AI</p>
+                </div>
+              </div>
+
+              <div className="hero-message">
+                <h2 className="hero-title">
+                  Transform Your Learning with AI
+                </h2>
+                <p className="hero-description">
+                  Experience personalized education powered by artificial intelligence. 
+                  Get instant help, create custom study plans, and achieve your learning goals faster.
                 </p>
+              </div>
 
-                {/* Quick Start Input */}
-                <div className="quick-start-input">
-                  <Form.Group className="input-with-button">
-                    <Form.Control
-                      type="text"
-                      placeholder="Ask me anything... (e.g., 'Help me learn Python programming')"
-                      value={initialQuestion}
-                      onChange={(e) => setInitialQuestion(e.target.value)}
-                      className="hero-input"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && initialQuestion.trim()) {
-                          handleQuickStart(initialQuestion.trim());
-                        }
-                      }}
-                    />
-                    <Button 
-                      variant="primary"
-                      className="input-button"
-                      onClick={() => initialQuestion.trim() && handleQuickStart(initialQuestion.trim())}
-                      disabled={!initialQuestion.trim()}
-                    >
-                      <FaPlay />
-                    </Button>
-                  </Form.Group>
-                  <div className="quick-examples">
-                    <span className="examples-label">Try asking:</span>
-                    <button 
-                      type="button" 
-                      className="example-chip"
-                      onClick={() => setInitialQuestion("Create a learning path for Python programming")}
-                    >
-                      Python programming
-                    </button>
-                    <button 
-                      type="button" 
-                      className="example-chip"
-                      onClick={() => setInitialQuestion("Help me with math calculus")}
-                    >
-                      Math calculus
-                    </button>
-                    <button 
-                      type="button" 
-                      className="example-chip"
-                      onClick={() => setInitialQuestion("Explain machine learning basics")}
-                    >
-                      Machine learning
-                    </button>
-                  </div>
-                </div>
-
-                <div className="benefits-list">
-                  {benefits.map((benefit, index) => (
-                    <div key={index} className="benefit-item">
-                      <FaCheck className="check-icon" />
-                      <span>{benefit}</span>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="hero-actions">
-                  <Button 
-                    variant="primary" 
-                    size="lg" 
-                    className="cta-button"
-                    onClick={() => handleQuickStart("What can you help me learn?")}
-                  >
-                    <FaPlay className="me-2" />
-                    Get Started
-                  </Button>
-                  <Button 
-                    variant="outline-light" 
-                    size="lg"
-                    className="secondary-button"
-                    onClick={() => setShowModal(true)}
-                  >
-                    Sign In
-                  </Button>
-                </div>
+              <div className="hero-actions">
+                <Button 
+                  variant="primary" 
+                  size="lg" 
+                  className="primary-cta"
+                  onClick={() => handleQuickStart("What can you help me learn?")}
+                >
+                  <FaPlay className="me-2" />
+                  Start Learning Now
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  size="lg" 
+                  className="secondary-cta"
+                  onClick={() => setShowModal(true)}
+                >
+                  <FaUsers className="me-2" />
+                  Sign In
+                </Button>
               </div>
             </Col>
             
             <Col lg={6} className="hero-visual">
-              <div className="hero-image-container">
-                <div className="floating-elements">
-                  <div className="floating-card card-1">
-                    <FaBrain className="icon" />
-                    <span>AI-Powered</span>
-                  </div>
-                  <div className="floating-card card-2">
-                    <FaGraduationCap className="icon" />
-                    <span>Personalized</span>
-                  </div>
-                  <div className="floating-card card-3">
-                    <FaLightbulb className="icon" />
-                    <span>Interactive</span>
-                  </div>
+              <div className="quick-start-grid">
+                <h3 className="quick-start-title">What can AI Tutor help you with?</h3>
+                <div className="example-cards">
+                  {quickStartExamples.map((example, index) => (
+                    <div
+                      key={index}
+                      className="example-card"
+                      onClick={() => handleQuickStart(example.query)}
+                    >
+                      <div className="example-icon">{example.icon}</div>
+                      <h4 className="example-title">{example.title}</h4>
+                      <p className="example-description">{example.description}</p>
+                      <div className="example-arrow">
+                        <FaArrowRight />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <img
-                  src="/icons/aitutor-short-no-bg.png"
-                  alt="AI Learning"
-                  className="hero-main-image"
-                />
               </div>
             </Col>
           </Row>
         </Container>
       </section>
 
-      {/* Enhanced Features Section */}
-      <section className="enhanced-features" id="features">
+      {/* Features Section */}
+      <section className="features-section">
         <Container>
           <Row>
-            <Col lg={12} className="text-center section-header">
-              <div className="section-badge">
-                <FaRocket className="me-2" />
-                Features
+            <Col lg={12} className="text-center">
+              <div className="section-header">
+                <h2 className="section-title">Why Choose AI Tutor?</h2>
+                <p className="section-subtitle">
+                  Experience the future of personalized learning with our advanced AI technology
+                </p>
               </div>
-              <h2 className="section-title">How AI Tutor Helps You</h2>
-              <p className="section-subtitle">
-                Simple, effective AI-powered learning tools
-              </p>
             </Col>
           </Row>
-          <Row className="features-grid">
+          <Row className="g-4">
             {features.map((feature, index) => (
-              <Col lg={4} md={6} key={index} className="feature-col">
-                <div className="enhanced-feature-card">
-                  <div className="feature-icon">
-                    {feature.icon}
-                  </div>
-                  <h3>{feature.title}</h3>
-                  <p>{feature.description}</p>
-                </div>
+              <Col lg={3} md={6} key={index}>
+                <Card className="feature-card h-100">
+                  <Card.Body className="text-center">
+                    <div className={`feature-icon ${feature.color}`}>
+                      {feature.icon}
+                    </div>
+                    <h5 className="feature-title">{feature.title}</h5>
+                    <p className="feature-description">{feature.description}</p>
+                  </Card.Body>
+                </Card>
               </Col>
             ))}
           </Row>
         </Container>
       </section>
 
-      {/* Enhanced CTA Section */}
-      <section className="enhanced-cta">
+      {/* Testimonials Section */}
+      <section className="testimonials-section">
         <Container>
           <Row>
-            <Col lg={8} className="mx-auto text-center">
-              <div className="cta-content">
-                <h2 className="cta-title">Ready to Start Learning?</h2>
-                <p className="cta-subtitle">
-                  Begin your personalized learning journey with AI Tutor today
+            <Col lg={12} className="text-center">
+              <div className="section-header">
+                <h2 className="section-title">What Students Say</h2>
+                <p className="section-subtitle">
+                  Join thousands of learners who are already succeeding with AI Tutor
                 </p>
-                <Button 
-                  variant="primary" 
-                  size="lg" 
-                  className="final-cta-button"
-                  onClick={() => handleQuickStart("What can you help me learn?")}
-                >
-                  <FaPlay className="me-2" />
-                  Get Started
-                </Button>
+              </div>
+            </Col>
+          </Row>
+          <Row className="g-4">
+            {testimonials.map((testimonial, index) => (
+              <Col lg={4} md={6} key={index}>
+                <Card className="testimonial-card h-100">
+                  <Card.Body>
+                    <div className="testimonial-rating">
+                      {[...Array(testimonial.rating)].map((_, i) => (
+                        <FaStar key={i} className="star-icon" />
+                      ))}
+                    </div>
+                    <p className="testimonial-content">"{testimonial.content}"</p>
+                    <div className="testimonial-author">
+                      <strong>{testimonial.name}</strong>
+                      <span className="author-role">{testimonial.role}</span>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </Container>
+      </section>
+
+      {/* CTA Section */}
+      <section className="cta-section">
+        <Container>
+          <Row className="justify-content-center">
+            <Col lg={8} className="text-center">
+              <div className="cta-content">
+                <h2 className="cta-title">Ready to Transform Your Learning?</h2>
+                <p className="cta-subtitle">
+                  Join thousands of students who are already learning smarter with AI Tutor
+                </p>
+                <div className="cta-buttons">
+                  <Button 
+                    variant="primary" 
+                    size="lg" 
+                    className="primary-cta"
+                    onClick={() => handleQuickStart("What can you help me learn?")}
+                  >
+                    <FaPlay className="me-2" />
+                    Get Started Free
+                  </Button>
+                </div>
               </div>
             </Col>
           </Row>
         </Container>
       </section>
 
-      {/* Enhanced Authentication Modal */}
+      {/* Authentication Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg" className="auth-modal">
-        <Modal.Header closeButton className="border-0">
+        <Modal.Header closeButton className="auth-modal-header">
           <Modal.Title className="d-flex align-items-center">
             <img
               src="/icons/aitutor-short-no-bg.png"
@@ -347,155 +368,148 @@ const Welcome = () => {
               height="32"
               className="me-2"
             />
-            {activeTab === "login" ? "Welcome Back to AI Tutor" : "Join AI Tutor Today"}
+            Welcome to AI Tutor
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="p-4">
+        <Modal.Body className="auth-modal-body">
+          <Tabs
+            activeKey={activeTab}
+            onSelect={(k) => setActiveTab(k)}
+            className="enhanced-tabs"
+          >
+            <Tab eventKey="login" title="Sign In" className="auth-tab">
+              <Form onSubmit={handleSubmit} className="auth-form">
+                <Form.Group className="mb-3">
+                  <Form.Label>Username or Email</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    placeholder="Enter your username or email"
+                    required
+                    className="enhanced-input"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="Enter your password"
+                    required
+                    className="enhanced-input"
+                  />
+                </Form.Group>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  className="w-100 enhanced-button"
+                  disabled={loading}
+                >
+                  {loading ? <Spinner animation="border" size="sm" /> : "Sign In"}
+                </Button>
+              </Form>
+            </Tab>
+            <Tab eventKey="signup" title="Sign Up" className="auth-tab">
+              <Form onSubmit={handleSubmit} className="auth-form">
+                <Form.Group className="mb-3">
+                  <Form.Label>Full Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Enter your full name"
+                    required
+                    className="enhanced-input"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="Enter your email"
+                    required
+                    className="enhanced-input"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Username</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    placeholder="Choose a username"
+                    required
+                    className="enhanced-input"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="Create a password"
+                    required
+                    className="enhanced-input"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Confirm Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="Confirm your password"
+                    required
+                    className="enhanced-input"
+                  />
+                </Form.Group>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  className="w-100 enhanced-button"
+                  disabled={loading}
+                >
+                  {loading ? <Spinner animation="border" size="sm" /> : "Sign Up"}
+                </Button>
+              </Form>
+            </Tab>
+          </Tabs>
+
           {error && (
-            <Alert variant={error.includes("successfully") ? "success" : "danger"} className="mb-3">
+            <Alert variant="danger" className="mt-3">
               {error}
             </Alert>
           )}
-          
-          {initialQuestion && (
-            <Alert variant="info" className="mb-3">
-              <strong>Ready to get started with:</strong> "{initialQuestion}"
-            </Alert>
-          )}
-          
-          <Tabs 
-            activeKey={activeTab} 
-            onSelect={(k) => { setActiveTab(k); clearForm(); }} 
-            className="mb-4 enhanced-tabs"
-          >
-            <Tab eventKey="login" title="Sign In">
-              <div className="auth-form">
-                <GoogleLoginButton 
-                  onSuccess={handleGoogleLoginSuccess}
-                  onError={handleGoogleLoginError}
-                />
-                
-                <div className="separator">
-                  <span>or sign in with email</span>
-                </div>
-                
-                <Form>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Email Address</Form.Label>
-                    <Form.Control
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="enhanced-input"
-                    />
-                  </Form.Group>
-                  <Form.Group className="mb-4">
-                    <Form.Label>Password</Form.Label>
-                    <Form.Control
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="enhanced-input"
-                    />
-                  </Form.Group>
-                  <Button
-                    variant="primary"
-                    className="w-100 mb-3 enhanced-button"
-                    onClick={handleLogin}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <Spinner size="sm" animation="border" className="me-2" />
-                        Signing In...
-                      </>
-                    ) : (
-                      <>
-                        <FaPlay className="me-2" />
-                        Sign In
-                      </>
-                    )}
-                  </Button>
-                </Form>
-              </div>
-            </Tab>
 
-            <Tab eventKey="signup" title="Sign Up">
-              <div className="auth-form">
-                <GoogleLoginButton 
-                  onSuccess={handleGoogleLoginSuccess}
-                  onError={handleGoogleLoginError}
-                  buttonText="Sign up with Google"
-                />
-                
-                <div className="separator">
-                  <span>or sign up with email</span>
-                </div>
-                
-                <Form>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Full Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="enhanced-input"
-                    />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Email Address</Form.Label>
-                    <Form.Control
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="enhanced-input"
-                    />
-                  </Form.Group>
-                  <Form.Group className="mb-4">
-                    <Form.Label>Password</Form.Label>
-                    <Form.Control
-                      type="password"
-                      placeholder="Create a strong password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="enhanced-input"
-                    />
-                  </Form.Group>
-                  <Button
-                    variant="primary"
-                    className="w-100 mb-3 enhanced-button"
-                    onClick={handleSignup}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <Spinner size="sm" animation="border" className="me-2" />
-                        Creating Account...
-                      </>
-                    ) : (
-                      <>
-                        <FaRocket className="me-2" />
-                        Create Account
-                      </>
-                    )}
-                  </Button>
-                </Form>
-              </div>
-            </Tab>
-          </Tabs>
+          <div className="separator">
+            <span>or</span>
+          </div>
+
+          <GoogleLoginButton
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+          />
         </Modal.Body>
       </Modal>
 
-      {/* Password Setup Modal for Google OAuth Users */}
+      {/* Password Setup Modal */}
       <PasswordSetupModal
-        show={showPasswordSetupModal}
-        onHide={() => setShowPasswordSetupModal(false)}
-        username={passwordSetupUsername}
-        onSuccess={handlePasswordSetupSuccess}
+        show={showPasswordModal}
+        onHide={() => setShowPasswordModal(false)}
+        onPasswordSetup={handlePasswordSetup}
+        userData={googleUserData}
       />
     </div>
   );
