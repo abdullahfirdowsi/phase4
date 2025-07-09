@@ -220,12 +220,9 @@ const QuizSystem = () => {
         console.warn('⚠️ Issue with chat history response:', chatHistoryResponse.status);
       }
       
-      // Add sample quizzes if no active quizzes are available
+      // No mock data - display empty state instead
       if (transformedQuizzes.length === 0) {
-        console.log('🔧 No active quizzes found, creating sample quizzes...');
-        const sampleQuizzes = createSampleQuizzes();
-        console.log('📝 Sample quizzes created:', sampleQuizzes);
-        transformedQuizzes = sampleQuizzes || [];
+        console.log('🔧 No active quizzes found, will display empty state.');
       }
 
       setQuizzes(transformedQuizzes);
@@ -238,68 +235,6 @@ const QuizSystem = () => {
     }
   };
 
-  const createSampleQuizzes = () => {
-    const username = localStorage.getItem("username");
-    console.log('🔧 Creating sample quizzes for username:', username);
-    
-    // NO localStorage checking - always create fresh samples when needed
-    
-    const sampleQuizzes = [
-      {
-        id: "quiz_1",
-        title: "Python Programming Basics",
-        description: "Test your knowledge of Python fundamentals including variables, data types, and control structures.",
-        subject: "Programming",
-        difficulty: "beginner",
-        time_limit: 10,
-        questions: Array(5).fill().map((_, i) => ({
-          id: `q_${i+1}`,
-          question_number: i+1,
-          question: `Sample Python question ${i+1}`,
-          type: "mcq",
-          options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-          correct_answer: "A"
-        }))
-      },
-      {
-        id: "quiz_2",
-        title: "Web Development Fundamentals",
-        description: "Test your knowledge of HTML, CSS, and JavaScript basics.",
-        subject: "Web Development",
-        difficulty: "medium",
-        time_limit: 15,
-        questions: Array(8).fill().map((_, i) => ({
-          id: `q_${i+1}`,
-          question_number: i+1,
-          question: `Sample Web Development question ${i+1}`,
-          type: "mcq",
-          options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-          correct_answer: "B"
-        }))
-      },
-      {
-        id: "quiz_3",
-        title: "Data Science Essentials",
-        description: "Test your knowledge of data analysis, visualization, and basic machine learning concepts.",
-        subject: "Data Science",
-        difficulty: "hard",
-        time_limit: 20,
-        questions: Array(10).fill().map((_, i) => ({
-          id: `q_${i+1}`,
-          question_number: i+1,
-          question: `Sample Data Science question ${i+1}`,
-          type: "mcq",
-          options: ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-          correct_answer: "C"
-        }))
-      }
-    ];
-    
-    console.log('✅ Sample quizzes created successfully:', sampleQuizzes);
-    setQuizzes(sampleQuizzes);
-    // Also return the sample quizzes for use in fetchQuizzes
-    return sampleQuizzes;
-  };
 
   const fetchQuizResults = async () => {
     try {
@@ -429,47 +364,16 @@ const QuizSystem = () => {
         // NO localStorage caching - data loaded directly from MongoDB
         
       } catch (error) {
-        console.log("Quiz results APIs failed, creating sample results:", error.message);
-        // Create sample quiz results since the APIs are not available
-        createSampleQuizResults();
+        console.log("Quiz results APIs failed:", error.message);
+        // No mock data - will show empty state
+        setQuizResults([]);
       }
     } catch (error) {
       console.error("Error fetching quiz results:", error);
-      createSampleQuizResults();
+      setQuizResults([]);
     }
   };
 
-  const createSampleQuizResults = () => {
-    const username = localStorage.getItem("username");
-    console.log('🔧 Creating sample quiz results for username:', username);
-    
-    // NO localStorage checking - always create fresh samples when needed
-    
-    // Create sample quiz results since the API is not available
-    const sampleResults = [
-      {
-        id: "result_1",
-        quiz_id: "quiz_1",
-        quiz_title: "Python Programming Basics",
-        score_percentage: 80,
-        correct_answers: 4,
-        total_questions: 5,
-        submitted_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
-      },
-      {
-        id: "result_2",
-        quiz_id: "quiz_2",
-        quiz_title: "Web Development Fundamentals",
-        score_percentage: 75,
-        correct_answers: 6,
-        total_questions: 8,
-        submitted_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
-      }
-    ];
-    
-    setQuizResults(sampleResults);
-    // NO localStorage caching - sample results are temporary fallback only
-  };
 
   const handleCreateQuiz = async () => {
     if (!formData.title.trim() || !formData.subject.trim()) {
