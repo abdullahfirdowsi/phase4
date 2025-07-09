@@ -56,7 +56,7 @@ const GoogleLoginButton = ({ onSuccess, onError, buttonText = "Sign in with Goog
       onClick={() => login()}
     >
       <FcGoogle size={20} className="google-icon" />
-      <span>{buttonText}</span>
+      <span>Continue with Google</span>
     </Button>
   );
 };

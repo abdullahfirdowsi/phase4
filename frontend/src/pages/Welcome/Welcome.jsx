@@ -3,7 +3,7 @@ import { Tab, Tabs, Button, Form, Modal, Alert, Spinner, Container, Row, Col, Ca
 import { useNavigate } from "react-router-dom";
 import { login, signup } from "../../api";
 import "./Welcome.scss";
-import { FaBrain, FaRocket, FaGraduationCap, FaPlay, FaCheck, FaCode, FaBook, FaCalculator, FaLightbulb, FaChartLine, FaUsers, FaStar, FaArrowRight } from "react-icons/fa";
+import { FaBrain, FaRocket, FaGraduationCap, FaPlay, FaCheck, FaCode, FaBook, FaCalculator, FaLightbulb, FaChartLine, FaUsers, FaStar, FaArrowRight, FaEye, FaEyeSlash } from "react-icons/fa";
 import GoogleLoginButton from "../../components/GoogleLoginButton/GoogleLoginButton";
 import PasswordSetupModal from "../../components/PasswordSetupModal/PasswordSetupModal";
 
@@ -21,6 +21,11 @@ const Welcome = () => {
   const [loading, setLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [googleUserData, setGoogleUserData] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [isFormValid, setIsFormValid] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,17 +40,69 @@ const Welcome = () => {
     navigate("/dashboard");
   };
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (activeTab === 'signup') {
+      if (!formData.name.trim()) {
+        errors.name = 'Full name is required';
+      }
+      
+      if (!formData.email.trim()) {
+        errors.email = 'Email is required';
+      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        errors.email = 'Please enter a valid email address';
+      }
+      
+      if (!formData.password) {
+        errors.password = 'Password is required';
+      } else if (formData.password.length < 6) {
+        errors.password = 'Password must be at least 6 characters';
+      }
+      
+      if (!formData.confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
+      }
+    } else {
+      if (!formData.username.trim()) {
+        errors.username = 'Username or email is required';
+      }
+      
+      if (!formData.password) {
+        errors.password = 'Password is required';
+      }
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+    
+    // Clear specific field error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -53,11 +110,7 @@ const Welcome = () => {
         await login(formData.username, formData.password);
         navigate("/dashboard");
       } else {
-        if (formData.password !== formData.confirmPassword) {
-          setError("Passwords do not match");
-          return;
-        }
-        await signup(formData.username, formData.password, formData.name, formData.email);
+        await signup(formData.email, formData.password, formData.name, formData.email);
         navigate("/dashboard");
       }
     } catch (error) {
@@ -221,7 +274,7 @@ const Welcome = () => {
                   variant="primary" 
                   size="lg" 
                   className="primary-cta"
-                  onClick={() => handleQuickStart("What can you help me learn?")}
+                  onClick={() => setShowModal(true)}
                 >
                   <FaPlay className="me-2" />
                   Start Learning Now
@@ -345,7 +398,7 @@ const Welcome = () => {
                     variant="primary" 
                     size="lg" 
                     className="primary-cta"
-                    onClick={() => handleQuickStart("What can you help me learn?")}
+                    onClick={() => setShowModal(true)}
                   >
                     <FaPlay className="me-2" />
                     Get Started Free
@@ -388,20 +441,40 @@ const Welcome = () => {
                     onChange={handleInputChange}
                     placeholder="Enter your username or email"
                     required
-                    className="enhanced-input"
+                    className={`enhanced-input ${formErrors.username ? 'is-invalid' : ''}`}
                   />
+                  {formErrors.username && (
+                    <div className="invalid-feedback d-block">
+                      {formErrors.username}
+                    </div>
+                  )}
                 </Form.Group>
-                <Form.Group className="mb-3">
+                						<Form.Group className="mb-3">
                   <Form.Label>Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Enter your password"
-                    required
-                    className="enhanced-input"
-                  />
+                  <div className="password-input-container">
+                    <Form.Control
+                      type={showLoginPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Enter your password"
+                      required
+                      className={`enhanced-input ${formErrors.password ? 'is-invalid' : ''}`}
+                    />
+                    <Button
+                      variant="link"
+                      className="password-toggle"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      type="button"
+                    >
+                      {showLoginPassword ? <FaEyeSlash /> : <FaEye />}
+                    </Button>
+                  </div>
+                  {formErrors.password && (
+                    <div className="invalid-feedback d-block">
+                      {formErrors.password}
+                    </div>
+                  )}
                 </Form.Group>
                 <Button
                   variant="primary"
@@ -424,8 +497,13 @@ const Welcome = () => {
                     onChange={handleInputChange}
                     placeholder="Enter your full name"
                     required
-                    className="enhanced-input"
+                    className={`enhanced-input ${formErrors.name ? 'is-invalid' : ''}`}
                   />
+                  {formErrors.name && (
+                    <div className="invalid-feedback d-block">
+                      {formErrors.name}
+                    </div>
+                  )}
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>Email</Form.Label>
@@ -436,44 +514,67 @@ const Welcome = () => {
                     onChange={handleInputChange}
                     placeholder="Enter your email"
                     required
-                    className="enhanced-input"
+                    className={`enhanced-input ${formErrors.email ? 'is-invalid' : ''}`}
                   />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Username</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    placeholder="Choose a username"
-                    required
-                    className="enhanced-input"
-                  />
+                  {formErrors.email && (
+                    <div className="invalid-feedback d-block">
+                      {formErrors.email}
+                    </div>
+                  )}
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Create a password"
-                    required
-                    className="enhanced-input"
-                  />
+                  <div className="password-input-container">
+                    <Form.Control
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Create a password"
+                      required
+                      className={`enhanced-input ${formErrors.password ? 'is-invalid' : ''}`}
+                    />
+                    <Button
+                      variant="link"
+                      className="password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                      type="button"
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </Button>
+                  </div>
+                  {formErrors.password && (
+                    <div className="invalid-feedback d-block">
+                      {formErrors.password}
+                    </div>
+                  )}
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>Confirm Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    placeholder="Confirm your password"
-                    required
-                    className="enhanced-input"
-                  />
+                  <div className="password-input-container">
+                    <Form.Control
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      placeholder="Confirm your password"
+                      required
+                      className={`enhanced-input ${formErrors.confirmPassword ? 'is-invalid' : ''}`}
+                    />
+                    <Button
+                      variant="link"
+                      className="password-toggle"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      type="button"
+                    >
+                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    </Button>
+                  </div>
+                  {formErrors.confirmPassword && (
+                    <div className="invalid-feedback d-block">
+                      {formErrors.confirmPassword}
+                    </div>
+                  )}
                 </Form.Group>
                 <Button
                   variant="primary"
@@ -493,8 +594,8 @@ const Welcome = () => {
             </Alert>
           )}
 
-          <div className="separator">
-            <span>or</span>
+          <div className="or-divider">
+            <span className="or-text">or</span>
           </div>
 
           <GoogleLoginButton

@@ -7,33 +7,44 @@
   justify-content: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.875rem 1.5rem;
+  padding: 1rem 1.5rem;
   background-color: white;
   color: #444;
-  border: 1px solid #ddd;
+  border: 2px solid #e1e5e9;
   border-radius: v.$border-radius-lg;
   font-weight: v.$font-weight-medium;
   transition: all 0.3s ease;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: relative;
   
   .google-icon {
     flex-shrink: 0;
+    margin-right: 0.5rem;
   }
   
   span {
-    font-size: 0.95rem;
+    font-size: 1rem;
+    font-weight: v.$font-weight-medium;
+    letter-spacing: 0.025em;
+    white-space: nowrap;
   }
   
   &:hover {
     background-color: #f8f9fa;
-    border-color: #dadce0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
+    border-color: #c6cdd4;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
   }
   
   &:active {
     transform: translateY(0);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: #4285f4;
+    box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
   }
 }
 
