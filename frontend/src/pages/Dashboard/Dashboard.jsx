@@ -14,12 +14,14 @@ import ErrorBoundary from "../../components/ErrorBoundary";
 import FloatingActionButton from "../../components/FloatingActionButton/FloatingActionButton";
 import './Dashboard.scss';
 
-const Dashboard = () => {
-  // Initialize sidebar state - always expanded on desktop, collapsed on mobile/tablet
+const Dashboard = ({ mobileMenuOpen, onMobileMenuClose }) => {
+  // Initialize sidebar state based on device type
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    // Check if we're on mobile/tablet
     if (typeof window !== 'undefined') {
-      return window.innerWidth <= 768; // Collapse on mobile/tablet by default
+      // Desktop: expanded by default
+      // Tablet: collapsed by default but toggleable
+      // Mobile: collapsed by default (hidden)
+      return window.innerWidth <= 768;
     }
     return false;
   });
@@ -49,20 +51,35 @@ const Dashboard = () => {
     }
   }, [location.pathname, isAdmin]);
 
+  // Handle mobile menu state from parent
+  useEffect(() => {
+    if (mobileMenuOpen !== undefined) {
+      // On mobile, sync sidebar state with mobile menu state
+      if (window.innerWidth <= 480) {
+        setSidebarCollapsed(!mobileMenuOpen);
+      }
+    }
+  }, [mobileMenuOpen]);
+
   // Handle window resize for responsive behavior
   useEffect(() => {
     const handleResize = () => {
-      // Auto-collapse sidebar on mobile/tablet, expand on desktop
-      if (window.innerWidth <= 768) {
+      if (window.innerWidth <= 480) {
+        // Mobile: collapse sidebar (it becomes overlay)
+        setSidebarCollapsed(true);
+        onMobileMenuClose && onMobileMenuClose();
+      } else if (window.innerWidth <= 768) {
+        // Tablet: collapse by default but allow toggle
         setSidebarCollapsed(true);
       } else {
+        // Desktop: expand by default
         setSidebarCollapsed(false);
       }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [onMobileMenuClose]);
 
   // Determine if we should show the floating action button
   const showFloatingButton = activeScreen !== 'chat';
@@ -132,11 +149,22 @@ const Dashboard = () => {
           )}
         </Routes>
         
-        {/* Floating Action Button */}
-        {showFloatingButton && <FloatingActionButton />}
-      </div>
-
+      {/* Floating Action Button */}
+      {showFloatingButton && <FloatingActionButton />}
     </div>
+
+    {/* Mobile Overlay - Only on mobile when menu is open */}
+    {mobileMenuOpen && (
+      <div 
+        className="mobile-overlay d-md-none"
+        onClick={() => {
+          setSidebarCollapsed(true);
+          onMobileMenuClose && onMobileMenuClose();
+        }}
+      />
+    )}
+
+  </div>
   );
 };
 

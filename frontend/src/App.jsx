@@ -22,9 +22,20 @@ const PublicRoute = ({ element }) => {
 };
 
 const AppContent = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  
+  const isDashboardPage = location.pathname.startsWith('/dashboard');
+  
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+  
   return (
     <div className="app-container">
-      <Header />
+      <Header 
+        onMobileMenuToggle={isDashboardPage ? handleMobileMenuToggle : null}
+      />
       <main className="main-content">
         <Routes>
           <Route 
@@ -43,7 +54,16 @@ const AppContent = () => {
           
           <Route 
             path="/dashboard/*" 
-            element={<ProtectedRoute element={<Dashboard />} />}
+            element={
+              <ProtectedRoute 
+                element={
+                  <Dashboard 
+                    mobileMenuOpen={mobileMenuOpen}
+                    onMobileMenuClose={() => setMobileMenuOpen(false)}
+                  />
+                }
+              />
+            }
           />
           
           <Route 

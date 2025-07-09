@@ -227,35 +227,38 @@
 // Responsive design
 @media (max-width: v.$breakpoint-tablet) {
   .modern-sidebar {
-    width: 70px; // Always show collapsed width on tablet
     top: 70px; // Match navbar height
     height: calc(100vh - 70px);
     z-index: 1040;
     
-    // Always show only icons on tablet
-    .nav-item {
-      padding: 0.75rem;
-      justify-content: center;
+    // On tablet, default to collapsed but still toggleable
+    &.collapsed {
+      width: 70px;
       
-      .nav-text {
-        display: none;
+      .nav-item {
+        padding: 0.75rem;
+        justify-content: center;
+        
+        .nav-text {
+          display: none;
+        }
+        
+        .active-indicator {
+          right: 0;
+          width: 3px;
+          height: 20px;
+          border-radius: 0 3px 3px 0;
+        }
       }
       
-      .active-indicator {
-        right: 0;
-        width: 3px;
-        height: 20px;
-        border-radius: 0 3px 3px 0;
-      }
-    }
-    
-    .sidebar-footer {
-      padding: 0.5rem;
-      
-      span {
-        font-size: 0.65rem;
-        line-height: 1.2;
-        word-break: break-word;
+      .sidebar-footer {
+        padding: 0.5rem;
+        
+        span {
+          font-size: 0.65rem;
+          line-height: 1.2;
+          word-break: break-word;
+        }
       }
     }
   }
@@ -263,9 +266,21 @@
 
 @media (max-width: v.$breakpoint-mobile) {
   .modern-sidebar {
-    width: 60px; // Always show collapsed width on mobile
     top: 60px; // Match mobile navbar height
     height: calc(100vh - 60px);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    
+    &:not(.collapsed) {
+      transform: translateX(0);
+      width: 260px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    &.collapsed {
+      transform: translateX(-100%);
+      width: 60px;
+    }
     
     .sidebar-toggle-container {
       padding: 0.75rem 0.5rem;
@@ -273,28 +288,6 @@
       .sidebar-toggle {
         width: 28px;
         height: 28px;
-      }
-    }
-    
-    // Always show only icons on mobile
-    .nav-item {
-      padding: 0.75rem;
-      justify-content: center;
-      font-size: 0.9rem;
-      
-      .nav-text {
-        display: none;
-      }
-      
-      .nav-icon {
-        font-size: 1rem;
-      }
-      
-      .active-indicator {
-        right: 0;
-        width: 3px;
-        height: 20px;
-        border-radius: 0 3px 3px 0;
       }
     }
     

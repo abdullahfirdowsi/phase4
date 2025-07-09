@@ -44,10 +44,10 @@
   }
   
   .dashboard-main {
-    margin-left: 70px; // Always account for icon-only sidebar on tablet
+    margin-left: 260px; // Account for full sidebar on tablet when expanded
     
     &.sidebar-collapsed {
-      margin-left: 70px;
+      margin-left: 70px; // Account for collapsed sidebar on tablet
     }
   }
   
@@ -62,10 +62,10 @@
   }
   
   .dashboard-main {
-    margin-left: 60px; // Always account for icon-only sidebar on mobile
+    margin-left: 0; // No margin on mobile (sidebar overlays)
     
     &.sidebar-collapsed {
-      margin-left: 60px;
+      margin-left: 0;
     }
   }
   

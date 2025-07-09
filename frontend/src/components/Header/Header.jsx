@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { Navbar, Container, Button, Dropdown } from "react-bootstrap";
-import { Person, BoxArrowRight } from "react-bootstrap-icons";
+import { Person, BoxArrowRight, List } from "react-bootstrap-icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../api";
 import ThemeToggle from "../ThemeToggle/ThemeToggle";
 import UserProfile from "../UserProfile/UserProfile";
 import './Header.scss';
 
-const Header = () => {
+const Header = ({ onMobileMenuToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -85,6 +85,18 @@ const Header = () => {
   return (
     <Navbar className="clean-navbar dashboard" fixed="top">
       <Container fluid className="navbar-container">
+        {/* Mobile Menu Toggle - Only show on mobile */}
+        {onMobileMenuToggle && (
+          <Button
+            variant="ghost"
+            className="mobile-menu-toggle d-md-none"
+            onClick={onMobileMenuToggle}
+            aria-label="Toggle navigation menu"
+          >
+            <List size={20} />
+          </Button>
+        )}
+        
         <Navbar.Brand className="brand-section" onClick={handleNavigateToChat} style={{ cursor: 'pointer' }}>
           <img
             src="/icons/aitutor-short-no-bg.png"

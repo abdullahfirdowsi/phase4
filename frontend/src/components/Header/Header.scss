@@ -50,6 +50,26 @@
   }
   
   
+  .mobile-menu-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    margin-right: 1rem;
+    
+    &:hover {
+      background: var(--bg-secondary);
+      color: var(--primary-color);
+    }
+    
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--primary-color);
+    }
+  }
+  
   .header-actions {
     display: flex;
     align-items: center;
