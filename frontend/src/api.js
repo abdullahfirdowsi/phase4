@@ -507,7 +507,7 @@ export const getAllLearningGoals = async () => {
   }
 };
 
-// Get All Learning Paths API Call
+// Get All Learning Paths API Call with Complete Data
 export const getAllLearningPaths = async (filters = {}) => {
   const username = localStorage.getItem("username");
   const token = localStorage.getItem("token");
@@ -521,16 +521,17 @@ export const getAllLearningPaths = async (filters = {}) => {
     // Build query parameters
     const queryParams = new URLSearchParams({
       username,
+      include_topics: 'true', // Request complete data
       ...filters,
       t: Date.now(), // Cache buster
-      r: Math.random().toString(36).substring(7) // Additional randomization
+      r: Math.random().toString(36).substring(7), // Additional randomization
+      _cb: `${Date.now()}_${Math.random()}` // Extra cache buster
     });
 
-    console.log('🔄 Fetching learning paths via API:', `${API_BASE_URL}/learning-paths/list?${queryParams}`);
+    console.log('🔄 Fetching complete learning paths data:', `${API_BASE_URL}/learning-paths/list?${queryParams}`);
     console.log('🔄 Using username:', username);
     console.log('🔄 Token present:', !!token);
 
-    // Try without apiRequest wrapper first for debugging
     const response = await fetch(`${API_BASE_URL}/learning-paths/list?${queryParams}`, {
       method: "GET",
       headers: {
@@ -549,14 +550,53 @@ export const getAllLearningPaths = async (filters = {}) => {
     }
 
     const data = await response.json();
-    console.log('✅ Learning paths fetched successfully:', data);
-    console.log('📊 Number of paths:', data.learning_paths?.length || 0);
+    console.log('✅ Complete learning paths data fetched:', data);
     
-    return data.learning_paths || [];
+    // If the backend doesn't support include_topics, fall back to fetching details individually
+    let completePaths = data.learning_paths || [];
+    
+    if (completePaths.length > 0 && !completePaths[0].topics) {
+      console.log('🔄 Backend doesn\'t include topics in list, fetching details individually...');
+      
+      // Fetch complete data for each path
+      const pathsWithDetails = await Promise.all(
+        completePaths.map(async (path) => {
+          try {
+            const detailData = await getLearningPathDetail(path.id);
+            if (detailData) {
+              // Merge list data with detail data
+              return {
+                ...path,
+                ...detailData,
+                topics_count: detailData.topics?.length || path.topics_count || 0
+              };
+            }
+            return path;
+          } catch (error) {
+            console.warn(`Failed to fetch details for path ${path.id}:`, error);
+            return path;
+          }
+        })
+      );
+      
+      completePaths = pathsWithDetails;
+    } else {
+      // Ensure topics_count is set correctly
+      completePaths = completePaths.map(path => ({
+        ...path,
+        topics_count: path.topics?.length || path.topics_count || 0
+      }));
+    }
+    
+    console.log('📊 Final paths with complete data:', completePaths.length);
+    completePaths.forEach((path, index) => {
+      console.log(`Path ${index + 1}: "${path.name}" - Topics: ${path.topics?.length || 0}, Count: ${path.topics_count}`);
+    });
+    
+    return completePaths;
   } catch (error) {
     console.error("Error fetching learning paths:", error);
     console.error("Error details:", error.message);
-    // Return empty array instead of throwing to prevent UI crashes
     return [];
   }
 };

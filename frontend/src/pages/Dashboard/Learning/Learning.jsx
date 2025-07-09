@@ -371,7 +371,7 @@ const handleViewContent = async (contentId, contentType) => {
                           </div>
                           <div className="meta-item">
                             <BookHalf size={14} />
-                            <span>{path.study_plans?.length || 0} modules</span>
+                            <span>{path.topics_count || path.topics?.length || 0} modules</span>
                           </div>
                         </div>
 

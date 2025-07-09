@@ -4,105 +4,32 @@ import {
   BookHalf, 
   Plus, 
   Clock, 
-  Star, 
   PlayCircleFill, 
-  Pencil, 
-  Trash,
-  Eye,
   Award,
-  GraphUp
+  GraphUp,
+  CheckCircle,
+  ExclamationCircle
 } from "react-bootstrap-icons";
 import { formatLocalDate } from "../../../utils/dateUtils";
-import { getAllLearningPaths } from "../../../api";
+import { getAllLearningPaths, updateLearningPathProgress } from "../../../api";
 import "./LearningPaths.scss";
-
-// API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const LearningPaths = () => {
   const [learningPaths, setLearningPaths] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [error, setError] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedPath, setSelectedPath] = useState(null);
-  const [error, setError] = useState(null);
-  const [filter, setFilter] = useState({ difficulty: "", tags: "" });
-
-  // Form state for creating new path
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    difficulty: "Beginner",
-    duration: "",
-    prerequisites: [],
-    topics: [],
-    tags: []
-  });
 
   useEffect(() => {
+    console.log('🚀 LearningPaths component mounted - fetching complete data');
     fetchLearningPaths();
-  }, [filter]);
-
-  // Listen for learning path save events from AI Chat
-  useEffect(() => {
-    const handleLearningPathSaved = (event) => {
-      console.log('📢 Received learningPathSaved event:', event.detail);
-      // Force refresh the learning paths list
-      fetchLearningPaths();
-    };
-
-    const handleStorageChange = (event) => {
-      if (event.key === 'lastSavedLearningPath') {
-        console.log('📢 Detected learning path save via storage event');
-        // Small delay to ensure backend has processed the save
-        setTimeout(() => {
-          fetchLearningPaths();
-        }, 500);
-      }
-    };
-
-    // Add event listeners
-    window.addEventListener('learningPathSaved', handleLearningPathSaved);
-    window.addEventListener('storage', handleStorageChange);
-
-    // Also listen for focus events to refresh when user switches back to this tab
-    const handleFocus = () => {
-      console.log('📢 Page focused - checking for new learning paths');
-      fetchLearningPaths();
-    };
-    window.addEventListener('focus', handleFocus);
-
-    // Also listen for page visibility changes
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('📢 Page became visible - refreshing learning paths');
-        fetchLearningPaths();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Manual refresh every 10 seconds if the page is visible
-    const refreshInterval = setInterval(() => {
-      if (!document.hidden) {
-        console.log('📢 Periodic refresh - checking for new learning paths');
-        fetchLearningPaths();
-      }
-    }, 10000);
-
-    // Cleanup event listeners on unmount
-    return () => {
-      window.removeEventListener('learningPathSaved', handleLearningPathSaved);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(refreshInterval);
-    };
   }, []);
 
-const fetchLearningPaths = async () => {
+  const fetchLearningPaths = async () => {
     try {
       setLoading(true);
-      setError(null); // Clear any previous errors
+      setError(null);
       const username = localStorage.getItem("username");
       
       if (!username) {
@@ -111,160 +38,94 @@ const fetchLearningPaths = async () => {
         return;
       }
       
-      console.log('🔄 Fetching learning paths for user:', username);
+      console.log('📡 Fetching complete learning paths with topics for user:', username);
       
-      // Use the new getAllLearningPaths API function
-      const paths = await getAllLearningPaths(filter);
-      
-      console.log('📋 Learning paths from API:', paths);
-      console.log('📋 Raw API response structure:');
-      paths.forEach((p, i) => {
-        console.log(`\n=== PATH ${i + 1} ===`);
-        console.log(`Name: "${p.name}"`);
-        console.log(`ID: ${p.id}`);
-        console.log(`Created: ${p.created_at}`);
-        console.log(`Topics Count: ${p.topics_count}`);
-        console.log(`Progress: ${p.progress}`);
-        console.log(`Topics Array:`, p.topics);
-        console.log(`Topics Length:`, p.topics?.length || 'undefined');
-        console.log(`Full Path Object:`, p);
-        
-        // Check if topics exist but are empty
-        if (p.topics) {
-          console.log(`Topics details:`);
-          p.topics.forEach((topic, tIndex) => {
-            console.log(`  Topic ${tIndex + 1}:`, {
-              name: topic.name,
-              description: topic.description,
-              subtopics: topic.subtopics,
-              links: topic.links,
-              videos: topic.videos
-            });
+      // Clear any potential cache issues
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          names.forEach(function(name) {
+            caches.delete(name);
           });
-        } else {
-          console.log(`❌ No topics array found for "${p.name}"`);
+        });
+      }
+      
+      // Get complete data including topics
+      const completePaths = await getAllLearningPaths();
+      
+      console.log('📊 Complete learning paths received:', completePaths);
+      console.log('📊 Total paths:', completePaths.length);
+      
+      // Debug each path
+      completePaths.forEach((path, index) => {
+        console.log(`\n📋 Path ${index + 1}: "${path.name}"`);
+        console.log(`  - ID: ${path.id}`);
+        console.log(`  - Topics Count: ${path.topics_count}`);
+        console.log(`  - Topics Array Length: ${path.topics?.length || 0}`);
+        console.log(`  - Progress: ${path.progress}%`);
+        console.log(`  - Has Topics: ${!!path.topics}`);
+        
+        if (path.topics && path.topics.length > 0) {
+          console.log(`  - Topics Preview:`);
+          path.topics.slice(0, 2).forEach((topic, tIndex) => {
+            console.log(`    ${tIndex + 1}. ${topic.name} (${topic.subtopics?.length || 0} subtopics)`);
+          });
         }
-        console.log(`===================\n`);
       });
       
-      console.log('🔍 Current user:', localStorage.getItem('username')); // Only for debug
-      
-      // Ensure the array is properly sorted newest first
-      const sortedPaths = paths.sort((a, b) => {
+      // Sort by creation date (newest first)
+      const sortedPaths = completePaths.sort((a, b) => {
         const dateA = new Date(a.created_at || 0);
         const dateB = new Date(b.created_at || 0);
-        return dateB.getTime() - dateA.getTime(); // newest first
-      });
-      
-      console.log('🔍 After frontend sorting - paths order:');
-      sortedPaths.forEach((p, i) => {
-        console.log(`  Sorted-${i + 1}. "${p.name}" - ${p.created_at}`);
+        return dateB.getTime() - dateA.getTime();
       });
       
       setLearningPaths(sortedPaths);
+      console.log('✅ Learning paths loaded successfully');
+      
     } catch (error) {
-      console.error("Error fetching learning paths:", error);
-      setError("Failed to fetch learning paths");
+      console.error("❌ Error fetching learning paths:", error);
+      setError("Failed to fetch learning paths. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreatePath = async () => {
-    try {
-      const username = localStorage.getItem("username"); // Only for authentication
-      const response = await fetch(`${API_BASE_URL}/learning-paths/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, path_data: formData })
-      });
 
-      const data = await response.json();
-      
-      if (response.ok) {
-        setShowCreateModal(false);
-        setFormData({
-          name: "",
-          description: "",
-          difficulty: "Beginner",
-          duration: "",
-          prerequisites: [],
-          topics: [],
-          tags: []
-        });
-        fetchLearningPaths();
-      } else {
-        setError(data.detail || "Failed to create learning path");
-      }
-    } catch (error) {
-      console.error("Error creating learning path:", error);
-      setError("Failed to create learning path");
-    }
-  };
-
-  const handleViewDetails = async (pathId) => {
-    try {
-      const username = localStorage.getItem("username"); // Only for authentication
-      console.log('🔍 Fetching path details for ID:', pathId);
-      const response = await fetch(`${API_BASE_URL}/learning-paths/detail/${pathId}?username=${username}`);
-      const data = await response.json();
-      
-      console.log('📋 API Response for path detail:', data);
-      console.log('📋 Path data structure:', data.path);
-      
-      if (response.ok) {
-        if (data.path) {
-          console.log('✅ Path topics:', data.path.topics);
-          console.log('✅ Topics count:', data.path.topics?.length || 0);
-          
-          // Debug each topic structure
-          if (data.path.topics) {
-            data.path.topics.forEach((topic, index) => {
-              console.log(`📖 Topic ${index + 1}:`, {
-                name: topic.name,
-                description: topic.description,
-                subtopics: topic.subtopics,
-                links: topic.links,
-                videos: topic.videos,
-                time_required: topic.time_required
-              });
-            });
-          }
-          
-          setSelectedPath(data.path);
-          setShowDetailModal(true);
-        } else {
-          console.error('❌ No path data in response');
-          setError('No path data found');
-        }
-      } else {
-        console.error('❌ API error:', data.detail || 'Unknown error');
-        setError(data.detail || "Failed to fetch path details");
-      }
-    } catch (error) {
-      console.error("Error fetching path details:", error);
-      setError("Failed to fetch path details");
-    }
+  const handleViewDetails = (path) => {
+    console.log('👁️ Viewing details for path:', path.name);
+    console.log('📋 Path topics:', path.topics?.length || 0);
+    setSelectedPath(path);
+    setShowDetailModal(true);
   };
 
   const handleUpdateProgress = async (pathId, topicIndex, completed) => {
     try {
-      const username = localStorage.getItem("username"); // Only for authentication
-      const response = await fetch(`${API_BASE_URL}/learning-paths/progress/update`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          path_id: pathId,
-          topic_index: topicIndex,
-          completed
-        })
-      });
-
-      if (response.ok) {
-        fetchLearningPaths();
+      const result = await updateLearningPathProgress(pathId, topicIndex, completed);
+      if (result) {
+        // Update local state
+        setLearningPaths(prev => prev.map(path => {
+          if (path.id === pathId) {
+            const updatedTopics = [...path.topics];
+            updatedTopics[topicIndex].completed = completed;
+            
+            // Recalculate progress
+            const completedCount = updatedTopics.filter(t => t.completed).length;
+            const progress = (completedCount / updatedTopics.length) * 100;
+            
+            return { ...path, topics: updatedTopics, progress };
+          }
+          return path;
+        }));
+        
+        // Update selected path if modal is open
         if (selectedPath && selectedPath.id === pathId) {
-          handleViewDetails(pathId); // Refresh detail view
+          const updatedTopics = [...selectedPath.topics];
+          updatedTopics[topicIndex].completed = completed;
+          
+          const completedCount = updatedTopics.filter(t => t.completed).length;
+          const progress = (completedCount / updatedTopics.length) * 100;
+          
+          setSelectedPath({ ...selectedPath, topics: updatedTopics, progress });
         }
       }
     } catch (error) {
@@ -326,9 +187,17 @@ const fetchLearningPaths = async () => {
               <Badge bg="info" className="me-2">
                 User: {localStorage.getItem('username')}
               </Badge>
-              <Badge bg="success">
+              <Badge bg="success" className="me-2">
                 {learningPaths.length} paths (sorted newest first)
               </Badge>
+              <Button 
+                variant="outline-primary" 
+                size="sm" 
+                onClick={fetchLearningPaths}
+                disabled={loading}
+              >
+                {loading ? 'Refreshing...' : 'Force Refresh'}
+              </Button>
             </div>
           </div>
         </div>
@@ -380,7 +249,14 @@ const fetchLearningPaths = async () => {
                         </div>
                         <div className="meta-item">
                           <BookHalf size={14} />
-                          <span>{path.topics_count || 0} modules</span>
+                          <span>
+                            {(() => {
+                              console.log('🔍 RENDER DEBUG - path.topics_count:', path.topics_count);
+                              console.log('🔍 RENDER DEBUG - path.topics?.length:', path.topics?.length);
+                              console.log('🔍 RENDER DEBUG - path object:', path);
+                              return path.topics_count || 0;
+                            })()} modules
+                          </span>
                         </div>
                         {path.created_at && (
                           <div className="meta-item">
@@ -405,7 +281,7 @@ const fetchLearningPaths = async () => {
                         <Button 
                           variant="primary" 
                           size="sm"
-                          onClick={() => handleViewDetails(path.id)}
+                          onClick={() => handleViewDetails(path)}
                           className="w-100"
                         >
                           <PlayCircleFill size={14} className="me-1" />
