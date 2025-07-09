@@ -9,8 +9,11 @@
   flex-direction: column;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.03);
-  height: 100%;
-  position: relative;
+  height: calc(100vh - #{v.$navbar-height});
+  position: fixed;
+  top: v.$navbar-height;
+  left: 0;
+  z-index: 1030;
   overflow: hidden;
   
   &.collapsed {
@@ -184,6 +187,33 @@
   }
 }
 
+// Sidebar Footer
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  text-align: center;
+  margin-top: auto;
+  
+  span {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    display: block;
+    opacity: 0.8;
+  }
+  
+  .modern-sidebar.collapsed & {
+    padding: 0.5rem;
+    
+    span {
+      font-size: 0.7rem;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+  }
+}
+
 // Animations
 @keyframes fadeIn {
   from {
@@ -197,9 +227,7 @@
 // Responsive design
 @media (max-width: v.$breakpoint-tablet) {
   .modern-sidebar {
-    position: fixed;
     top: 70px; // Match navbar height
-    left: 0;
     height: calc(100vh - 70px);
     z-index: 1040;
     transform: translateX(-100%);
@@ -231,6 +259,14 @@
       
       .nav-icon {
         font-size: 0.9rem;
+      }
+    }
+    
+    .sidebar-footer {
+      padding: 0.75rem 0.5rem;
+      
+      span {
+        font-size: 0.7rem;
       }
     }
   }

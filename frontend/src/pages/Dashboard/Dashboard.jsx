@@ -14,10 +14,24 @@ import ErrorBoundary from "../../components/ErrorBoundary";
 import FloatingActionButton from "../../components/FloatingActionButton/FloatingActionButton";
 import './Dashboard.scss';
 
-const Dashboard = () => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+const Dashboard = ({ mobileMenuOpen, onMobileMenuToggle }) => {
+  // Initialize sidebar state based on screen size
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    // Check if we're on mobile/tablet
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768; // Collapse on mobile by default
+    }
+    return false;
+  });
   const [activeScreen, setActiveScreen] = useState("dashboard");
   const location = useLocation();
+  
+  // Update sidebar state based on mobile menu prop
+  useEffect(() => {
+    if (window.innerWidth <= 768) {
+      setSidebarCollapsed(!mobileMenuOpen);
+    }
+  }, [mobileMenuOpen]);
 
   // Check if user is admin
   const isAdmin = localStorage.getItem("isAdmin") === "true";
@@ -41,6 +55,19 @@ const Dashboard = () => {
       setActiveScreen('dashboard');
     }
   }, [location.pathname, isAdmin]);
+
+  // Handle window resize for responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      // Auto-collapse sidebar on mobile/tablet
+      if (window.innerWidth <= 768) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Determine if we should show the floating action button
   const showFloatingButton = activeScreen !== 'chat';
@@ -115,10 +142,13 @@ const Dashboard = () => {
       </div>
 
       {/* Mobile Overlay */}
-      {!sidebarCollapsed && (
+      {mobileMenuOpen && (
         <div 
           className="mobile-overlay d-lg-none"
-          onClick={() => setSidebarCollapsed(true)}
+          onClick={() => {
+            setSidebarCollapsed(true);
+            onMobileMenuToggle && onMobileMenuToggle();
+          }}
         />
       )}
     </div>

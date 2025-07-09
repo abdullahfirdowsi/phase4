@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Welcome from "./pages/Welcome/Welcome";
@@ -20,45 +21,78 @@ const PublicRoute = ({ element }) => {
   return !isAuthenticated() ? element : <Navigate to="/welcome" replace />;
 };
 
+const AppContent = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  
+  // Check if we're on dashboard pages
+  const isDashboardPage = location.pathname.startsWith('/dashboard');
+  
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+  
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+  
+  return (
+    <div className="app-container">
+      <Header 
+        onMobileMenuToggle={handleMobileMenuToggle}
+        showMobileMenuToggle={isDashboardPage && isAuthenticated()}
+      />
+      <main className="main-content">
+        <Routes>
+          <Route 
+            path="/" 
+            element={
+              isAuthenticated() ? 
+                <Navigate to="/dashboard" replace /> : 
+                <Navigate to="/welcome" replace />
+            } 
+          />
+          
+          <Route 
+            path="/welcome" 
+            element={<PublicRoute element={<Welcome />} />} 
+          />
+          
+          <Route 
+            path="/dashboard/*" 
+            element={
+              <ProtectedRoute 
+                element={
+                  <Dashboard 
+                    mobileMenuOpen={mobileMenuOpen}
+                    onMobileMenuToggle={handleMobileMenuToggle}
+                  />
+                } 
+              />
+            }
+          />
+          
+          <Route 
+            path="*" 
+            element={
+              isAuthenticated() ? 
+                <Navigate to="/dashboard" replace /> : 
+                <Navigate to="/welcome" replace />
+            } 
+          />
+        </Routes>
+      </main>
+    </div>
+  );
+};
+
 const App = () => {
   return (
     <ThemeProvider>
-      <div className="app-container">
-        <Router>
-          <Header />
-          <main className="main-content">
-            <Routes>
-              <Route 
-                path="/" 
-                element={
-                  isAuthenticated() ? 
-                    <Navigate to="/dashboard" replace /> : 
-                    <Navigate to="/welcome" replace />
-                } 
-              />
-              
-              <Route 
-                path="/welcome" 
-                element={<PublicRoute element={<Welcome />} />} 
-              />
-              
-              <Route 
-                path="/dashboard/*" 
-                element={<ProtectedRoute element={<Dashboard />} />}
-              />
-              
-              <Route 
-                path="*" 
-                element={
-                  isAuthenticated() ? 
-                    <Navigate to="/dashboard" replace /> : 
-                    <Navigate to="/welcome" replace />
-                } 
-              />
-            </Routes>
-          </main>
-        </Router>
-      </div>
+      <Router>
+        <AppContent />
+      </Router>
     </ThemeProvider>
   );
 };

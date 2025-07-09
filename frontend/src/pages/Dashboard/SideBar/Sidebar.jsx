@@ -113,6 +113,10 @@ const Sidebar = ({
           ))}
         </ul>
       </nav>
+      {/* Footer */}
+      <div className="sidebar-footer">
+        <span>AI Tutor - Copyright 2025</span>
+      </div>
     </div>
   );
 };

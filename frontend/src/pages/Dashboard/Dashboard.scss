@@ -18,9 +18,10 @@
   overflow-y: auto;
   overflow-x: hidden;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 260px; // Default sidebar width
   
   &.sidebar-collapsed {
-    margin-left: 0;
+    margin-left: 70px; // Collapsed sidebar width
   }
 }
 
@@ -42,6 +43,14 @@
     height: calc(100vh - 70px);
   }
   
+  .dashboard-main {
+    margin-left: 0; // Remove margin on mobile
+    
+    &.sidebar-collapsed {
+      margin-left: 0;
+    }
+  }
+  
   .mobile-overlay {
     top: 70px;
   }
@@ -50,6 +59,14 @@
 @media (max-width: v.$breakpoint-mobile) {
   .dashboard-container {
     height: calc(100vh - 60px);
+  }
+  
+  .dashboard-main {
+    margin-left: 0; // Remove margin on mobile
+    
+    &.sidebar-collapsed {
+      margin-left: 0;
+    }
   }
   
   .mobile-overlay {
