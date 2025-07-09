@@ -111,6 +111,13 @@ const AIChat = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Auto-scroll when new messages are being generated
+  useEffect(() => {
+    if (isGenerating) {
+      scrollToBottom();
+    }
+  }, [isGenerating]);
+
   // Load chat history from backend
   const loadChatHistory = async () => {
     try {
@@ -144,6 +151,11 @@ const AIChat = () => {
         
         setMessages(processedHistory);
         console.log('✅ Chat history loaded:', processedHistory.length, 'messages');
+        
+        // Ensure scroll to bottom after loading history
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
       }
     } catch (error) {
       console.error('❌ Error loading chat history:', error);
@@ -157,15 +169,33 @@ const AIChat = () => {
     }
   };
 
-  // Scroll to bottom
-  const scrollToBottom = () => {
+  // Enhanced scroll to bottom function with multiple fallback methods
+  const scrollToBottom = useCallback(() => {
+    // Method 1: Use the ref to scroll into view
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'end'
-      });
+      try {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end',
+          inline: 'nearest'
+        });
+      } catch (error) {
+        console.warn('ScrollIntoView failed, trying alternative method:', error);
+        
+        // Method 2: Direct scroll on the messages container
+        const messagesContainer = messagesEndRef.current.closest('.chat-messages');
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      }
     }
-  };
+    
+    // Method 3: Fallback - find and scroll the messages container directly
+    const messagesContainer = document.querySelector('.chat-messages');
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, []);
 
   // Handle input change
   const handleInputChange = (e) => {
@@ -240,6 +270,11 @@ const AIChat = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsGenerating(true);
     setError(null);
+    
+    // Scroll to bottom after adding user message
+    setTimeout(() => {
+      scrollToBottom();
+    }, 10);
 
     try {
       if (detectedMode === 'quiz') {
@@ -291,6 +326,11 @@ const AIChat = () => {
 
       // Add AI message to UI
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Scroll to bottom after adding AI message
+      setTimeout(() => {
+        scrollToBottom();
+      }, 10);
 
       // Store quiz messages to backend (single API call)
       try {
@@ -318,6 +358,11 @@ const AIChat = () => {
     };
 
     setMessages(prev => [...prev, tempAiMessage]);
+    
+    // Scroll to bottom after adding temporary AI message
+    setTimeout(() => {
+      scrollToBottom();
+    }, 10);
 
     let accumulatedResponse = '';
 
@@ -331,16 +376,21 @@ const AIChat = () => {
           accumulatedResponse = partialResponse;
         }
 
-        // Update the temporary message
-        setMessages(prev => {
-          const updated = [...prev];
-          const lastIndex = updated.length - 1;
-          updated[lastIndex] = {
-            ...updated[lastIndex],
-            content: accumulatedResponse
-          };
-          return updated;
-        });
+      // Update the temporary message
+      setMessages(prev => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        updated[lastIndex] = {
+          ...updated[lastIndex],
+          content: accumulatedResponse
+        };
+        return updated;
+      });
+      
+      // Scroll to bottom after updating message content
+      setTimeout(() => {
+        scrollToBottom();
+      }, 10);
       },
       () => {
         console.log('✅ Learning path generation completed');
@@ -364,6 +414,11 @@ const AIChat = () => {
     };
 
     setMessages(prev => [...prev, tempAiMessage]);
+    
+    // Scroll to bottom after adding temporary AI message
+    setTimeout(() => {
+      scrollToBottom();
+    }, 10);
 
     let accumulatedResponse = '';
 
@@ -372,16 +427,21 @@ const AIChat = () => {
       (partialResponse) => {
         accumulatedResponse = partialResponse;
 
-        // Update the temporary message
-        setMessages(prev => {
-          const updated = [...prev];
-          const lastIndex = updated.length - 1;
-          updated[lastIndex] = {
-            ...updated[lastIndex],
-            content: accumulatedResponse
-          };
-          return updated;
-        });
+      // Update the temporary message
+      setMessages(prev => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        updated[lastIndex] = {
+          ...updated[lastIndex],
+          content: accumulatedResponse
+        };
+        return updated;
+      });
+      
+      // Scroll to bottom after updating message content
+      setTimeout(() => {
+        scrollToBottom();
+      }, 10);
       },
       () => {
         console.log('✅ Normal chat completed');
