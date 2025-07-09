@@ -26,6 +26,8 @@ const Welcome = () => {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [isFormValid, setIsFormValid] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -131,14 +133,28 @@ const Welcome = () => {
           navigate("/dashboard");
         }
       } else {
-        await signup(formData.email, formData.password, formData.name, formData.email);
-        // Check if there's initial data stored (from category card click)
-        const initialQuestion = sessionStorage.getItem("initialQuestion");
-        if (initialQuestion) {
-          navigate("/dashboard/chat");
-        } else {
-          navigate("/dashboard");
-        }
+        console.log('🔍 Signup form data:', formData);
+        console.log('🔍 Calling signup with:', { name: formData.name, email: formData.email, password: formData.password });
+        await signup(formData.name, formData.email, formData.password);
+        
+        // Show success message and redirect to login
+        setSignupSuccess(true);
+        setWelcomeMessage(`Welcome to AI Tutor, ${formData.name}! Your account has been created successfully.`);
+        
+        // Clear signup form
+        setFormData({
+          username: "",
+          password: "",
+          confirmPassword: "",
+          name: "",
+          email: "",
+        });
+        
+        // Switch to login tab after a brief delay
+        setTimeout(() => {
+          setActiveTab("login");
+          setSignupSuccess(false);
+        }, 2000);
       }
     } catch (error) {
       setError(error.message || "An error occurred. Please try again.");
@@ -486,6 +502,17 @@ const Welcome = () => {
             className="enhanced-tabs"
           >
             <Tab eventKey="login" title="Sign In" className="auth-tab">
+              {signupSuccess && (
+                <Alert variant="success" className="mb-3 d-flex align-items-center">
+                  <FaCheck className="me-2" />
+                  <div>
+                    <strong>Welcome!</strong>
+                    <br />
+                    <small>Your account has been created successfully. Please sign in to continue.</small>
+                  </div>
+                </Alert>
+              )}
+              
               <Form onSubmit={handleSubmit} className="auth-form">
                 <Form.Group className="mb-3">
                   <Form.Label>Username or Email</Form.Label>
@@ -542,6 +569,19 @@ const Welcome = () => {
               </Form>
             </Tab>
             <Tab eventKey="signup" title="Sign Up" className="auth-tab">
+              {signupSuccess && (
+                <Alert variant="success" className="mb-3 d-flex align-items-center">
+                  <FaCheck className="me-2" />
+                  <div>
+                    <strong>Account Created Successfully!</strong>
+                    <br />
+                    <small>{welcomeMessage}</small>
+                    <br />
+                    <small>Redirecting to login...</small>
+                  </div>
+                </Alert>
+              )}
+              
               <Form onSubmit={handleSubmit} className="auth-form">
                 <Form.Group className="mb-3">
                   <Form.Label>Full Name</Form.Label>

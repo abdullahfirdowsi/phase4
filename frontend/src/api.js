@@ -147,15 +147,20 @@ export const signup = async (name, username, password, isAdmin = false) => {
     // Check if this is the default admin email
     const isDefaultAdmin = username.toLowerCase() === "blackboxgenai@gmail.com";
     
+    const requestBody = { 
+      name, 
+      username: username, // Use the username parameter (which is the email) for the username field
+      email: username,    // Explicitly add the email field using the same value
+      password, 
+      isAdmin: isAdmin || isDefaultAdmin 
+    };
+    
+    console.log('🔍 Signup API - Parameters received:', { name, username, password, isAdmin });
+    console.log('🔍 Signup API - Request body:', requestBody);
+    
     const data = await apiRequest(`${API_BASE_URL}/auth/signup`, {
       method: "POST",
-      body: JSON.stringify({ 
-        name, 
-        username: username, // Use the username parameter (which is the email) for the username field
-        email: username,    // Explicitly add the email field using the same value
-        password, 
-        isAdmin: isAdmin || isDefaultAdmin 
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     // Log admin status for debugging
