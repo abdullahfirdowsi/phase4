@@ -468,6 +468,18 @@ const Welcome = () => {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="auth-modal-body">
+          {/* Show user awareness message if there's an initial question */}
+          {sessionStorage.getItem("initialQuestion") && (
+            <Alert variant="info" className="mb-3 d-flex align-items-center">
+              <FaLightbulb className="me-2" />
+              <span>
+                <strong>Ready to get started!</strong> After signing in, you'll be taken directly to AI Chat to answer: 
+                <em>"{sessionStorage.getItem("initialQuestion")}"</em>
+                {sessionStorage.getItem("initialMode") === 'quiz' && ' 📝'}
+                {sessionStorage.getItem("initialMode") === 'learning_path' && ' 🛣️'}
+              </span>
+            </Alert>
+          )}
           <Tabs
             activeKey={activeTab}
             onSelect={(k) => setActiveTab(k)}
