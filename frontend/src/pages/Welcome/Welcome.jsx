@@ -35,9 +35,24 @@ const Welcome = () => {
     }
   }, [navigate]);
 
-  const handleQuickStart = (query) => {
-    localStorage.setItem("initialQuestion", query);
-    navigate("/dashboard");
+  const handleQuickStart = (query, mode = 'content') => {
+    // Check if user is authenticated
+    const token = localStorage.getItem("token");
+    const username = localStorage.getItem("username");
+    const isAuthenticated = !!(token && username && token.trim() !== "" && username.trim() !== "");
+    
+    // Always store the query and mode for navigation after login
+    sessionStorage.setItem("initialQuestion", query);
+    sessionStorage.setItem("initialMode", mode);
+    
+    if (!isAuthenticated) {
+      // User is not logged in - show the login modal
+      setShowModal(true);
+      return;
+    }
+    
+    // User is authenticated - navigate directly to the AI Chat page
+    navigate("/dashboard/chat");
   };
 
   const validateForm = () => {
@@ -108,10 +123,22 @@ const Welcome = () => {
     try {
       if (activeTab === "login") {
         await login(formData.username, formData.password);
-        navigate("/dashboard");
+        // Check if there's initial data stored (from category card click)
+        const initialQuestion = sessionStorage.getItem("initialQuestion");
+        if (initialQuestion) {
+          navigate("/dashboard/chat");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         await signup(formData.email, formData.password, formData.name, formData.email);
-        navigate("/dashboard");
+        // Check if there's initial data stored (from category card click)
+        const initialQuestion = sessionStorage.getItem("initialQuestion");
+        if (initialQuestion) {
+          navigate("/dashboard/chat");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error) {
       setError(error.message || "An error occurred. Please try again.");
@@ -125,7 +152,13 @@ const Welcome = () => {
       setGoogleUserData(userData);
       setShowPasswordModal(true);
     } else {
-      navigate("/dashboard");
+      // Check if there's initial data stored (from category card click)
+      const initialQuestion = sessionStorage.getItem("initialQuestion");
+      if (initialQuestion) {
+        navigate("/dashboard/chat");
+      } else {
+        navigate("/dashboard");
+      }
     }
   };
 
@@ -136,7 +169,13 @@ const Welcome = () => {
   const handlePasswordSetup = async (password) => {
     try {
       await login(googleUserData.email, password);
-      navigate("/dashboard");
+      // Check if there's initial data stored (from category card click)
+      const initialQuestion = sessionStorage.getItem("initialQuestion");
+      if (initialQuestion) {
+        navigate("/dashboard/chat");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       setError(error.message || "Password setup failed");
     }
@@ -192,25 +231,29 @@ const Welcome = () => {
       icon: <FaCode />,
       title: "Programming",
       description: "Learn Python, JavaScript, and more",
-      query: "Create a learning path for Python programming"
+      query: "Create a learning path for Python programming",
+      mode: "learning_path"
     },
     {
       icon: <FaCalculator />,
       title: "Mathematics",
       description: "Master calculus, algebra, and statistics",
-      query: "Help me understand calculus concepts"
+      query: "Create a quiz about calculus derivatives",
+      mode: "quiz"
     },
     {
       icon: <FaBook />,
       title: "Science",
       description: "Explore physics, chemistry, and biology",
-      query: "Explain quantum physics basics"
+      query: "Create a learning path for quantum physics",
+      mode: "learning_path"
     },
     {
       icon: <FaLightbulb />,
       title: "Study Skills",
       description: "Improve your learning techniques",
-      query: "What are effective study techniques?"
+      query: "What are effective study techniques for memorization?",
+      mode: "content"
     }
   ];
 
@@ -299,7 +342,7 @@ const Welcome = () => {
                     <div
                       key={index}
                       className="example-card"
-                      onClick={() => handleQuickStart(example.query)}
+                      onClick={() => handleQuickStart(example.query, example.mode)}
                     >
                       <div className="example-icon">{example.icon}</div>
                       <h4 className="example-title">{example.title}</h4>

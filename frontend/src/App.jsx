@@ -18,7 +18,7 @@ const ProtectedRoute = ({ element }) => {
 };
 
 const PublicRoute = ({ element }) => {
-  return !isAuthenticated() ? element : <Navigate to="/welcome" replace />;
+  return !isAuthenticated() ? element : <Navigate to="/dashboard" replace />;
 };
 
 const AppContent = () => {

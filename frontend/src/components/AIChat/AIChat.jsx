@@ -72,15 +72,26 @@ const AIChat = () => {
     loadChatHistory();
   }, []);
 
-  // Handle initial question and mode from sessionStorage (from Home page navigation)
+  // Handle initial question and mode from sessionStorage (from Welcome page navigation)
   useEffect(() => {
     const handleInitialData = () => {
       const initialQuestion = sessionStorage.getItem("initialQuestion");
       const initialMode = sessionStorage.getItem("initialMode");
       
-      console.log('🏠 Checking for initial data from Home page:', { initialQuestion, initialMode });
+      console.log('🏠 Checking for initial data from Welcome page:', { initialQuestion, initialMode });
       
       if (initialQuestion) {
+        // Check if user is still authenticated
+        const username = localStorage.getItem('username');
+        const token = localStorage.getItem('token');
+        
+        if (!username || !token) {
+          console.warn('⚠️ User not authenticated, clearing initial data');
+          sessionStorage.removeItem("initialQuestion");
+          sessionStorage.removeItem("initialMode");
+          return;
+        }
+        
         console.log('📝 Setting initial question:', initialQuestion);
         setInputMessage(initialQuestion);
         
@@ -96,7 +107,7 @@ const AIChat = () => {
         
         // Auto-send the message after a short delay to ensure all state is set
         setTimeout(() => {
-          console.log('🚀 Auto-sending initial message from Home page');
+          console.log('🚀 Auto-sending initial message from Welcome page');
           handleSendMessage();
         }, 500);
       }
