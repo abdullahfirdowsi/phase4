@@ -14,24 +14,17 @@ import ErrorBoundary from "../../components/ErrorBoundary";
 import FloatingActionButton from "../../components/FloatingActionButton/FloatingActionButton";
 import './Dashboard.scss';
 
-const Dashboard = ({ mobileMenuOpen, onMobileMenuToggle }) => {
-  // Initialize sidebar state based on screen size
+const Dashboard = () => {
+  // Initialize sidebar state - always expanded on desktop, collapsed on mobile/tablet
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     // Check if we're on mobile/tablet
     if (typeof window !== 'undefined') {
-      return window.innerWidth <= 768; // Collapse on mobile by default
+      return window.innerWidth <= 768; // Collapse on mobile/tablet by default
     }
     return false;
   });
   const [activeScreen, setActiveScreen] = useState("dashboard");
   const location = useLocation();
-  
-  // Update sidebar state based on mobile menu prop
-  useEffect(() => {
-    if (window.innerWidth <= 768) {
-      setSidebarCollapsed(!mobileMenuOpen);
-    }
-  }, [mobileMenuOpen]);
 
   // Check if user is admin
   const isAdmin = localStorage.getItem("isAdmin") === "true";
@@ -59,9 +52,11 @@ const Dashboard = ({ mobileMenuOpen, onMobileMenuToggle }) => {
   // Handle window resize for responsive behavior
   useEffect(() => {
     const handleResize = () => {
-      // Auto-collapse sidebar on mobile/tablet
+      // Auto-collapse sidebar on mobile/tablet, expand on desktop
       if (window.innerWidth <= 768) {
         setSidebarCollapsed(true);
+      } else {
+        setSidebarCollapsed(false);
       }
     };
 
@@ -141,16 +136,6 @@ const Dashboard = ({ mobileMenuOpen, onMobileMenuToggle }) => {
         {showFloatingButton && <FloatingActionButton />}
       </div>
 
-      {/* Mobile Overlay */}
-      {mobileMenuOpen && (
-        <div 
-          className="mobile-overlay d-lg-none"
-          onClick={() => {
-            setSidebarCollapsed(true);
-            onMobileMenuToggle && onMobileMenuToggle();
-          }}
-        />
-      )}
     </div>
   );
 };

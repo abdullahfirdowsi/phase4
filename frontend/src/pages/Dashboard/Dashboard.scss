@@ -44,10 +44,10 @@
   }
   
   .dashboard-main {
-    margin-left: 0; // Remove margin on mobile
+    margin-left: 70px; // Always account for icon-only sidebar on tablet
     
     &.sidebar-collapsed {
-      margin-left: 0;
+      margin-left: 70px;
     }
   }
   
@@ -62,10 +62,10 @@
   }
   
   .dashboard-main {
-    margin-left: 0; // Remove margin on mobile
+    margin-left: 60px; // Always account for icon-only sidebar on mobile
     
     &.sidebar-collapsed {
-      margin-left: 0;
+      margin-left: 60px;
     }
   }
   

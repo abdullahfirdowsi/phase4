@@ -22,27 +22,9 @@ const PublicRoute = ({ element }) => {
 };
 
 const AppContent = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
-  
-  // Check if we're on dashboard pages
-  const isDashboardPage = location.pathname.startsWith('/dashboard');
-  
-  const handleMobileMenuToggle = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
-  
-  // Close mobile menu when route changes
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
-  
   return (
     <div className="app-container">
-      <Header 
-        onMobileMenuToggle={handleMobileMenuToggle}
-        showMobileMenuToggle={isDashboardPage && isAuthenticated()}
-      />
+      <Header />
       <main className="main-content">
         <Routes>
           <Route 
@@ -61,16 +43,7 @@ const AppContent = () => {
           
           <Route 
             path="/dashboard/*" 
-            element={
-              <ProtectedRoute 
-                element={
-                  <Dashboard 
-                    mobileMenuOpen={mobileMenuOpen}
-                    onMobileMenuToggle={handleMobileMenuToggle}
-                  />
-                } 
-              />
-            }
+            element={<ProtectedRoute element={<Dashboard />} />}
           />
           
           <Route 

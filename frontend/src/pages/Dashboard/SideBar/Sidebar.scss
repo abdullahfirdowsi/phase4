@@ -227,46 +227,84 @@
 // Responsive design
 @media (max-width: v.$breakpoint-tablet) {
   .modern-sidebar {
+    width: 70px; // Always show collapsed width on tablet
     top: 70px; // Match navbar height
     height: calc(100vh - 70px);
     z-index: 1040;
-    transform: translateX(-100%);
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
     
-    &:not(.collapsed) {
-      transform: translateX(0);
+    // Always show only icons on tablet
+    .nav-item {
+      padding: 0.75rem;
+      justify-content: center;
+      
+      .nav-text {
+        display: none;
+      }
+      
+      .active-indicator {
+        right: 0;
+        width: 3px;
+        height: 20px;
+        border-radius: 0 3px 3px 0;
+      }
+    }
+    
+    .sidebar-footer {
+      padding: 0.5rem;
+      
+      span {
+        font-size: 0.65rem;
+        line-height: 1.2;
+        word-break: break-word;
+      }
     }
   }
 }
 
 @media (max-width: v.$breakpoint-mobile) {
   .modern-sidebar {
-    width: 240px;
+    width: 60px; // Always show collapsed width on mobile
     top: 60px; // Match mobile navbar height
     height: calc(100vh - 60px);
     
-    &.collapsed {
-      width: 60px;
-    }
-    
     .sidebar-toggle-container {
-      padding: 1rem 0.75rem;
+      padding: 0.75rem 0.5rem;
+      
+      .sidebar-toggle {
+        width: 28px;
+        height: 28px;
+      }
     }
     
+    // Always show only icons on mobile
     .nav-item {
-      padding: 0.75rem 0.875rem;
+      padding: 0.75rem;
+      justify-content: center;
       font-size: 0.9rem;
       
+      .nav-text {
+        display: none;
+      }
+      
       .nav-icon {
-        font-size: 0.9rem;
+        font-size: 1rem;
+      }
+      
+      .active-indicator {
+        right: 0;
+        width: 3px;
+        height: 20px;
+        border-radius: 0 3px 3px 0;
       }
     }
     
     .sidebar-footer {
-      padding: 0.75rem 0.5rem;
+      padding: 0.5rem 0.25rem;
       
       span {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
+        line-height: 1.1;
+        word-break: break-word;
       }
     }
   }
