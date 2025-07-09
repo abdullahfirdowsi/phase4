@@ -395,7 +395,8 @@ async def list_learning_paths(
     username: Optional[str] = Query(None),
     public_only: bool = Query(False),
     difficulty: Optional[str] = Query(None),
-    tags: Optional[str] = Query(None)
+    tags: Optional[str] = Query(None),
+    include_topics: bool = Query(False)
 ):
     """List available learning paths from dedicated learning_goals collection"""
     try:
@@ -428,7 +429,7 @@ async def list_learning_paths(
             else:
                 created_at_str = datetime.datetime.utcnow().isoformat() + "Z"
             
-            learning_paths.append({
+            path_data = {
                 "id": goal.get("goal_id", str(goal.get("_id"))),
                 "name": goal.get("name", "Untitled Learning Path"),
                 "description": goal.get("description", ""),
@@ -439,7 +440,14 @@ async def list_learning_paths(
                 "created_at": created_at_str,
                 "tags": goal.get("tags", []),
                 "source": goal.get("source", "unknown")
-            })
+            }
+            
+            # Include topics if requested
+            if include_topics:
+                path_data["topics"] = goal.get("topics", [])
+                path_data["prerequisites"] = goal.get("prerequisites", [])
+            
+            learning_paths.append(path_data)
 
         # Sort learning paths by created_at date (newest first) - simplified since we're using dedicated collection
         try:
