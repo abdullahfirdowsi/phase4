@@ -139,6 +139,12 @@ const QuizMessage = ({ message, onQuizComplete, username }) => {
 
   const handleSubmitQuiz = async () => {
     try {
+      // Check if at least one question is answered
+      if (Object.keys(answers).length === 0) {
+        setError("Please answer at least one question before submitting the quiz.");
+        return;
+      }
+
       setIsSubmitting(true);
       setError(null);
 

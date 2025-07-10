@@ -470,6 +470,12 @@ const QuizSystem = () => {
 
   const handleSubmitQuiz = async () => {
     try {
+      // Check if at least one question is answered
+      if (Object.keys(quizAnswers).length === 0) {
+        setError("Please answer at least one question before submitting the quiz.");
+        return;
+      }
+
       setLoading(true);
       
       // Convert quizAnswers object to array format expected by backend
@@ -1180,7 +1186,7 @@ const QuizSystem = () => {
             <Button 
               variant="primary" 
               onClick={handleSubmitQuiz}
-              disabled={loading}
+              disabled={loading || Object.keys(quizAnswers).length === 0}
             >
               {loading ? (
                 <>
