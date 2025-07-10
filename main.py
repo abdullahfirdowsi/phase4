@@ -1,7 +1,7 @@
 """
 Enhanced Main Application with Modular Architecture
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -175,6 +175,261 @@ async def health_check():
         "version": "5.0.0",
         "architecture": "modular_mongodb"
     }
+
+@app.get("/admin/users")
+async def get_admin_users(username: str):
+    """Get all users for admin management"""
+    try:
+        from database import users_collection
+        # Check if user is admin
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Fetch all users
+        users = list(users_collection.find({}, {"password_hash": 0}))
+        for u in users:
+            u["_id"] = str(u["_id"])
+        return {"users": users, "total": len(users)}
+    except Exception as e:
+        return HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/stats")
+async def get_admin_stats():
+    """Get platform statistics for admin dashboard"""
+    try:
+        from database import users_collection, chats_collection
+        import datetime
+        
+        # Calculate basic stats
+        total_users = users_collection.count_documents({})
+        total_lessons = chats_collection.count_documents({"type": "user_lesson"})
+        published_lessons = chats_collection.count_documents({"type": "user_lesson", "status": "published"})
+        
+        return {
+            "total_users": total_users,
+            "total_lessons": total_lessons,
+            "published_lessons": published_lessons,
+            "generated_at": datetime.datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/moderation")
+async def get_admin_moderation(username: str):
+    """Get content for moderation"""
+    try:
+        from database import users_collection, chats_collection
+        
+        # Check admin status
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Get content for moderation
+        recent_lessons = list(chats_collection.find({
+            "type": "user_lesson",
+            "status": "published",
+            "moderation_status": {"$exists": False}
+        }).sort("created_at", -1).limit(20))
+        
+        reported_content = list(chats_collection.find({
+            "type": "user_lesson",
+            "reports": {"$exists": True, "$ne": []}
+        }).sort("created_at", -1))
+        
+        # Convert ObjectIds to strings
+        for lesson in recent_lessons:
+            lesson["_id"] = str(lesson["_id"])
+        for content in reported_content:
+            content["_id"] = str(content["_id"])
+        
+        return {
+            "recent_lessons": recent_lessons,
+            "reported_content": reported_content,
+            "total_pending": len(recent_lessons) + len(reported_content)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/analytics")
+async def get_admin_analytics(username: str):
+    """Get admin analytics"""
+    try:
+        from database import users_collection, chats_collection
+        import datetime
+        
+        # Check admin status
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Calculate analytics
+        total_users = users_collection.count_documents({})
+        admin_users = users_collection.count_documents({"is_admin": True})
+        active_users = users_collection.count_documents({"status": {"$ne": "blocked"}})
+        
+        total_lessons = chats_collection.count_documents({"type": "user_lesson"})
+        published_lessons = chats_collection.count_documents({"type": "user_lesson", "status": "published"})
+        
+        # Calculate total views
+        total_views = 0
+        for lesson in chats_collection.find({"type": "user_lesson"}):
+            total_views += lesson.get("views", 0)
+        
+        # Get recent activity
+        recent_activity = []
+        recent_users = list(users_collection.find({}).sort("created_at", -1).limit(5))
+        for u in recent_users:
+            recent_activity.append({
+                "type": "user_registration",
+                "username": u["username"],
+                "timestamp": u.get("created_at", datetime.datetime.utcnow().isoformat())
+            })
+        
+        recent_lessons_list = list(chats_collection.find({"type": "user_lesson"}).sort("created_at", -1).limit(5))
+        for lesson in recent_lessons_list:
+            recent_activity.append({
+                "type": "lesson_created",
+                "lesson_title": lesson.get("title", "Untitled"),
+                "created_by": lesson.get("created_by", "Unknown"),
+                "timestamp": lesson.get("created_at", datetime.datetime.utcnow().isoformat())
+            })
+        
+        # Sort by timestamp
+        recent_activity.sort(key=lambda x: x["timestamp"], reverse=True)
+        recent_activity = recent_activity[:10]
+        
+        # Get top lessons
+        top_lessons = list(chats_collection.find({"type": "user_lesson"}).sort("views", -1).limit(5))
+        for lesson in top_lessons:
+            lesson["_id"] = str(lesson["_id"])
+        
+        # Get top users by lesson count
+        pipeline = [
+            {"$match": {"type": "user_lesson"}},
+            {"$group": {"_id": "$created_by", "lesson_count": {"$sum": 1}}},
+            {"$sort": {"lesson_count": -1}},
+            {"$limit": 5}
+        ]
+        top_users_data = list(chats_collection.aggregate(pipeline))
+        
+        top_users = []
+        for user_data in top_users_data:
+            user_details = users_collection.find_one({"username": user_data["_id"]})
+            if user_details:
+                top_users.append({
+                    "username": user_data["_id"],
+                    "name": user_details.get("name", user_data["_id"]),
+                    "lesson_count": user_data["lesson_count"]
+                })
+        
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "admin_users": admin_users,
+            "total_lessons": total_lessons,
+            "published_lessons": published_lessons,
+            "total_views": total_views,
+            "recent_activity": recent_activity,
+            "top_lessons": top_lessons,
+            "top_users": top_users,
+            "generated_at": datetime.datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/config")
+async def get_system_config(username: str):
+    """Get system configuration"""
+    try:
+        from database import users_collection, chats_collection
+        
+        # Check admin status
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Get or create default system config
+        config = chats_collection.find_one({"type": "system_config"})
+        
+        if not config:
+            # Create default config
+            default_config = {
+                "type": "system_config",
+                "content_moderation": {
+                    "enabled": True,
+                    "auto_approve": False,
+                    "profanity_filter": True
+                },
+                "user_limits": {
+                    "max_lessons_per_day": 5,
+                    "max_file_size_mb": 100,
+                    "max_video_duration_minutes": 30
+                },
+                "feature_flags": {
+                    "comments_enabled": True,
+                    "ratings_enabled": True,
+                    "sharing_enabled": True
+                }
+            }
+            chats_collection.insert_one(default_config)
+            config = default_config
+        
+        config["_id"] = str(config["_id"])
+        return config
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/config")
+async def update_system_config(username: str = Body(...), config_data: dict = Body(...)):
+    """Update system configuration"""
+    try:
+        from database import users_collection, chats_collection
+        
+        # Check admin status
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Update config
+        chats_collection.update_one(
+            {"type": "system_config"},
+            {"$set": config_data},
+            upsert=True
+        )
+        
+        return {"message": "Configuration updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/popular-content")
+async def get_popular_content(username: str):
+    """Get popular content for admin management"""
+    try:
+        from database import users_collection, chats_collection
+        
+        # Check admin status
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Get popular lessons
+        popular_lessons = list(chats_collection.find({"type": "user_lesson"}).sort("views", -1).limit(20))
+        featured_content = list(chats_collection.find({"type": "user_lesson", "featured": True}).sort("featured_at", -1))
+        
+        # Convert ObjectIds to strings
+        for lesson in popular_lessons:
+            lesson["_id"] = str(lesson["_id"])
+        for content in featured_content:
+            content["_id"] = str(content["_id"])
+        
+        return {
+            "popular_lessons": popular_lessons,
+            "featured_content": featured_content
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api")
 async def api_info():

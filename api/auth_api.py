@@ -298,7 +298,122 @@ async def get_user_profile(username: str = Query(...)):
         logger.error(f"Profile error: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch user profile")
 
-@auth_router.get("/check-admin")
+@auth_router.get("/admin/moderation")
+async def get_content_for_moderation(username: str = Query(...)):
+    """Get content that needs moderation (admin only)"""
+    try:
+        from database import users_collection, chats_collection
+
+        # Verify admin status
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+
+        # Fetch moderation content
+        recent_lessons = list(chats_collection.find({"type": "user_lesson", "status": "published", "moderation_status": {"$exists": False}}).sort("created_at", -1).limit(20))
+        reported_content = list(chats_collection.find({"type": "user_lesson", "reports": {"$exists": True, "$ne": []}}).sort("created_at", -1))
+
+        for lesson in recent_lessons:
+            lesson["_id"] = str(lesson["_id"])
+        for content in reported_content:
+            content["_id"] = str(content["_id"])
+
+        return {"recent_lessons": recent_lessons, "reported_content": reported_content, "total_pending": len(recent_lessons) + len(reported_content)}
+    except Exception as e:
+        logger.error(f"Error fetching content for moderation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch moderation content")
+
+@auth_router.get("/admin/analytics")
+async def get_admin_analytics(username: str = Query(...)):
+    """Get platform analytics (admin only)"""
+    try:
+        from database import users_collection, chats_collection
+        import datetime
+
+        # Verify admin status
+        user = users_collection.find_one({"username": username})
+        if not user or not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+
+        # Calculate analytics from existing data
+        total_users = users_collection.count_documents({})
+        admin_users = users_collection.count_documents({"is_admin": True})
+        active_users = users_collection.count_documents({"status": {"$ne": "blocked"}})
+        
+        total_lessons = chats_collection.count_documents({"type": "user_lesson"})
+        published_lessons = chats_collection.count_documents({"type": "user_lesson", "status": "published"})
+        
+        # Get recent activity
+        recent_activity = []
+        recent_users = list(users_collection.find({}).sort("created_at", -1).limit(5))
+        for u in recent_users:
+            recent_activity.append({
+                "type": "user_registration",
+                "username": u["username"],
+                "timestamp": u.get("created_at", datetime.datetime.utcnow().isoformat())
+            })
+        
+        recent_lessons_list = list(chats_collection.find({"type": "user_lesson"}).sort("created_at", -1).limit(5))
+        for lesson in recent_lessons_list:
+            recent_activity.append({
+                "type": "lesson_created",
+                "lesson_title": lesson.get("title", "Untitled"),
+                "created_by": lesson.get("created_by", "Unknown"),
+                "timestamp": lesson.get("created_at", datetime.datetime.utcnow().isoformat())
+            })
+        
+        # Sort by timestamp
+        recent_activity.sort(key=lambda x: x["timestamp"], reverse=True)
+        recent_activity = recent_activity[:10]
+        
+        # Get top lessons and users
+        top_lessons = list(chats_collection.find({"type": "user_lesson"}).sort("views", -1).limit(5))
+        for lesson in top_lessons:
+            lesson["_id"] = str(lesson["_id"])
+        
+        # Get top users by lesson count
+        pipeline = [
+            {"$match": {"type": "user_lesson"}},
+            {"$group": {"_id": "$created_by", "lesson_count": {"$sum": 1}}},
+            {"$sort": {"lesson_count": -1}},
+            {"$limit": 5}
+        ]
+        top_users_data = list(chats_collection.aggregate(pipeline))
+        
+        top_users = []
+        for user_data in top_users_data:
+            user_details = users_collection.find_one({"username": user_data["_id"]})
+            if user_details:
+                top_users.append({
+                    "username": user_data["_id"],
+                    "name": user_details.get("name", user_data["_id"]),
+                    "lesson_count": user_data["lesson_count"]
+                })
+        
+        # Calculate total views
+        total_views = 0
+        for lesson in chats_collection.find({"type": "user_lesson"}):
+            total_views += lesson.get("views", 0)
+        
+        analytics = {
+            "total_users": total_users,
+            "active_users": active_users,
+            "admin_users": admin_users,
+            "total_lessons": total_lessons,
+            "published_lessons": published_lessons,
+            "total_views": total_views,
+            "recent_activity": recent_activity,
+            "top_lessons": top_lessons,
+            "top_users": top_users,
+            "generated_at": datetime.datetime.utcnow().isoformat()
+        }
+        
+        return analytics
+    except Exception as e:
+        logger.error(f"Error fetching admin analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics data")
+
+@auth_router.get("/auth/check-admin")
 async def check_admin_status(username: str = Query(...)):
     """Check if user has admin privileges"""
     try:
