@@ -224,19 +224,19 @@
   }
 }
 
-// Responsive design
+// Responsive design with consistent desktop pattern
 @media (max-width: v.$breakpoint-tablet) {
   .modern-sidebar {
+    width: 240px; // Slightly smaller for tablet
     top: 70px; // Match navbar height
     height: calc(100vh - 70px);
     z-index: 1040;
     
-    // On tablet, default to collapsed but still toggleable
     &.collapsed {
-      width: 70px;
+      width: 65px; // Slightly smaller collapsed width
       
       .nav-item {
-        padding: 0.75rem;
+        padding: 0.7rem;
         justify-content: center;
         
         .nav-text {
@@ -246,13 +246,13 @@
         .active-indicator {
           right: 0;
           width: 3px;
-          height: 20px;
+          height: 18px;
           border-radius: 0 3px 3px 0;
         }
       }
       
       .sidebar-footer {
-        padding: 0.5rem;
+        padding: 0.4rem;
         
         span {
           font-size: 0.65rem;
@@ -261,29 +261,62 @@
         }
       }
     }
+    
+    .sidebar-toggle-container {
+      padding: 1rem 0.8rem;
+      
+      .sidebar-toggle {
+        width: 30px;
+        height: 30px;
+      }
+    }
+    
+    .nav-item {
+      padding: 0.8rem 0.9rem;
+      font-size: 0.9rem;
+    }
   }
 }
 
 @media (max-width: v.$breakpoint-mobile) {
   .modern-sidebar {
+    width: 220px; // Smaller for mobile but still usable
     top: 60px; // Match mobile navbar height
     height: calc(100vh - 60px);
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    
-    &:not(.collapsed) {
-      transform: translateX(0);
-      width: 260px;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-    }
+    z-index: 1050; // Higher z-index for mobile overlay
     
     &.collapsed {
-      transform: translateX(-100%);
-      width: 60px;
+      width: 60px; // Smaller collapsed width for mobile
+      
+      .nav-item {
+        padding: 0.65rem;
+        justify-content: center;
+        
+        .nav-text {
+          display: none;
+        }
+        
+        .active-indicator {
+          right: 0;
+          width: 3px;
+          height: 16px;
+          border-radius: 0 3px 3px 0;
+        }
+      }
+      
+      .sidebar-footer {
+        padding: 0.3rem;
+        
+        span {
+          font-size: 0.6rem;
+          line-height: 1.1;
+          word-break: break-word;
+        }
+      }
     }
     
     .sidebar-toggle-container {
-      padding: 0.75rem 0.5rem;
+      padding: 0.8rem 0.6rem;
       
       .sidebar-toggle {
         width: 28px;
@@ -291,11 +324,17 @@
       }
     }
     
+    .nav-item {
+      padding: 0.75rem 0.8rem;
+      font-size: 0.85rem;
+      gap: 0.8rem;
+    }
+    
     .sidebar-footer {
-      padding: 0.5rem 0.25rem;
+      padding: 0.4rem 0.3rem;
       
       span {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
         line-height: 1.1;
         word-break: break-word;
       }

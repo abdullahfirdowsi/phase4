@@ -15,13 +15,13 @@ import FloatingActionButton from "../../components/FloatingActionButton/Floating
 import './Dashboard.scss';
 
 const Dashboard = ({ mobileMenuOpen, onMobileMenuClose }) => {
-  // Initialize sidebar state based on device type
+  // Initialize sidebar state based on device type with consistent desktop pattern
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       // Desktop: expanded by default
-      // Tablet: collapsed by default but toggleable
-      // Mobile: collapsed by default (hidden)
-      return window.innerWidth <= 768;
+      // Tablet: collapsed by default but same functionality
+      // Mobile: collapsed by default but same functionality
+      return window.innerWidth <= 1024; // Use larger breakpoint for better consistency
     }
     return false;
   });

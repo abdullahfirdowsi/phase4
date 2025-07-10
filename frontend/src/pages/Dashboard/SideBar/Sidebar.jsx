@@ -24,6 +24,17 @@ const Sidebar = ({
 }) => {
   const navigate = useNavigate();
 
+  // Handle click outside sidebar on mobile
+  const handleOutsideClick = (event) => {
+    if (window.innerWidth <= 480 && !isCollapsed) {
+      // Close sidebar if clicking outside on mobile
+      const sidebar = event.target.closest('.modern-sidebar');
+      if (!sidebar) {
+        toggleSidebar();
+      }
+    }
+  };
+
   const menuItems = [
     {
       id: "dashboard",

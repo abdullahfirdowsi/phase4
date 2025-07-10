@@ -37,17 +37,17 @@
   -webkit-backdrop-filter: blur(4px);
 }
 
-// Responsive design
+// Responsive design with consistent desktop pattern
 @media (max-width: v.$breakpoint-tablet) {
   .dashboard-container {
     height: calc(100vh - 70px);
   }
   
   .dashboard-main {
-    margin-left: 260px; // Account for full sidebar on tablet when expanded
+    margin-left: 240px; // Account for tablet sidebar width when expanded
     
     &.sidebar-collapsed {
-      margin-left: 70px; // Account for collapsed sidebar on tablet
+      margin-left: 65px; // Account for collapsed sidebar on tablet
     }
   }
   
@@ -62,7 +62,22 @@
   }
   
   .dashboard-main {
-    margin-left: 0; // No margin on mobile (sidebar overlays)
+    margin-left: 220px; // Account for mobile sidebar width when expanded
+    
+    &.sidebar-collapsed {
+      margin-left: 60px; // Account for collapsed sidebar on mobile
+    }
+  }
+  
+  .mobile-overlay {
+    top: 60px;
+  }
+}
+
+// Very small mobile devices (phones in portrait)
+@media (max-width: 480px) {
+  .dashboard-main {
+    margin-left: 0; // On very small screens, overlay the sidebar completely
     
     &.sidebar-collapsed {
       margin-left: 0;
@@ -70,6 +85,6 @@
   }
   
   .mobile-overlay {
-    top: 60px;
+    display: block; // Ensure overlay is visible on very small screens
   }
 }
