@@ -149,10 +149,11 @@ const QuizSystem = () => {
       }
       
       // Use token in API calls to ensure proper authentication
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
       const headers = { "Authorization": `Bearer ${token}` };
       const [activeQuizzesResponse, chatHistoryResponse] = await Promise.all([
-        fetch(`http://localhost:8000/quiz/active-quizzes?username=${username}`, { headers }),
-        fetch(`http://localhost:8000/chat/history?username=${username}`, { headers })
+        fetch(`${API_BASE_URL}/quiz/active-quizzes?username=${username}`, { headers }),
+        fetch(`${API_BASE_URL}/chat/history?username=${username}`, { headers })
       ]);
 
       console.log('🔍 Fetch responses:', {
@@ -250,9 +251,10 @@ const QuizSystem = () => {
       // Try to fetch quiz results from multiple sources
       try {
         // Fetch from both quiz history API and chat history (for AI Chat quizzes)
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
         const [quizHistoryResponse, chatHistoryResponse] = await Promise.all([
-          fetch(`http://localhost:8000/quiz/quiz-history?username=${username}`),
-          fetch(`http://localhost:8000/chat/history?username=${username}`)
+          fetch(`${API_BASE_URL}/quiz/quiz-history?username=${username}`),
+          fetch(`${API_BASE_URL}/chat/history?username=${username}`)
         ]);
         
         let allResults = [];

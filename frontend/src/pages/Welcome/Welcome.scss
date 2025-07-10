@@ -560,6 +560,32 @@
       
       .enhanced-input {
         padding-right: 3rem;
+        // Browser-specific fixes for password field
+        &::-webkit-contacts-auto-fill-button {
+          visibility: hidden;
+          display: none !important;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+        }
+        
+        &::-webkit-credentials-auto-fill-button {
+          visibility: hidden;
+          display: none !important;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+        }
+        
+        // Hide default browser password reveal button
+        &::-ms-reveal {
+          display: none;
+        }
+        
+        // Ensure consistent styling across browsers
+        &[type="password"] {
+          font-family: inherit;
+        }
       }
       
       .password-toggle {
@@ -573,6 +599,12 @@
         padding: 0.25rem;
         cursor: pointer;
         transition: color 0.2s ease;
+        z-index: 10;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         
         &:hover {
           color: var(--primary-color);
@@ -581,6 +613,13 @@
         &:focus {
           outline: none;
           color: var(--primary-color);
+        }
+        
+        // Ensure icon is visible
+        svg {
+          width: 1rem;
+          height: 1rem;
+          pointer-events: none;
         }
       }
     }

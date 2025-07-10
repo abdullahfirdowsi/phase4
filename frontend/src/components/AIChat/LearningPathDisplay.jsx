@@ -125,7 +125,8 @@ const LearningPathDisplay = memo(({ message }) => {
       if (!username) return false;
 
       // Fetch current learning paths from MongoDB
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/learning-paths/list?username=${username}`);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_BASE_URL}/learning-paths/list?username=${username}`);
       const data = await response.json();
       
       if (response.ok && data.learning_paths) {
@@ -171,7 +172,8 @@ const LearningPathDisplay = memo(({ message }) => {
       const regeneratePrompt = `Create a learning path for ${originalTopic}`;
       
       // Call the chat API to regenerate
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/chat/ask`, {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_BASE_URL}/chat/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

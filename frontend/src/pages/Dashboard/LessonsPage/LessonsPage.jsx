@@ -30,7 +30,8 @@ const LessonsPage = () => {
   const fetchLessons = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/lessons/lessons?username=${username}`);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_BASE_URL}/lessons/lessons?username=${username}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -49,7 +50,8 @@ const LessonsPage = () => {
 
   const handleEnrollInLesson = async (lessonId) => {
     try {
-      const response = await fetch("http://localhost:8000/lessons/lessons/enroll", {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_BASE_URL}/lessons/lessons/enroll`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -73,7 +75,8 @@ const LessonsPage = () => {
 
   const handleViewLesson = async (lessonId) => {
     try {
-      const response = await fetch(`http://localhost:8000/lessons/lessons/${lessonId}?username=${username}`);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_BASE_URL}/lessons/lessons/${lessonId}?username=${username}`);
       
       if (response.ok) {
         const data = await response.json();

@@ -59,7 +59,8 @@ const fetchLearningContent = async () => {
       
       // Try to fetch lessons from backend
       try {
-        const response = await fetch(`http://localhost:8000/lessons/user?username=${encodeURIComponent(username)}`);
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        const response = await fetch(`${API_BASE_URL}/lessons/user?username=${encodeURIComponent(username)}`);
         if (response.ok) {
           const data = await response.json();
           setFeaturedLessons(data.lessons || []);
@@ -133,7 +134,8 @@ const fetchLearningContent = async () => {
     try {
       // Try to call the actual API first
       try {
-        const response = await fetch(`http://localhost:8000/lessons/user/${lessonId}/progress`, {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        const response = await fetch(`${API_BASE_URL}/lessons/user/${lessonId}/progress`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
