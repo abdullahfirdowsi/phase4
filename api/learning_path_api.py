@@ -4,7 +4,8 @@ import datetime
 import logging
 import uuid
 from fastapi import APIRouter, HTTPException, Body, Query, Depends, Header
-from database import get_collections, learning_goals_collection, quiz_attempts_collection
+from database import get_collections, learning_goals_collection, quiz_attempts_collection, user_topic_progress_collection
+import datetime
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from api.auth_api import get_current_user
@@ -19,7 +20,7 @@ class TopicCompletionRequest(BaseModel):
     username: str
     topicIndex: int
     quizScore: float = 0.0
-    completedAt: str
+    completedAt: Optional[str] = None
 
 class LearningPathProgressResponse(BaseModel):
     completedTopics: List[int] = []
@@ -32,57 +33,95 @@ async def mark_topic_complete(
     topic_index: int,
     completion_data: TopicCompletionRequest = Body(...)
 ):
-    """Mark a topic as complete in a learning path"""
+    """Mark a topic as complete in a learning path with new progress tracking"""
     try:
         logger.info(f"🎯 Marking topic {topic_index} complete for path {learning_path_id}")
         logger.info(f"📊 Quiz score: {completion_data.quizScore}%")
         
-        # Find the learning path
-        learning_path = learning_goals_collection.find_one({
-            "goal_id": learning_path_id,
-            "username": completion_data.username
-        })
+        # Update or create user progress record in new collection
+        progress_filter = {
+            "username": completion_data.username,
+            "learning_path_id": learning_path_id
+        }
         
-        if not learning_path:
-            # Try finding by name if goal_id doesn't work
+        existing_progress = user_topic_progress_collection.find_one(progress_filter)
+        
+        if existing_progress:
+            # Update existing progress
+            completed_topics = existing_progress.get("completed_topics", [])
+            if topic_index not in completed_topics:
+                completed_topics.append(topic_index)
+            
+            # Calculate new overall progress
+            # We need to know total topics - try to get from learning path
             learning_path = learning_goals_collection.find_one({
-                "name": learning_path_id,
-                "username": completion_data.username
+                "$or": [
+                    {"goal_id": learning_path_id, "username": completion_data.username},
+                    {"name": learning_path_id, "username": completion_data.username}
+                ]
             })
-        
-        if not learning_path:
-            logger.warning(f"Learning path not found: {learning_path_id} for user {completion_data.username}")
-            raise HTTPException(status_code=404, detail="Learning path not found")
-        
-        # Update the progress for the specific topic
-        topics = learning_path.get("topics", [])
-        
-        if topic_index >= len(topics):
-            raise HTTPException(status_code=400, detail="Invalid topic index")
-        
-        # Mark the topic as completed
-        topics[topic_index]["completed"] = True
-        topics[topic_index]["completion_date"] = completion_data.completedAt
-        topics[topic_index]["quiz_score"] = completion_data.quizScore
-        
-        # Calculate overall progress
-        completed_topics = sum(1 for topic in topics if topic.get("completed", False))
-        overall_progress = (completed_topics / len(topics)) * 100 if topics else 0
-        
-        # Update the learning path in database
-        update_result = learning_goals_collection.update_one(
-            {"_id": learning_path["_id"]},
-            {
-                "$set": {
-                    "topics": topics,
-                    "progress": overall_progress,
-                    "updated_at": datetime.datetime.utcnow().isoformat() + "Z"
+            
+            total_topics = len(learning_path.get("topics", [])) if learning_path else 5  # fallback
+            overall_progress = (len(completed_topics) / total_topics) * 100
+            
+            user_topic_progress_collection.update_one(
+                progress_filter,
+                {
+                    "$set": {
+                        "completed_topics": completed_topics,
+                        "current_topic_index": max(topic_index + 1, existing_progress.get("current_topic_index", 0)),
+                        "overall_progress": overall_progress,
+                        "last_updated": datetime.datetime.utcnow(),
+                        f"topic_{topic_index}_quiz_score": completion_data.quizScore,
+                        f"topic_{topic_index}_completed_at": completion_data.completedAt
+                    }
                 }
+            )
+        else:
+            # Create new progress record
+            learning_path = learning_goals_collection.find_one({
+                "$or": [
+                    {"goal_id": learning_path_id, "username": completion_data.username},
+                    {"name": learning_path_id, "username": completion_data.username}
+                ]
+            })
+            
+            total_topics = len(learning_path.get("topics", [])) if learning_path else 5  # fallback
+            overall_progress = (1 / total_topics) * 100
+            
+            new_progress = {
+                "username": completion_data.username,
+                "learning_path_id": learning_path_id,
+                "completed_topics": [topic_index],
+                "current_topic_index": topic_index + 1,
+                "completed_lessons": {},
+                "overall_progress": overall_progress,
+                "last_updated": datetime.datetime.utcnow(),
+                "created_at": datetime.datetime.utcnow(),
+                f"topic_{topic_index}_quiz_score": completion_data.quizScore,
+                f"topic_{topic_index}_completed_at": completion_data.completedAt
             }
-        )
+            user_topic_progress_collection.insert_one(new_progress)
         
-        if update_result.modified_count == 0:
-            logger.warning(f"No documents modified for learning path {learning_path_id}")
+        # Also update the original learning path for backward compatibility
+        if learning_path:
+            topics = learning_path.get("topics", [])
+            if topic_index < len(topics):
+                topics[topic_index]["completed"] = True
+                topics[topic_index]["completion_date"] = completion_data.completedAt
+                topics[topic_index]["quiz_score"] = completion_data.quizScore
+                topics[topic_index]["quiz_passed"] = completion_data.quizScore >= 80
+                
+                learning_goals_collection.update_one(
+                    {"_id": learning_path["_id"]},
+                    {
+                        "$set": {
+                            "topics": topics,
+                            "progress": overall_progress,
+                            "updated_at": datetime.datetime.utcnow().isoformat() + "Z"
+                        }
+                    }
+                )
         
         logger.info(f"✅ Topic {topic_index} marked complete. Overall progress: {overall_progress}%")
         
@@ -92,8 +131,8 @@ async def mark_topic_complete(
             "topicIndex": topic_index,
             "quizScore": completion_data.quizScore,
             "overallProgress": overall_progress,
-            "completedTopics": completed_topics,
-            "totalTopics": len(topics)
+            "completedTopics": len(existing_progress.get("completed_topics", [])) + (1 if not existing_progress else 0),
+            "totalTopics": total_topics if 'total_topics' in locals() else 5
         }
         
     except HTTPException:
@@ -342,6 +381,105 @@ async def submit_topic_quiz(
         raise HTTPException(status_code=500, detail=str(e))
 
 # Additional helper functions for learning path stepper integration
+@learning_path_api_router.get("/user-progress/{username}")
+async def get_user_progress(
+    username: str
+):
+    """Get all learning path progress for a user"""
+    try:
+        logger.info(f"📊 Fetching user progress for: {username}")
+        
+        # Get all user progress from user_topic_progress collection
+        progress_records = list(user_topic_progress_collection.find({
+            "username": username
+        }))
+        
+        user_progress = []
+        for record in progress_records:
+            user_progress.append({
+                "learningPathId": record.get("learning_path_id"),
+                "completedTopics": record.get("completed_topics", []),
+                "lastTopicIndex": record.get("current_topic_index", 0),
+                "overallProgress": record.get("overall_progress", 0),
+                "lastUpdated": record.get("last_updated")
+            })
+        
+        return {
+            "success": True,
+            "progress": user_progress
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching user progress: {e}")
+        return {
+            "success": True,
+            "progress": []
+        }
+
+@learning_path_api_router.post("/lesson/complete/{lesson_id}")
+async def mark_lesson_complete(
+    lesson_id: str,
+    completion_data: dict = Body(...)
+):
+    """Mark a lesson as complete"""
+    try:
+        logger.info(f"📚 Marking lesson {lesson_id} complete")
+        
+        username = completion_data.get("username")
+        learning_path_id = completion_data.get("learningPathId", "unknown")
+        topic_index = completion_data.get("topicIndex", 0)
+        
+        # Update or create user progress record
+        progress_filter = {
+            "username": username,
+            "learning_path_id": learning_path_id
+        }
+        
+        # Get existing progress or create new
+        existing_progress = user_topic_progress_collection.find_one(progress_filter)
+        
+        if existing_progress:
+            # Update lesson count for the topic
+            completed_lessons = existing_progress.get("completed_lessons", {})
+            topic_key = str(topic_index)
+            completed_lessons[topic_key] = completed_lessons.get(topic_key, 0) + 1
+            
+            user_topic_progress_collection.update_one(
+                progress_filter,
+                {
+                    "$set": {
+                        "completed_lessons": completed_lessons,
+                        "last_updated": datetime.datetime.utcnow()
+                    }
+                }
+            )
+        else:
+            # Create new progress record
+            new_progress = {
+                "username": username,
+                "learning_path_id": learning_path_id,
+                "completed_topics": [],
+                "current_topic_index": topic_index,
+                "completed_lessons": {str(topic_index): 1},
+                "overall_progress": 0,
+                "last_updated": datetime.datetime.utcnow(),
+                "created_at": datetime.datetime.utcnow()
+            }
+            user_topic_progress_collection.insert_one(new_progress)
+        
+        return {
+            "success": True,
+            "message": f"Lesson {lesson_id} marked as complete",
+            "lessonId": lesson_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error marking lesson complete: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @learning_path_api_router.get("/learning-path/{path_id}/stepper-data")
 async def get_stepper_data(
     path_id: str,

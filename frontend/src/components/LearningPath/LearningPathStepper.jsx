@@ -5,13 +5,14 @@ import {
   ChevronRight, 
   Lock, 
   CheckCircle, 
-  BookOpen, 
+  Book, 
   Award,
   TrophyFill,
   Clock
 } from 'react-bootstrap-icons';
 import TopicPage from './TopicPage';
 import QuizModal from './QuizModal';
+import { getLearningPathProgress, markTopicComplete as markTopicCompleteAPI } from '../../api';
 import './LearningPathStepper.scss';
 
 const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
@@ -43,21 +44,85 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
     }));
   }, [learningPath]);
 
-  // Initialize progress tracking
+  // Load progress from backend on component mount
   useEffect(() => {
+    const loadProgress = async () => {
+      if (!learningPath?.id || !username) return;
+      
+      try {
+        const progressData = await getLearningPathProgress(learningPath.id);
+        
+        if (progressData && progressData.completedTopics) {
+          const completedTopicsSet = new Set(progressData.completedTopics);
+          const initialProgress = {};
+          let resumeTopicIndex = 0;
+          
+          processedTopics.forEach((topic, index) => {
+            const isCompleted = completedTopicsSet.has(index);
+            const topicProgressData = progressData.topicProgress?.[index] || {};
+            
+            initialProgress[index] = {
+              totalLessons: topic.lessons.length,
+              completedLessons: topicProgressData.completedLessons || 0,
+              quizPassed: isCompleted,
+              quizScore: topicProgressData.quizScore || 0
+            };
+            
+            if (isCompleted) {
+              resumeTopicIndex = Math.max(resumeTopicIndex, index + 1);
+            }
+          });
+          
+          // Resume from the correct topic (last completed + 1, or 0 if none completed)
+          setCurrentTopicIndex(Math.min(resumeTopicIndex, processedTopics.length - 1));
+          setTopicProgress(initialProgress);
+          setCompletedTopics(completedTopicsSet);
+          
+          console.log('📊 Progress loaded from backend:', {
+            completedTopics: completedTopicsSet.size,
+            resumeFrom: resumeTopicIndex,
+            totalTopics: processedTopics.length
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to load progress from backend:', error);
+        // Fall back to local initialization
+        initializeLocalProgress();
+      }
+    };
+    
+    const initializeLocalProgress = () => {
+      if (processedTopics.length > 0) {
+        const initialProgress = {};
+        let resumeTopicIndex = 0;
+        let completedTopicsSet = new Set();
+        
+        processedTopics.forEach((topic, index) => {
+          const isCompleted = topic.quiz_passed && topic.quiz_score >= 80;
+          initialProgress[index] = {
+            totalLessons: topic.lessons.length,
+            completedLessons: topic.completed_lessons || 0,
+            quizPassed: isCompleted,
+            quizScore: topic.quiz_score || 0
+          };
+          
+          if (isCompleted) {
+            completedTopicsSet.add(index);
+            resumeTopicIndex = Math.max(resumeTopicIndex, index + 1);
+          }
+        });
+        
+        // Resume from the correct topic (last completed + 1, or 0 if none completed)
+        setCurrentTopicIndex(Math.min(resumeTopicIndex, processedTopics.length - 1));
+        setTopicProgress(initialProgress);
+        setCompletedTopics(completedTopicsSet);
+      }
+    };
+    
     if (processedTopics.length > 0) {
-      const initialProgress = {};
-      processedTopics.forEach((topic, index) => {
-        initialProgress[index] = {
-          totalLessons: topic.lessons.length,
-          completedLessons: 0,
-          quizPassed: false,
-          quizScore: 0
-        };
-      });
-      setTopicProgress(initialProgress);
+      loadProgress();
     }
-  }, [processedTopics]);
+  }, [processedTopics, learningPath?.id, username]);
 
   const currentTopic = processedTopics[currentTopicIndex];
   const totalTopics = processedTopics.length;
@@ -114,9 +179,16 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
   const handleTopicComplete = useCallback(() => {
     if (!currentTopic) return;
     
-    setCurrentQuizTopic(currentTopic);
+    // Pass the learning path ID and topic index to the quiz
+    const topicWithContext = {
+      ...currentTopic,
+      learningPathId: learningPath.id || learningPath.name,
+      topicIndex: currentTopicIndex
+    };
+    
+    setCurrentQuizTopic(topicWithContext);
     setShowQuizModal(true);
-  }, [currentTopic]);
+  }, [currentTopic, learningPath, currentTopicIndex]);
 
   // Handle quiz completion
   const handleQuizComplete = useCallback(async (quizResult) => {
@@ -179,23 +251,13 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
   // Mark topic as complete in backend
   const markTopicComplete = async (topicIndex) => {
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-      const response = await fetch(`${API_BASE_URL}/api/topic/complete/${learningPath.id}/${topicIndex}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          username,
-          topicIndex,
-          quizScore: quizResults[topicIndex]?.score || 0
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to mark topic as complete');
-      }
+      const result = await markTopicCompleteAPI(
+        learningPath.id || learningPath.name,
+        topicIndex,
+        quizResults[topicIndex]?.score || 0
+      );
+      
+      console.log('✅ Topic marked as complete in backend:', result);
     } catch (error) {
       console.warn('Failed to save topic completion to backend:', error);
       // Don't throw - allow UI to continue working

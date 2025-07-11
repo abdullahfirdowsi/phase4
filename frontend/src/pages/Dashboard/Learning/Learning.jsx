@@ -16,7 +16,7 @@ import {
   Compass,
   Circle
 } from "react-bootstrap-icons";
-import { getAllLearningPaths, updateLearningPathProgress } from "../../../api";
+import { getAllLearningPaths, updateLearningPathProgress, fetchUserProgress } from "../../../api";
 import { LearningPathStepper } from "../../../components/LearningPath";
 import "./Learning.scss";
 
@@ -41,6 +41,7 @@ const Learning = () => {
 const fetchLearningContent = async () => {
     try {
       setLoading(true);
+      const fetchedProgress = await fetchUserProgress(username);
       
       // Fetch user's learning paths
       const learningPaths = await getAllLearningPaths();
@@ -50,11 +51,15 @@ const fetchLearningContent = async () => {
         const dateA = new Date(a.created_at || 0);
         const dateB = new Date(b.created_at || 0);
         return dateB.getTime() - dateA.getTime(); // newest first
-      }).map(path => ({
-        ...path,
-        progress: calculateProgress(path.topics),
-        topics: path.topics || []
-      }));
+      }).map(path => {
+          const progressData = fetchedProgress.find(p => p.learningPathId === path.id) || {};
+          return {
+            ...path,
+            progress: calculateProgress(path.topics),
+            topics: path.topics || [],
+            lastTopicIndex: progressData.lastTopicIndex || 0
+          };
+      });
 
       console.log('📋 Learning paths in Learning component (sorted newest first):');
       sortedLearningPaths.forEach((p, i) => {

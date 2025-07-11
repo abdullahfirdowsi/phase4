@@ -43,7 +43,8 @@ class DatabaseManager:
             'quiz_attempts': self.db.quiz_attempts,
             'lessons': self.db.lessons,
             'user_enrollments': self.db.user_enrollments,
-            'user_sessions': self.db.user_sessions
+            'user_sessions': self.db.user_sessions,
+            'user_topic_progress': self.db.user_topic_progress
         }
     
     def create_indexes(self):
@@ -142,6 +143,17 @@ class DatabaseManager:
             ]
             self.db.user_sessions.create_indexes(sessions_indexes)
             
+            # User Topic Progress Collection Indexes
+            progress_indexes = [
+                IndexModel([("username", ASCENDING), ("learning_path_id", ASCENDING)], unique=True),
+                IndexModel([("username", ASCENDING)]),
+                IndexModel([("learning_path_id", ASCENDING)]),
+                IndexModel([("last_updated", DESCENDING)]),
+                IndexModel([("current_topic_index", ASCENDING)]),
+                IndexModel([("overall_progress", DESCENDING)]),
+            ]
+            self.db.user_topic_progress.create_indexes(progress_indexes)
+            
             logger.info("✅ All database indexes created successfully")
             
         except Exception as e:
@@ -153,7 +165,7 @@ class DatabaseManager:
         try:
             collections_to_create = [
                 "users", "chat_messages", "learning_goals", "quizzes",
-                "quiz_attempts", "lessons", "user_enrollments", "user_sessions"
+                "quiz_attempts", "lessons", "user_enrollments", "user_sessions", "user_topic_progress"
             ]
             
             for collection_name in collections_to_create:
@@ -179,6 +191,7 @@ quiz_attempts_collection = db_manager.db["quiz_attempts"]
 lessons_collection = db_manager.db["lessons"]
 user_enrollments_collection = db_manager.db["user_enrollments"]
 user_sessions_collection = db_manager.db["user_sessions"]
+user_topic_progress_collection = db_manager.db["user_topic_progress"]
 
 # Legacy compatibility - map old names to new collections
 chats_collection = chat_messages_collection  # Backward compatibility

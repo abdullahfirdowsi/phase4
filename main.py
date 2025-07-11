@@ -141,7 +141,8 @@ async def root():
             "quiz_attempts",
             "lessons",
             "user_enrollments",
-            "user_sessions"
+            "user_sessions",
+            "user_topic_progress"
         ]
     }
 

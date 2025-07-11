@@ -6,7 +6,7 @@ import {
   Trophy, 
   Clock
 } from 'react-bootstrap-icons';
-import { getQuizByTopic, submitQuizForScore } from '../../api';
+import { getQuizByTopic, submitQuizForScore, markTopicComplete } from '../../api';
 import './QuizModal.scss';
 
 const QuizModal = ({ 
@@ -26,13 +26,30 @@ const QuizModal = ({
   useEffect(() => {
     if (show && topic) {
       fetchQuiz();
+    } else if (!show) {
+      // Reset state when modal is closed
+      setUserAnswers({});
+      setQuizData(null);
+      setError(null);
+      setIsSubmitting(false);
+      setTimeLeft(0);
+      if (intervalId) {
+        clearInterval(intervalId);
+        setIntervalId(null);
+      }
     }
-    return () => clearInterval(intervalId);
-  }, [show, topic]);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [show, topic]); // Removed intervalId from dependencies to prevent infinite loop
 
   const fetchQuiz = async () => {
     try {
       setError(null);
+      // Reset user answers when starting a new quiz
+      setUserAnswers({});
       const quiz = await getQuizByTopic(topic.name);
       setQuizData(quiz);
       setTimeLeft(quiz.time_limit * 60); // Convert minutes to seconds
@@ -70,10 +87,29 @@ const QuizModal = ({
 
     try {
       const answersArray = quizData.questions.map((_, i) => userAnswers[i] || '');
-      const result = await submitQuizForScore(topic.id, answersArray);
+      
+      // Use the quiz_id from the generated quiz data
+      const quizId = quizData.quiz_id || topic.id || topic.name;
+      console.log('🎯 Submitting quiz with ID:', quizId);
+      
+      const result = await submitQuizForScore(quizId, answersArray);
 
       if (result) {
         const passed = result.score_percentage >= 80;
+        
+        // If quiz passed, mark topic as complete in backend
+        if (passed && topic.topicIndex !== undefined) {
+          try {
+            await markTopicComplete(
+              topic.learningPathId || 'unknown',
+              topic.topicIndex,
+              result.score_percentage
+            );
+          } catch (backendError) {
+            console.warn('Failed to save topic completion to backend:', backendError);
+          }
+        }
+        
         onComplete?.({
           passed,
           score: result.score_percentage,
