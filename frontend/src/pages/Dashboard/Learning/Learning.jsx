@@ -97,8 +97,25 @@ const fetchLearningContent = async () => {
 
   const calculateProgress = (topics) => {
     const totalTopics = (topics || []).length;
-    // Progress is now based on topics completed via quiz (≥80%)
-    const completedTopics = (topics || []).filter(topic => topic.quiz_passed && topic.quiz_score >= 80).length;
+    
+    // Standardized progress calculation:
+    // A topic is considered complete if:
+    // 1. quiz_passed is true AND quiz_score >= 80, OR
+    // 2. For backward compatibility, completed is true (fallback)
+    const completedTopics = (topics || []).filter(topic => {
+      // Primary check: quiz-based completion
+      if (topic.quiz_passed && topic.quiz_score >= 80) {
+        return true;
+      }
+      
+      // Fallback check: old completion flag
+      if (topic.completed && !topic.hasOwnProperty('quiz_passed')) {
+        return true;
+      }
+      
+      return false;
+    }).length;
+    
     return totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
   };
 

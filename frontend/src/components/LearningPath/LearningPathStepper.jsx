@@ -5,7 +5,7 @@ import {
   ChevronRight, 
   Lock, 
   CheckCircle, 
-  Book, 
+  BookOpen, 
   Award,
   TrophyFill,
   Clock
@@ -31,17 +31,66 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
   const processedTopics = useMemo(() => {
     if (!learningPath?.topics) return [];
     
-    return learningPath.topics.map((topic, index) => ({
-      ...topic,
-      topicIndex: index,
-      lessons: topic.subtopics?.map((subtopic, subIndex) => ({
-        id: `${index}-${subIndex}`,
-        title: typeof subtopic === 'string' ? subtopic : subtopic.name,
-        description: typeof subtopic === 'string' ? `Learn about ${subtopic}` : subtopic.description,
-        completed: false,
-        type: 'lesson'
-      })) || []
-    }));
+    return learningPath.topics.map((topic, index) => {
+      // Convert subtopics to lessons with proper structure
+      const lessons = [];
+      
+      // Handle different subtopic formats
+      if (topic.subtopics && Array.isArray(topic.subtopics)) {
+        topic.subtopics.forEach((subtopic, subIndex) => {
+          let lesson;
+          
+          if (typeof subtopic === 'string') {
+            // Simple string subtopic
+            lesson = {
+              id: `${index}-${subIndex}`,
+              title: subtopic,
+              description: `Learn about ${subtopic}`,
+              completed: false,
+              type: 'lesson'
+            };
+          } else if (typeof subtopic === 'object' && subtopic !== null) {
+            // Object subtopic with name and description
+            lesson = {
+              id: `${index}-${subIndex}`,
+              title: subtopic.name || subtopic.title || `Lesson ${subIndex + 1}`,
+              description: subtopic.description || `Learn about ${subtopic.name || 'this topic'}`,
+              completed: false,
+              type: 'lesson',
+              resources: subtopic.resources || [],
+              time_required: subtopic.time_required || '30 minutes'
+            };
+          }
+          
+          if (lesson) {
+            lessons.push(lesson);
+          }
+        });
+      }
+      
+      // If no subtopics, create a default lesson
+      if (lessons.length === 0) {
+        lessons.push({
+          id: `${index}-0`,
+          title: `${topic.name} Overview`,
+          description: topic.description || `Study the fundamentals of ${topic.name}`,
+          completed: false,
+          type: 'lesson'
+        });
+      }
+      
+      return {
+        ...topic,
+        topicIndex: index,
+        lessons,
+        // Standardize completion tracking
+        quiz_passed: topic.quiz_passed || false,
+        quiz_score: topic.quiz_score || 0,
+        completed_lessons: topic.completed_lessons || 0,
+        // Maintain backward compatibility
+        completed: topic.completed || topic.quiz_passed || false
+      };
+    });
   }, [learningPath]);
 
   // Load progress from backend on component mount

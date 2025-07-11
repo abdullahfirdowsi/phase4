@@ -1942,13 +1942,35 @@ export const markTopicComplete = async (learningPathId, topicIndex, quizScore = 
       }),
     });
 
+    console.log('✅ Topic marked as complete:', data);
     return data;
   } catch (error) {
     console.error("Error marking topic as complete:", error);
     
-    // Don't throw error - allow UI to continue working
-    console.warn("Topic completion not saved to backend, but UI will continue");
-    return { success: false, error: error.message };
+    // Fallback: Try updating through learning paths API
+    try {
+      const fallbackData = await apiRequest(`${API_BASE_URL}/learning-paths/progress/update`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          path_id: learningPathId,
+          topic_index: topicIndex,
+          completed: true,
+          quiz_score: quizScore
+        }),
+      });
+      
+      console.log('✅ Topic completion saved via fallback API:', fallbackData);
+      return { success: true, fallback: true, data: fallbackData };
+    } catch (fallbackError) {
+      console.error("Fallback API also failed:", fallbackError);
+      console.warn("Topic completion not saved to backend, but UI will continue");
+      return { success: false, error: error.message, fallbackError: fallbackError.message };
+    }
   }
 };
 
