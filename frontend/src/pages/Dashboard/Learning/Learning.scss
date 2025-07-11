@@ -555,6 +555,95 @@
   }
 }
 
+// Status badges for topic completion
+.topic-status {
+  display: flex;
+  align-items: center;
+  
+  .status-badge {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    
+    &.completed {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    &.in-progress {
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    
+    &.not-started {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      border: 1px solid #dee2e6;
+    }
+  }
+}
+
+// Stepper Mode Styling
+.stepper-mode {
+  .stepper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: v.$border-radius-lg;
+    border: 1px solid var(--border-color);
+    
+    .stepper-title {
+      margin: 0;
+      color: var(--text-primary);
+      font-weight: v.$font-weight-bold;
+    }
+    
+    .stepper-actions {
+      display: flex;
+      gap: 1rem;
+      
+      .btn {
+        padding: 0.75rem 1.5rem;
+        font-weight: v.$font-weight-medium;
+        border-radius: v.$border-radius;
+        transition: all 0.2s ease;
+        
+        &.btn-outline-secondary {
+          border-color: var(--border-color);
+          color: var(--text-secondary);
+          
+          &:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+          }
+        }
+        
+        &.btn-success {
+          background: var(--success-color);
+          border-color: var(--success-color);
+          
+          &:hover {
+            background: var(--success-hover);
+            transform: translateY(-2px);
+          }
+        }
+      }
+    }
+  }
+  
+  .stepper-content {
+    margin-top: 2rem;
+  }
+}
+
 // Responsive Design
 @media (max-width: v.$breakpoint-tablet) {
   .learning-page {

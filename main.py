@@ -465,6 +465,7 @@ try:
     from lessons import lessons_router
     from quiz_system import quiz_router
     from api.avatar_api import avatar_router
+    from api.learning_path_api import learning_path_api_router
     
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(profile_router, prefix="/profile", tags=["User Profile"])
@@ -475,6 +476,7 @@ try:
     app.include_router(lessons_router, prefix="/lessons", tags=["Lessons"])
     app.include_router(quiz_router, prefix="/quiz-system", tags=["Quiz System"])
     app.include_router(avatar_router, prefix="/avatar", tags=["Avatar Generation"])
+    app.include_router(learning_path_api_router, prefix="/api", tags=["Learning Path Stepper"])
     
     logger.info("✅ Enhanced API routers loaded successfully")
 except Exception as e:

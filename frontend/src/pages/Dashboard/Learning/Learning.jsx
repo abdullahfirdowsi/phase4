@@ -11,9 +11,13 @@ import {
   People,
   Eye,
   CheckCircle,
-  XCircle
+  XCircle,
+  ArrowLeft,
+  Compass,
+  Circle
 } from "react-bootstrap-icons";
 import { getAllLearningPaths, updateLearningPathProgress } from "../../../api";
+import { LearningPathStepper } from "../../../components/LearningPath";
 import "./Learning.scss";
 
 const Learning = () => {
@@ -25,6 +29,8 @@ const Learning = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState("my-learning");
+  const [stepperMode, setStepperMode] = useState(false);
+  const [currentLearningPath, setCurrentLearningPath] = useState(null);
 
   const username = localStorage.getItem("username");
 
@@ -86,8 +92,15 @@ const fetchLearningContent = async () => {
 
   const calculateProgress = (topics) => {
     const totalTopics = (topics || []).length;
-    const completedTopics = (topics || []).filter(topic => topic.completed).length;
+    // Progress is now based on topics completed via quiz (≥80%)
+    const completedTopics = (topics || []).filter(topic => topic.quiz_passed && topic.quiz_score >= 80).length;
     return totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
+  };
+
+  const calculateTopicProgress = (topic) => {
+    if (!topic.lessons || topic.lessons.length === 0) return 0;
+    const completedLessons = topic.completed_lessons || 0;
+    return (completedLessons / topic.lessons.length) * 100;
   };
 
   const createSampleLessons = () => {
@@ -289,6 +302,27 @@ const handleViewContent = async (contentId, contentType) => {
     }
   };
 
+  // Stepper mode handlers
+  const handleEnterStepperMode = (learningPath) => {
+    console.log('🎯 Entering stepper mode for:', learningPath.name);
+    setCurrentLearningPath(learningPath);
+    setStepperMode(true);
+  };
+
+  const handleExitStepperMode = () => {
+    console.log('🔙 Exiting stepper mode');
+    setStepperMode(false);
+    setCurrentLearningPath(null);
+    // Refresh learning paths to get updated progress
+    fetchLearningContent();
+  };
+
+  const handleStepperComplete = (completionData) => {
+    console.log('🎉 Learning path completed!', completionData);
+    setSuccess(`Congratulations! You've completed the learning path with ${Math.round(completionData.finalScore || 0)}% average score.`);
+    handleExitStepperMode();
+  };
+
   if (loading) {
     return (
       <div className="learning-page">
@@ -297,6 +331,35 @@ const handleViewContent = async (contentId, contentType) => {
             <Spinner animation="border" variant="primary" />
             <p className="mt-3">Loading your learning content...</p>
           </div>
+        </Container>
+      </div>
+    );
+  }
+
+  // Render stepper mode if active
+  if (stepperMode && currentLearningPath) {
+    return (
+      <div className="learning-page stepper-mode">
+        <Container fluid>
+          {/* Stepper Header */}
+          <div className="stepper-header mb-3">
+            <Button 
+              variant="outline-secondary" 
+              size="sm" 
+              onClick={handleExitStepperMode}
+              className="back-button"
+            >
+              <ArrowLeft className="me-2" size={16} />
+              Back to Learning
+            </Button>
+          </div>
+          
+          {/* LearningPathStepper Component */}
+          <LearningPathStepper
+            learningPath={currentLearningPath}
+            onComplete={handleStepperComplete}
+            onExit={handleExitStepperMode}
+          />
         </Container>
       </div>
     );
@@ -385,13 +448,21 @@ const handleViewContent = async (contentId, contentType) => {
 
                         <div className="content-actions">
                           <Button 
-                            variant="primary" 
+                            variant="outline-primary" 
                             size="sm"
                             onClick={() => handleViewContent(path.name, "learning_path")}
-                            className="w-100"
+                            className="me-2"
                           >
-                            <PlayCircleFill size={14} className="me-1" />
-                            Continue Learning
+                            <Eye size={14} className="me-1" />
+                            View Details
+                          </Button>
+                          <Button 
+                            variant="primary" 
+                            size="sm"
+                            onClick={() => handleEnterStepperMode(path)}
+                          >
+                            <Compass size={14} className="me-1" />
+                            Start Learning
                           </Button>
                         </div>
                       </Card.Body>
@@ -540,27 +611,23 @@ const handleViewContent = async (contentId, contentType) => {
                                     <span className="topic-number">{topicIndex + 1}</span>
                                     <h6 className="topic-title">{topic.name}</h6>
                                   </div>
-                                  <div className="topic-actions">
-                                    <div className="completion-toggle">
-                                      <Button
-                                        variant={topic.completed ? "success" : "outline-secondary"}
-                                        size="sm"
-                                        className="completion-btn"
-                                        onClick={() => handleMarkTopicCompleted(topicIndex, !topic.completed)}
-                                      >
-                                        {topic.completed ? (
-                                          <>
-                                            <CheckCircle size={14} className="me-1" />
-                                            Completed
-                                          </>
-                                        ) : (
-                                          <>
-                                            <XCircle size={14} className="me-1" />
-                                            Mark Complete
-                                          </>
-                                        )}
-                                      </Button>
-                                    </div>
+                                  <div className="topic-status">
+                                    {topic.quiz_passed ? (
+                                      <div className="status-badge completed">
+                                        <CheckCircle size={16} className="me-1" />
+                                        Completed ({topic.quiz_score}%)
+                                      </div>
+                                    ) : topic.completed_lessons > 0 ? (
+                                      <div className="status-badge in-progress">
+                                        <Clock size={16} className="me-1" />
+                                        In Progress ({topic.completed_lessons || 0} of {topic.lessons?.length || 0} lessons)
+                                      </div>
+                                    ) : (
+                                      <div className="status-badge not-started">
+                                        <Circle size={16} className="me-1" />
+                                        Not Started
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 
@@ -650,10 +717,26 @@ const handleViewContent = async (contentId, contentType) => {
             <Button variant="secondary" onClick={() => setShowDetailModal(false)}>
               Close
             </Button>
-            <Button variant="primary">
-              <PlayCircleFill size={16} className="me-2" />
-              {selectedContent?.type === "learning_path" ? "Continue Learning" : "Start Lesson"}
-            </Button>
+                      {selectedContent?.type === "learning_path" ? (
+                        <Button 
+                          variant="primary"
+                          onClick={() => {
+                            setShowDetailModal(false);
+                            const learningPath = myLearningPaths.find(p => p.name === selectedContent.title);
+                            if (learningPath) {
+                              handleEnterStepperMode(learningPath);
+                            }
+                          }}
+                        >
+                          <Compass size={16} className="me-2" />
+                          Continue Learning
+                        </Button>
+                      ) : (
+                        <Button variant="primary">
+                          <PlayCircleFill size={16} className="me-2" />
+                          Start Lesson
+                        </Button>
+                      )}
           </Modal.Footer>
         </Modal>
       </Container>
