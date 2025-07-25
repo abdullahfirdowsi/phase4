@@ -5,7 +5,6 @@ import {
   ChevronRight, 
   Lock, 
   CheckCircle, 
-  BookOpen, 
   Award,
   TrophyFill,
   Clock

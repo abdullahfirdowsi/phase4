@@ -210,30 +210,35 @@ async def get_quiz_by_topic(
     try:
         logger.info(f"🎯 Generating quiz for topic: {topic_name}")
         
-        # Use the existing AI quiz generator
-        from ai_quiz_generator import generate_quiz_content
+        # Use the existing AI quiz generator directly from the router
+        from ai_quiz_generator import generate_quiz_route
+        
+        # Create request data for AI quiz generation
+        request_data = {
+            "topic": topic_name,
+            "difficulty": difficulty,
+            "question_count": question_count,
+            "username": username
+        }
         
         # Generate quiz using AI
-        quiz_data = await generate_quiz_content(
-            topic=topic_name,
-            difficulty=difficulty,
-            question_count=question_count,
-            username=username
-        )
+        try:
+            quiz_response = await generate_quiz_route(request_data)
+            if quiz_response and quiz_response.get("success"):
+                return {
+                    "success": True,
+                    "quiz": quiz_response["quiz"]
+                }
+        except Exception as ai_error:
+            logger.warning(f"AI quiz generation failed, using fallback: {ai_error}")
         
-        if quiz_data:
-            return {
-                "success": True,
-                "quiz": quiz_data
-            }
-        else:
-            # Fallback quiz if AI generation fails
-            fallback_quiz = create_fallback_quiz(topic_name, difficulty, question_count)
-            return {
-                "success": True,
-                "quiz": fallback_quiz,
-                "note": "Generated using fallback method"
-            }
+        # Fallback quiz if AI generation fails
+        fallback_quiz = create_fallback_quiz(topic_name, difficulty, question_count)
+        return {
+            "success": True,
+            "quiz": fallback_quiz,
+            "note": "Generated using fallback method"
+        }
             
     except Exception as e:
         logger.error(f"Error generating quiz for topic {topic_name}: {e}")
@@ -248,31 +253,64 @@ async def get_quiz_by_topic(
 
 def create_fallback_quiz(topic_name: str, difficulty: str, question_count: int):
     """Create a fallback quiz when AI generation fails"""
-    quiz_id = f"topic_quiz_{int(datetime.datetime.utcnow().timestamp())}"
+    quiz_id = f"topic_quiz_{int(datetime.datetime.utcnow().timestamp())}_{hash(topic_name) % 10000}"
     
-    # Generate basic questions based on the topic
+    # Generate more varied questions based on the topic
     questions = []
+    
+    # Topic-specific question templates
+    topic_lower = topic_name.lower()
+    
     for i in range(question_count):
         question_num = i + 1
         
         if i % 3 == 0:  # MCQ questions
-            questions.append({
-                "question_number": question_num,
-                "question": f"What is an important aspect of {topic_name}?",
-                "type": "mcq",
-                "options": [
-                    "A) Understanding the fundamentals",
-                    "B) Practical application",
-                    "C) Continuous learning",
-                    "D) All of the above"
-                ],
-                "correct_answer": "D",
-                "explanation": f"All aspects are important when learning {topic_name}."
-            })
+            if 'python' in topic_lower:
+                questions.append({
+                    "question_number": question_num,
+                    "text": f"What is a key feature of {topic_name} programming?",
+                    "type": "mcq",
+                    "options": [
+                        "A) Dynamic typing and readability",
+                        "B) Memory management",
+                        "C) Large standard library",
+                        "D) All of the above"
+                    ],
+                    "correct_answer": "D",
+                    "explanation": f"All features are important aspects of {topic_name} programming."
+                })
+            elif 'javascript' in topic_lower or 'js' in topic_lower:
+                questions.append({
+                    "question_number": question_num,
+                    "text": f"What makes {topic_name} unique for web development?",
+                    "type": "mcq",
+                    "options": [
+                        "A) Event-driven programming",
+                        "B) Asynchronous operations",
+                        "C) DOM manipulation",
+                        "D) All of the above"
+                    ],
+                    "correct_answer": "D",
+                    "explanation": f"All features are essential for {topic_name} web development."
+                })
+            else:
+                questions.append({
+                    "question_number": question_num,
+                    "text": f"What is an important principle when learning {topic_name}?",
+                    "type": "mcq",
+                    "options": [
+                        "A) Understanding the fundamentals",
+                        "B) Practical application",
+                        "C) Continuous learning",
+                        "D) All of the above"
+                    ],
+                    "correct_answer": "D",
+                    "explanation": f"All aspects are important when learning {topic_name}."
+                })
         elif i % 3 == 1:  # True/False questions
             questions.append({
                 "question_number": question_num,
-                "question": f"True or False: {topic_name} requires consistent practice to master.",
+                "text": f"True or False: {topic_name} requires consistent practice to master.",
                 "type": "true_false",
                 "options": ["True", "False"],
                 "correct_answer": "True",
@@ -281,7 +319,7 @@ def create_fallback_quiz(topic_name: str, difficulty: str, question_count: int):
         else:  # Short answer questions
             questions.append({
                 "question_number": question_num,
-                "question": f"How would you apply {topic_name} in a real-world scenario?",
+                "text": f"How would you apply {topic_name} concepts in a real-world scenario?",
                 "type": "short_answer",
                 "correct_answer": f"By understanding the principles of {topic_name} and applying them to solve practical problems.",
                 "explanation": f"Real-world application of {topic_name} involves connecting theory with practice."
@@ -299,11 +337,27 @@ def create_fallback_quiz(topic_name: str, difficulty: str, question_count: int):
 
 # Function to be called by AI quiz generator (if needed)
 async def generate_quiz_content(topic: str, difficulty: str, question_count: int, username: str):
-    """Generate quiz content using AI (placeholder for actual implementation)"""
+    """Generate quiz content using AI - properly integrated with ai_quiz_generator"""
     try:
-        # This would normally call the AI quiz generation logic
-        # For now, return None to trigger fallback
-        return None
+        # Import the actual AI quiz generation function
+        from ai_quiz_generator import generate_quiz_route
+        
+        # Create request data for AI quiz generation
+        request_data = {
+            "topic": topic,
+            "difficulty": difficulty,
+            "question_count": question_count,
+            "username": username
+        }
+        
+        # Generate quiz using AI
+        quiz_response = await generate_quiz_route(request_data)
+        if quiz_response and quiz_response.get("success"):
+            return quiz_response["quiz"]
+        else:
+            logger.warning(f"AI quiz generation returned unsuccessful response")
+            return None
+            
     except Exception as e:
         logger.error(f"AI quiz generation failed: {e}")
         return None
