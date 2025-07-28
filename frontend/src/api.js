@@ -1886,37 +1886,117 @@ export const submitQuizForScore = async (topicId, answers) => {
     }
   }
   
-  // Final fallback - simulate scoring for development/testing
-  console.warn("All quiz submission methods failed, using simulated scoring");
+  // Strict fallback - only evaluate if we have cached quiz data with correct answers
+  console.warn("API quiz submission failed, attempting strict offline evaluation");
   
-  // Simulate realistic scoring based on answer quality
+  // Try to get the quiz data to compare against correct answers
+  let quizData = null;
+  try {
+    const cacheKey = `${username}_${topicId}`;
+    const cachedQuiz = quizCache.get(cacheKey);
+    if (cachedQuiz && cachedQuiz.data && cachedQuiz.data.questions) {
+      quizData = cachedQuiz.data;
+      console.log('📋 Using cached quiz data for offline evaluation');
+    }
+  } catch (error) {
+    console.warn('Could not retrieve quiz data for evaluation:', error);
+  }
+  
+  // If no quiz data is available, reject the submission
+  if (!quizData || !quizData.questions || quizData.questions.length === 0) {
+    console.error('❌ No quiz data available for evaluation - cannot score quiz');
+    throw new Error('Quiz evaluation failed: No quiz data available. Please try again or contact support.');
+  }
+  
   let correctCount = 0;
-  answers.forEach((answer, index) => {
-    if (answer && answer.trim().length > 0) {
-      // Give points for non-empty answers
-      if (index % 2 === 0 || answer.length > 10) {
+  const evaluationDetails = [];
+  
+  // Perform strict answer comparison using cached quiz data
+  answers.forEach((userAnswer, index) => {
+    const question = quizData.questions[index];
+    let isCorrect = false;
+    let explanation = 'No explanation available.';
+    
+    if (question) {
+      const correctAnswer = question.correct_answer;
+      explanation = question.explanation || 'No explanation available.';
+      
+      // Only evaluate if user provided an answer
+      if (userAnswer && userAnswer.trim().length > 0) {
+        if (question.type === 'short_answer') {
+          // For short answer, use strict keyword matching
+          const userAnswerLower = userAnswer.toLowerCase().trim();
+          const correctAnswerLower = correctAnswer.toString().toLowerCase().trim();
+          
+          // Extract meaningful words (longer than 2 characters)
+          const correctWords = correctAnswerLower.split(/\s+/).filter(word => word.length > 2);
+          
+          if (correctWords.length === 0) {
+            // If no meaningful words in correct answer, do exact match
+            isCorrect = userAnswerLower === correctAnswerLower;
+          } else {
+            // Check if user answer contains at least 50% of the key words
+            const matchingWords = correctWords.filter(word => userAnswerLower.includes(word));
+            const matchThreshold = Math.max(1, Math.ceil(correctWords.length * 0.5));
+            isCorrect = matchingWords.length >= matchThreshold;
+          }
+        } else {
+          // For MCQ and True/False, require exact match
+          const userAnswerNormalized = userAnswer.toString().trim().toUpperCase();
+          const correctAnswerNormalized = correctAnswer.toString().trim().toUpperCase();
+          
+          // Handle different answer formats (A, A), Option A, etc.)
+          const extractOption = (answer) => {
+            const match = answer.match(/^([A-D])\)|^([A-D])$|^OPTION\s*([A-D])$/i);
+            if (match) {
+              return (match[1] || match[2] || match[3]).toUpperCase();
+            }
+            // Handle True/False answers
+            if (answer.includes('TRUE') || answer === 'T') return 'TRUE';
+            if (answer.includes('FALSE') || answer === 'F') return 'FALSE';
+            return answer;
+          };
+          
+          const userOption = extractOption(userAnswerNormalized);
+          const correctOption = extractOption(correctAnswerNormalized);
+          
+          isCorrect = userOption === correctOption;
+        }
+      } else {
+        // Empty or whitespace-only answers are always incorrect
+        isCorrect = false;
+      }
+      
+      if (isCorrect) {
         correctCount++;
       }
     }
+    
+    evaluationDetails.push({
+      question_number: index + 1,
+      user_answer: userAnswer || 'No answer provided',
+      is_correct: isCorrect,
+      correct_answer: question ? question.correct_answer : 'Unknown',
+      explanation: explanation
+    });
   });
   
-  // Ensure minimum score for progress
-  const minCorrect = Math.ceil(answers.length * 0.8); // Ensure 80%+ for testing
-  correctCount = Math.max(correctCount, minCorrect);
+  const score_percentage = answers.length > 0 ? (correctCount / answers.length) * 100 : 0;
   
-  const score_percentage = Math.min((correctCount / answers.length) * 100, 100);
+  console.log(`📊 Offline Quiz Evaluation Complete:`, {
+    correct: correctCount,
+    total: answers.length,
+    percentage: score_percentage,
+    passed: score_percentage >= 80
+  });
   
   return {
-    score_percentage,
+    score_percentage: Math.round(score_percentage * 100) / 100,
     correct_answers: correctCount,
     total_questions: answers.length,
     passed: score_percentage >= 80,
-    details: answers.map((answer, index) => ({
-      question_number: index + 1,
-      user_answer: answer,
-      is_correct: index < correctCount,
-      explanation: `This answer demonstrates understanding of the topic.`
-    }))
+    details: evaluationDetails,
+    evaluation_mode: 'offline_strict'
   };
 };
 

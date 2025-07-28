@@ -258,7 +258,8 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
         [currentTopicIndex]: {
           ...prev[currentTopicIndex],
           quizPassed: passed,
-          quizScore: score
+          quizScore: score,
+          quizAttempted: true // Track that quiz was attempted
         }
       }));
 
@@ -335,8 +336,15 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
 
   // Retry quiz handler
   const handleRetryQuiz = () => {
-    if (isCurrentTopicComplete()) {
-      setCurrentQuizTopic(currentTopic);
+    if (isCurrentTopicComplete() || topicProgress[currentTopicIndex]?.quizAttempted) {
+      // Pass the learning path ID and topic index to the quiz
+      const topicWithContext = {
+        ...currentTopic,
+        learningPathId: learningPath.id || learningPath.name,
+        topicIndex: currentTopicIndex
+      };
+      
+      setCurrentQuizTopic(topicWithContext);
       setShowQuizModal(true);
       setError(null);
     }
@@ -433,11 +441,23 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
           <Alert variant="warning" dismissible onClose={() => setError(null)} className="mb-4">
             <div className="d-flex justify-content-between align-items-center">
               <span>{error}</span>
-              {isCurrentTopicComplete() && !canProceedToNext() && (
+              {(isCurrentTopicComplete() || topicProgress[currentTopicIndex]?.quizAttempted) && !canProceedToNext() && (
                 <Button variant="outline-warning" size="sm" onClick={handleRetryQuiz}>
                   Retry Quiz
                 </Button>
               )}
+            </div>
+          </Alert>
+        )}
+        
+        {/* Retry Quiz Button - Show even without error if quiz was attempted but not passed */}
+        {!error && (isCurrentTopicComplete() || topicProgress[currentTopicIndex]?.quizAttempted) && !canProceedToNext() && (
+          <Alert variant="info" className="mb-4">
+            <div className="d-flex justify-content-between align-items-center">
+              <span>You can retry the quiz to improve your score. You need at least 80% to proceed.</span>
+              <Button variant="outline-primary" size="sm" onClick={handleRetryQuiz}>
+                Retry Quiz
+              </Button>
             </div>
           </Alert>
         )}

@@ -6,7 +6,7 @@ import {
   Trophy, 
   Clock
 } from 'react-bootstrap-icons';
-import { getQuizByTopic, submitQuizForScore, markTopicComplete } from '../../api';
+import { getQuizByTopic, submitQuizForScore, markTopicComplete, clearQuizCache } from '../../api';
 import './QuizModal.scss';
 
 const QuizModal = ({ 
@@ -50,13 +50,41 @@ const QuizModal = ({
       setError(null);
       // Reset user answers when starting a new quiz
       setUserAnswers({});
+      
+      // Clear quiz cache to ensure we get a new unique quiz every time
+      clearQuizCache();
+      console.log('🗑️ Quiz cache cleared - generating new unique quiz for:', topic.name);
+      
+      // Show loading state
+      setQuizData({ loading: true });
+      
       const quiz = await getQuizByTopic(topic.name);
-      setQuizData(quiz);
-      setTimeLeft(quiz.time_limit * 60); // Convert minutes to seconds
+      
+      // Validate quiz data
+      if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+        throw new Error('Invalid quiz data received');
+      }
+      
+      // Ensure questions have proper structure
+      const validatedQuiz = {
+        ...quiz,
+        questions: quiz.questions.map((q, index) => ({
+          ...q,
+          id: q.id || index + 1,
+          text: q.text || q.question || `Question ${index + 1}`,
+          type: q.type || 'mcq',
+          options: q.options || [],
+          correct_answer: q.correct_answer || (q.options && q.options[0]) || 'A'
+        }))
+      };
+      
+      setQuizData(validatedQuiz);
+      setTimeLeft((quiz.time_limit || 10) * 60); // Convert minutes to seconds
       startCountdown();
     } catch (error) {
       console.error('Failed to fetch quiz:', error);
-      setError('Failed to load quiz. Please try again.');
+      setError(`Failed to load quiz: ${error.message}. Please try again.`);
+      setQuizData(null);
     }
   };
 
@@ -91,8 +119,10 @@ const QuizModal = ({
       // Use the quiz_id from the generated quiz data
       const quizId = quizData.quiz_id || topic.id || topic.name;
       console.log('🎯 Submitting quiz with ID:', quizId);
+      console.log('📝 Answers being submitted:', answersArray);
       
       const result = await submitQuizForScore(quizId, answersArray);
+      console.log('📊 Quiz evaluation result:', result);
 
       if (result) {
         const passed = result.score_percentage >= 80;
@@ -110,24 +140,36 @@ const QuizModal = ({
           }
         }
         
+        // Always call onComplete regardless of pass/fail status
         onComplete?.({
           passed,
           score: result.score_percentage,
-          answers: answersArray
+          answers: answersArray,
+          details: result.details || [],
+          correct_answers: result.correct_answers || 0,
+          total_questions: result.total_questions || answersArray.length
         });
+      } else {
+        // Handle case where result is null/undefined
+        console.error('Quiz submission returned null result');
+        setError('Quiz evaluation failed. Please try again.');
+        return; // Don't close modal on failure
       }
     } catch (error) {
       console.error('Error submitting quiz:', error);
       setError('Failed to submit quiz. Please try again.');
+      return; // Don't close modal on error
     } finally {
       setIsSubmitting(false);
-      onClose();
     }
+    
+    // Only close modal if submission was successful
+    onClose();
   };
 
   const formattedTimeLeft = `${Math.floor(timeLeft / 60)}:${timeLeft % 60 < 10 ? '0' : ''}${timeLeft % 60}`;
 
-  if (!quizData) {
+  if (!show) {
     return null;
   }
 
@@ -136,50 +178,103 @@ const QuizModal = ({
       <Modal.Header closeButton>
         <Modal.Title>
           <Trophy className="me-2" />
-          Quiz: {topic.name}
+          Quiz: {topic?.name || 'Loading...'}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error && (
           <Alert variant="danger">
-            {error}
+            <div className="d-flex justify-content-between align-items-center">
+              <span>{error}</span>
+              <Button 
+                variant="outline-danger" 
+                size="sm" 
+                onClick={fetchQuiz}
+              >
+                Retry
+              </Button>
+            </div>
           </Alert>
         )}
 
-        <div className="quiz-timer mb-3 d-flex justify-content-end align-items-center">
-          <Clock className="me-1" />
-          <div>{formattedTimeLeft}</div>
-        </div>
+        {/* Loading State */}
+        {quizData?.loading && (
+          <div className="text-center py-5">
+            <Spinner animation="border" variant="primary" className="mb-3" />
+            <p>Generating unique quiz questions...</p>
+          </div>
+        )}
 
-        <Form>
-          {quizData.questions.map((question, index) => (
-            <Form.Group key={index} className="mb-3">
-              <Form.Label>{index + 1}. {question.text}</Form.Label>
-                  <div className="quiz-options">
-                {question.type === 'short_answer' ? (
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter your answer here..."
-                    value={userAnswers[index] || ''}
-                    onChange={(e) => handleAnswerChange(index, e.target.value)}
-                    className="short-answer-input"
-                  />
-                ) : (
-                  question.options.map((option, i) => (
-                    <Form.Check 
-                      type="radio"
-                      key={i}
-                      name={`question-${index}`}
-                      label={option}
-                      onChange={() => handleAnswerChange(index, option)}
-                      checked={userAnswers[index] === option}
-                    />
-                  ))
-                )}
+        {/* Quiz Content */}
+        {quizData && !quizData.loading && quizData.questions && (
+          <>
+            <div className="quiz-timer mb-3 d-flex justify-content-end align-items-center">
+              <Clock className="me-1" />
+              <div className={timeLeft < 60 ? 'text-danger fw-bold' : ''}>
+                {formattedTimeLeft}
               </div>
-            </Form.Group>
-          ))}
-        </Form>
+            </div>
+
+            <div className="quiz-progress mb-3">
+              <small className="text-muted">
+                Progress: {Object.keys(userAnswers).length} of {quizData.questions.length} questions answered
+              </small>
+              <ProgressBar 
+                now={(Object.keys(userAnswers).length / quizData.questions.length) * 100} 
+                size="sm" 
+                className="mt-1"
+              />
+            </div>
+
+            <Form>
+              {quizData.questions.map((question, index) => (
+                <Form.Group key={`${question.id || index}`} className="mb-4">
+                  <Form.Label className="fw-bold">
+                    {index + 1}. {question.text}
+                  </Form.Label>
+                  <div className="quiz-options mt-2">
+                    {question.type === 'short_answer' ? (
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter your answer here..."
+                        value={userAnswers[index] || ''}
+                        onChange={(e) => handleAnswerChange(index, e.target.value)}
+                        className="short-answer-input"
+                      />
+                    ) : (
+                      question.options && question.options.length > 0 ? (
+                        question.options.map((option, i) => (
+                          <Form.Check 
+                            type="radio"
+                            key={`${index}-${i}`}
+                            name={`question-${index}`}
+                            label={option}
+                            value={option}
+                            onChange={() => handleAnswerChange(index, option)}
+                            checked={userAnswers[index] === option}
+                            className="mb-2"
+                          />
+                        ))
+                      ) : (
+                        <Alert variant="warning" className="mb-0">
+                          No options available for this question.
+                        </Alert>
+                      )
+                    )}
+                  </div>
+                </Form.Group>
+              ))}
+            </Form>
+          </>
+        )}
+
+        {/* Empty State */}
+        {!quizData && !error && (
+          <div className="text-center py-5">
+            <Trophy size={48} className="text-muted mb-3" />
+            <p className="text-muted">No quiz data available.</p>
+          </div>
+        )}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose} disabled={isProcessing || isSubmitting}>
