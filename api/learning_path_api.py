@@ -4,7 +4,7 @@ import datetime
 import logging
 import uuid
 from fastapi import APIRouter, HTTPException, Body, Query, Depends, Header
-from database import get_collections, learning_goals_collection, quiz_attempts_collection, user_topic_progress_collection
+from database import get_collections, learning_goals_collection, quiz_attempts_collection, user_topic_progress_collection, quizzes_collection, chat_messages_collection
 import datetime
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -373,28 +373,119 @@ async def submit_topic_quiz(
     try:
         logger.info(f"📝 Submitting quiz {quiz_id} for topic {topic_name}")
         
-        # For now, use a simple scoring mechanism
-        # In a real implementation, this would compare against correct answers
+        # Try to retrieve the actual quiz data to get correct answers
+        quiz_data = None
         
-        # Simulate scoring (in real implementation, fetch correct answers and compare)
-        total_questions = len(answers)
+        # First, try to get quiz from quizzes collection
+        try:
+            quiz_doc = quizzes_collection.find_one({
+                "quiz_id": quiz_id,
+                "username": username
+            })
+            if quiz_doc:
+                quiz_data = quiz_doc
+                logger.info(f"📋 Found quiz data in quizzes collection")
+        except Exception as e:
+            logger.warning(f"Could not retrieve quiz from collection: {e}")
         
-        # Basic scoring simulation - in real implementation, this would be proper scoring
+        # If not found, try to get from chat messages as fallback
+        if not quiz_data:
+            try:
+                chat_message = chat_messages_collection.find_one({
+                    "message_id": quiz_id,
+                    "username": username,
+                    "sender": "AI",
+                    "quiz_data": {"$exists": True}
+                })
+                if chat_message and "quiz_data" in chat_message:
+                    quiz_data = chat_message["quiz_data"]
+                    logger.info(f"📋 Found quiz data in chat messages")
+            except Exception as e:
+                logger.warning(f"Could not retrieve quiz from chat messages: {e}")
+        
+        if not quiz_data:
+            logger.error(f"❌ Could not find quiz data for quiz_id: {quiz_id}")
+            raise HTTPException(status_code=404, detail="Quiz data not found")
+        
+        # Extract questions from quiz data
+        questions = quiz_data.get("questions", [])
+        total_questions = len(questions)
+        
+        if len(answers) != total_questions:
+            raise HTTPException(status_code=400, detail="Number of answers doesn't match number of questions")
+        
+        # Proper answer evaluation using the same logic as ai_quiz_generator
         correct_count = 0
-        for i, answer in enumerate(answers):
-            # Simple heuristic for demo (in real app, compare with stored correct answers)
-            if answer and len(answer.strip()) > 0:
-                if i % 2 == 0:  # Simulate some correct answers
-                    correct_count += 1
+        detailed_results = []
         
-        # Ensure at least 60% score for testing
-        if correct_count < total_questions * 0.6:
-            correct_count = int(total_questions * 0.8)  # Give 80% for testing
+        for i, (question, user_answer) in enumerate(zip(questions, answers)):
+            question_number = i + 1
+            question_type = question.get("type", "mcq")
+            correct_answer = question.get("correct_answer", "")
+            explanation = question.get("explanation", "")
+            
+            # Normalize user answer
+            normalized_user_answer = (user_answer or "").strip()
+            
+            is_correct = False
+            
+            # Check if answer is empty
+            if not normalized_user_answer:
+                is_correct = False
+                logger.debug(f"Question {question_number}: Empty answer marked as incorrect")
+            elif question_type in ["mcq", "true_false"]:
+                # For MCQ and True/False, do exact matching with normalization
+                # Handle different answer formats: "A", "A)", "Option A", etc.
+                normalized_correct = correct_answer.strip().upper()
+                normalized_user = normalized_user_answer.strip().upper()
+                
+                # Remove common prefixes and suffixes
+                normalized_user = normalized_user.replace(")", "").replace("OPTION ", "").replace("CHOICE ", "")
+                normalized_correct = normalized_correct.replace(")", "").replace("OPTION ", "").replace("CHOICE ", "")
+                
+                is_correct = normalized_user == normalized_correct
+                logger.debug(f"Question {question_number}: MCQ/TF - User: '{normalized_user}', Correct: '{normalized_correct}', Match: {is_correct}")
+            elif question_type == "short_answer":
+                # For short answers, use keyword matching
+                import re
+                
+                # Extract meaningful words from correct answer
+                correct_words = set(re.findall(r'\b\w{3,}\b', correct_answer.lower()))
+                user_words = set(re.findall(r'\b\w{3,}\b', normalized_user_answer.lower()))
+                
+                # Remove common stop words
+                stop_words = {'the', 'and', 'are', 'for', 'with', 'this', 'that', 'from', 'they', 'have', 'will', 'can', 'not', 'but', 'you', 'all', 'any', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'use', 'man', 'new', 'now', 'old', 'see', 'him', 'two', 'how', 'its', 'who', 'oil', 'sit', 'set', 'run', 'cut', 'end', 'why', 'try', 'put', 'say', 'she', 'may', 'way', 'too', 'own', 'yet', 'off', 'far', 'ask', 'let', 'big', 'got', 'top', 'few'}
+                correct_words = correct_words - stop_words
+                user_words = user_words - stop_words
+                
+                if correct_words:
+                    # Check if at least 50% of key words are present
+                    matches = len(user_words.intersection(correct_words))
+                    threshold = max(1, len(correct_words) * 0.5)
+                    is_correct = matches >= threshold
+                    logger.debug(f"Question {question_number}: Short answer - Matches: {matches}/{len(correct_words)}, Threshold: {threshold}, Correct: {is_correct}")
+                else:
+                    # If no meaningful words in correct answer, fall back to basic comparison
+                    is_correct = normalized_user_answer.lower() in correct_answer.lower() or correct_answer.lower() in normalized_user_answer.lower()
+                    logger.debug(f"Question {question_number}: Short answer fallback - Contains match: {is_correct}")
+            
+            if is_correct:
+                correct_count += 1
+            
+            detailed_results.append({
+                "question_number": question_number,
+                "user_answer": user_answer,
+                "correct_answer": correct_answer,
+                "is_correct": is_correct,
+                "explanation": explanation
+            })
         
-        score_percentage = (correct_count / total_questions) * 100
+        score_percentage = (correct_count / total_questions) * 100 if total_questions > 0 else 0
         passed = score_percentage >= 80
         
-        # Store quiz attempt
+        logger.info(f"📊 Quiz evaluation complete - Score: {correct_count}/{total_questions} ({score_percentage:.1f}%), Passed: {passed}")
+        
+        # Store quiz attempt with detailed results
         attempt_doc = {
             "attempt_id": f"attempt_{int(datetime.datetime.utcnow().timestamp())}",
             "quiz_id": quiz_id,
@@ -406,12 +497,13 @@ async def submit_topic_quiz(
             "total_questions": total_questions,
             "completed": True,
             "completed_at": datetime.datetime.utcnow(),
-            "source": "learning_path_topic"
+            "source": "learning_path_topic",
+            "detailed_results": detailed_results
         }
         
         quiz_attempts_collection.insert_one(attempt_doc)
         
-        logger.info(f"✅ Quiz submitted. Score: {score_percentage}%, Passed: {passed}")
+        logger.info(f"✅ Quiz attempt stored successfully")
         
         return {
             "success": True,
@@ -419,17 +511,11 @@ async def submit_topic_quiz(
             "correct_answers": correct_count,
             "total_questions": total_questions,
             "passed": passed,
-            "details": [
-                {
-                    "question_number": i + 1,
-                    "user_answer": answer,
-                    "is_correct": i < correct_count,  # Simplified for demo
-                    "explanation": f"Explanation for question {i + 1} about {topic_name}"
-                }
-                for i, answer in enumerate(answers)
-            ]
+            "details": detailed_results
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error submitting topic quiz: {e}")
         raise HTTPException(status_code=500, detail=str(e))

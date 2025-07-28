@@ -1912,14 +1912,29 @@ export const submitQuizForScore = async (topicId, answers) => {
   const evaluationDetails = [];
   
   // Perform strict answer comparison using cached quiz data
+  console.log('🔍 Starting quiz evaluation with cached data:', {
+    totalQuestions: quizData.questions.length,
+    totalAnswers: answers.length,
+    questions: quizData.questions.map(q => ({ id: q.id, type: q.type, correct: q.correct_answer }))
+  });
+  
   answers.forEach((userAnswer, index) => {
     const question = quizData.questions[index];
     let isCorrect = false;
     let explanation = 'No explanation available.';
+    let debugInfo = {
+      questionIndex: index,
+      userAnswer: userAnswer,
+      questionExists: !!question
+    };
     
     if (question) {
       const correctAnswer = question.correct_answer;
       explanation = question.explanation || 'No explanation available.';
+      
+      debugInfo.questionType = question.type;
+      debugInfo.correctAnswer = correctAnswer;
+      debugInfo.hasUserAnswer = !!(userAnswer && userAnswer.trim().length > 0);
       
       // Only evaluate if user provided an answer
       if (userAnswer && userAnswer.trim().length > 0) {
@@ -1931,19 +1946,32 @@ export const submitQuizForScore = async (topicId, answers) => {
           // Extract meaningful words (longer than 2 characters)
           const correctWords = correctAnswerLower.split(/\s+/).filter(word => word.length > 2);
           
+          debugInfo.correctWords = correctWords;
+          debugInfo.userAnswerProcessed = userAnswerLower;
+          debugInfo.correctAnswerProcessed = correctAnswerLower;
+          
           if (correctWords.length === 0) {
             // If no meaningful words in correct answer, do exact match
             isCorrect = userAnswerLower === correctAnswerLower;
+            debugInfo.evaluationMethod = 'exact_match';
           } else {
             // Check if user answer contains at least 50% of the key words
             const matchingWords = correctWords.filter(word => userAnswerLower.includes(word));
             const matchThreshold = Math.max(1, Math.ceil(correctWords.length * 0.5));
             isCorrect = matchingWords.length >= matchThreshold;
+            
+            debugInfo.evaluationMethod = 'keyword_matching';
+            debugInfo.matchingWords = matchingWords;
+            debugInfo.matchThreshold = matchThreshold;
+            debugInfo.matchedCount = matchingWords.length;
           }
         } else {
           // For MCQ and True/False, require exact match
           const userAnswerNormalized = userAnswer.toString().trim().toUpperCase();
           const correctAnswerNormalized = correctAnswer.toString().trim().toUpperCase();
+          
+          debugInfo.userAnswerNormalized = userAnswerNormalized;
+          debugInfo.correctAnswerNormalized = correctAnswerNormalized;
           
           // Handle different answer formats (A, A), Option A, etc.)
           const extractOption = (answer) => {
@@ -1960,17 +1988,28 @@ export const submitQuizForScore = async (topicId, answers) => {
           const userOption = extractOption(userAnswerNormalized);
           const correctOption = extractOption(correctAnswerNormalized);
           
+          debugInfo.userOption = userOption;
+          debugInfo.correctOption = correctOption;
+          debugInfo.evaluationMethod = 'option_extraction';
+          
           isCorrect = userOption === correctOption;
         }
       } else {
         // Empty or whitespace-only answers are always incorrect
         isCorrect = false;
+        debugInfo.evaluationMethod = 'empty_answer';
       }
+      
+      debugInfo.isCorrect = isCorrect;
       
       if (isCorrect) {
         correctCount++;
       }
+    } else {
+      debugInfo.error = 'Question not found in cached data';
     }
+    
+    console.log(`📝 Question ${index + 1} evaluation:`, debugInfo);
     
     evaluationDetails.push({
       question_number: index + 1,
@@ -1987,7 +2026,13 @@ export const submitQuizForScore = async (topicId, answers) => {
     correct: correctCount,
     total: answers.length,
     percentage: score_percentage,
-    passed: score_percentage >= 80
+    passed: score_percentage >= 80,
+    evaluationDetails: evaluationDetails.map(detail => ({
+      question_number: detail.question_number,
+      user_answer: detail.user_answer,
+      correct_answer: detail.correct_answer,
+      is_correct: detail.is_correct
+    }))
   });
   
   return {
