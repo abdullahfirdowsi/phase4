@@ -515,10 +515,25 @@ async def submit_ai_quiz(request: QuizSubmissionRequest):
             
             if user_answer and user_answer.strip():
                 if question_type == "mcq":
-                    # For MCQ, compare the letter (A, B, C, D)
-                    is_correct = user_answer.strip().upper() == correct_answer.strip().upper()
+                    # For MCQ, extract and compare just the first letter (A, B, C, D)
+                    user_normalized = user_answer.strip().upper()
+                    correct_normalized = correct_answer.strip().upper()
+                    
+                    # Extract first letter from both answers
+                    user_letter = user_normalized[0] if user_normalized else ''
+                    correct_letter = correct_normalized[0] if correct_normalized else ''
+                    
+                    is_correct = user_letter == correct_letter
                 elif question_type == "true_false":
-                    is_correct = user_answer.strip().lower() == correct_answer.strip().lower()
+                    # For True/False, extract and compare first letter as well
+                    user_normalized = user_answer.strip().upper()
+                    correct_normalized = correct_answer.strip().upper()
+                    
+                    # Extract first letter from both answers
+                    user_letter = user_normalized[0] if user_normalized else ''
+                    correct_letter = correct_normalized[0] if correct_normalized else ''
+                    
+                    is_correct = user_letter == correct_letter
                 elif question_type == "short_answer":
                     # Simple keyword matching for short answers
                     user_words = set(user_answer.lower().split())

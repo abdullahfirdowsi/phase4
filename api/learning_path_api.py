@@ -434,17 +434,24 @@ async def submit_topic_quiz(
                 is_correct = False
                 logger.debug(f"Question {question_number}: Empty answer marked as incorrect")
             elif question_type in ["mcq", "true_false"]:
-                # For MCQ and True/False, do exact matching with normalization
-                # Handle different answer formats: "A", "A)", "Option A", etc.
+                # For MCQ and True/False, compare first letter only to handle possible answer formatting
                 normalized_correct = correct_answer.strip().upper()
                 normalized_user = normalized_user_answer.strip().upper()
-                
-                # Remove common prefixes and suffixes
-                normalized_user = normalized_user.replace(")", "").replace("OPTION ", "").replace("CHOICE ", "")
-                normalized_correct = normalized_correct.replace(")", "").replace("OPTION ", "").replace("CHOICE ", "")
-                
-                is_correct = normalized_user == normalized_correct
-                logger.debug(f"Question {question_number}: MCQ/TF - User: '{normalized_user}', Correct: '{normalized_correct}', Match: {is_correct}")
+
+                # Extract first letter of user answer and correct answer
+                correct_letter = normalized_correct[0] if normalized_correct else ""
+                user_letter = ""
+                if normalized_user:
+                    user_letter = normalized_user[0]
+                    # Sometimes answers start with a letter followed by ')' or '.' (e.g. 'A)', 'B.')
+                    if len(normalized_user) > 1 and normalized_user[1] in [')', '.']:
+                        user_letter = normalized_user[0]
+                    else:
+                        # Also consider cases where option letters are followed by space (e.g. 'A Option')
+                        user_letter = normalized_user[0]
+
+                is_correct = (user_letter == correct_letter)
+                logger.debug(f"Question {question_number}: MCQ/TF - User letter: '{user_letter}', Correct letter: '{correct_letter}', Match: {is_correct}")
             elif question_type == "short_answer":
                 # For short answers, use keyword matching
                 import re
