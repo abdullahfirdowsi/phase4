@@ -436,7 +436,7 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
           </Card.Body>
         </Card>
 
-        {/* Error Alert */}
+        {/* Quiz Status Alert - Unified for errors and retry opportunities */}
         {error && (
           <Alert variant="warning" dismissible onClose={() => setError(null)} className="mb-4">
             <div className="d-flex justify-content-between align-items-center">
@@ -450,13 +450,18 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
           </Alert>
         )}
         
-        {/* Retry Quiz Button - Show even without error if quiz was attempted but not passed */}
+        {/* Quiz Retry Opportunity - Only show when no error but quiz can be retried */}
         {!error && (isCurrentTopicComplete() || topicProgress[currentTopicIndex]?.quizAttempted) && !canProceedToNext() && (
           <Alert variant="info" className="mb-4">
             <div className="d-flex justify-content-between align-items-center">
-              <span>You can retry the quiz to improve your score. You need at least 80% to proceed.</span>
-              <Button variant="outline-primary" size="sm" onClick={handleRetryQuiz}>
-                Retry Quiz
+              <div>
+                <strong>Quiz Available</strong>
+                <div className="small text-muted">
+                  Score: {topicProgress[currentTopicIndex]?.quizScore || 0}% • Need 80% to proceed
+                </div>
+              </div>
+              <Button variant="primary" size="sm" onClick={handleRetryQuiz}>
+                {topicProgress[currentTopicIndex]?.quizAttempted ? 'Retry Quiz' : 'Take Quiz'}
               </Button>
             </div>
           </Alert>
