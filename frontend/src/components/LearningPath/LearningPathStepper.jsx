@@ -103,19 +103,30 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
         if (progressData && progressData.completedTopics) {
           const completedTopicsSet = new Set(progressData.completedTopics);
           const initialProgress = {};
+          const initialQuizResults = {};
           let resumeTopicIndex = 0;
           
           processedTopics.forEach((topic, index) => {
             const isCompleted = completedTopicsSet.has(index);
             const topicProgressData = progressData.topicProgress?.[index] || {};
+            const quizScore = topicProgressData.quiz_score || 0;
             
             initialProgress[index] = {
               totalLessons: topic.lessons.length,
               completedLessons: topicProgressData.completedLessons || 0,
               completedLessonIds: topicProgressData.completedLessonIds || [],
               quizPassed: isCompleted,
-              quizScore: topicProgressData.quizScore || 0
+              quizScore: quizScore
             };
+            
+            // Populate quiz results if quiz was completed
+            if (isCompleted && quizScore > 0) {
+              initialQuizResults[index] = {
+                score: quizScore,
+                passed: quizScore >= 80,
+                details: [] // We don't have detailed results from backend, but that's okay
+              };
+            }
             
             if (isCompleted) {
               resumeTopicIndex = Math.max(resumeTopicIndex, index + 1);
@@ -125,12 +136,15 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
           // Resume from the correct topic (last completed + 1, or 0 if none completed)
           setCurrentTopicIndex(Math.min(resumeTopicIndex, processedTopics.length - 1));
           setTopicProgress(initialProgress);
+          setQuizResults(initialQuizResults);
           setCompletedTopics(completedTopicsSet);
           
           console.log('📊 Progress loaded from backend:', {
             completedTopics: completedTopicsSet.size,
             resumeFrom: resumeTopicIndex,
-            totalTopics: processedTopics.length
+            totalTopics: processedTopics.length,
+            quizResults: initialQuizResults,
+            progressData: progressData
           });
         }
       } catch (error) {
@@ -143,11 +157,14 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
     const initializeLocalProgress = () => {
       if (processedTopics.length > 0) {
         const initialProgress = {};
+        const initialQuizResults = {};
         let resumeTopicIndex = 0;
         let completedTopicsSet = new Set();
         
         processedTopics.forEach((topic, index) => {
           const isCompleted = topic.quiz_passed && topic.quiz_score >= 80;
+          const quizScore = topic.quiz_score || 0;
+          
           // Generate completed lesson IDs based on count (fallback)
           const completedLessonIds = [];
           for (let i = 0; i < (topic.completed_lessons || 0) && i < topic.lessons.length; i++) {
@@ -159,8 +176,17 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
             completedLessons: topic.completed_lessons || 0,
             completedLessonIds: completedLessonIds,
             quizPassed: isCompleted,
-            quizScore: topic.quiz_score || 0
+            quizScore: quizScore
           };
+          
+          // Populate quiz results if quiz was completed
+          if (isCompleted && quizScore > 0) {
+            initialQuizResults[index] = {
+              score: quizScore,
+              passed: quizScore >= 80,
+              details: []
+            };
+          }
           
           if (isCompleted) {
             completedTopicsSet.add(index);
@@ -171,6 +197,7 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
         // Resume from the correct topic (last completed + 1, or 0 if none completed)
         setCurrentTopicIndex(Math.min(resumeTopicIndex, processedTopics.length - 1));
         setTopicProgress(initialProgress);
+        setQuizResults(initialQuizResults);
         setCompletedTopics(completedTopicsSet);
       }
     };
