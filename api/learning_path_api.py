@@ -167,6 +167,12 @@ async def get_learning_path_progress(
             logger.warning(f"Learning path not found: {learning_path_id} for user {username}")
             return LearningPathProgressResponse()
         
+        # Get user progress from user_topic_progress collection
+        user_progress = user_topic_progress_collection.find_one({
+            "username": username,
+            "learning_path_id": learning_path_id
+        })
+        
         topics = learning_path.get("topics", [])
         completed_topics = []
         topic_progress = {}
@@ -176,12 +182,28 @@ async def get_learning_path_progress(
             if topic.get("completed", False):
                 completed_topics.append(index)
             
+            # Get lesson completion data from user progress if available
+            topic_key = str(index)
+            completed_lesson_count = 0
+            completed_lesson_ids = []
+            
+            if user_progress:
+                completed_lesson_count = user_progress.get("completed_lessons", {}).get(topic_key, 0)
+                completed_lesson_ids = user_progress.get("completed_lesson_ids", {}).get(topic_key, [])
+            
+            # If topic is completed but no lesson progress, assume all lessons are complete
+            if topic.get("completed", False) and completed_lesson_count == 0:
+                completed_lesson_count = len(topic.get("subtopics", []))
+                # Generate IDs for all lessons if missing
+                completed_lesson_ids = [f"{index}-{i}" for i in range(len(topic.get("subtopics", [])))]
+            
             topic_progress[str(index)] = {
                 "completed": topic.get("completed", False),
                 "completion_date": topic.get("completion_date"),
                 "quiz_score": topic.get("quiz_score", 0),
                 "lessons_count": len(topic.get("subtopics", [])),
-                "completed_lessons": len(topic.get("subtopics", [])) if topic.get("completed") else 0
+                "completed_lessons": completed_lesson_count,
+                "completedLessonIds": completed_lesson_ids
             }
         
         overall_progress = (len(completed_topics) / len(topics)) * 100 if topics else 0
@@ -586,16 +608,29 @@ async def mark_lesson_complete(
         existing_progress = user_topic_progress_collection.find_one(progress_filter)
         
         if existing_progress:
-            # Update lesson count for the topic
+            # Update lesson completion tracking with both count and IDs
             completed_lessons = existing_progress.get("completed_lessons", {})
+            completed_lesson_ids = existing_progress.get("completed_lesson_ids", {})
             topic_key = str(topic_index)
+            
+            # Update lesson count
             completed_lessons[topic_key] = completed_lessons.get(topic_key, 0) + 1
+            
+            # Update lesson IDs list
+            if topic_key not in completed_lesson_ids:
+                completed_lesson_ids[topic_key] = []
+            if lesson_id not in completed_lesson_ids[topic_key]:
+                completed_lesson_ids[topic_key].append(lesson_id)
+            
+            # Ensure count matches IDs
+            completed_lessons[topic_key] = len(completed_lesson_ids[topic_key])
             
             user_topic_progress_collection.update_one(
                 progress_filter,
                 {
                     "$set": {
                         "completed_lessons": completed_lessons,
+                        "completed_lesson_ids": completed_lesson_ids,
                         "last_updated": datetime.datetime.utcnow()
                     }
                 }
@@ -608,6 +643,7 @@ async def mark_lesson_complete(
                 "completed_topics": [],
                 "current_topic_index": topic_index,
                 "completed_lessons": {str(topic_index): 1},
+                "completed_lesson_ids": {str(topic_index): [lesson_id]},
                 "overall_progress": 0,
                 "last_updated": datetime.datetime.utcnow(),
                 "created_at": datetime.datetime.utcnow()

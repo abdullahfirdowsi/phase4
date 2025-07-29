@@ -26,15 +26,18 @@ const TopicPage = ({
   const [currentLesson, setCurrentLesson] = useState(null);
 
   useEffect(() => {
-    if (progress?.completedLessons > 0) {
-      // Mark the first N lessons as completed based on progress
+    if (progress?.completedLessonIds && Array.isArray(progress.completedLessonIds)) {
+      // Use completedLessonIds array if available
+      setCompletedLessons(new Set(progress.completedLessonIds));
+    } else if (progress?.completedLessons > 0) {
+      // Fallback to legacy completedLessons count if no IDs available
       const newCompleted = new Set();
       for (let i = 0; i < progress.completedLessons && i < topic.lessons.length; i++) {
         newCompleted.add(topic.lessons[i].id);
       }
       setCompletedLessons(newCompleted);
     }
-  }, [progress?.completedLessons, topic.lessons]);
+  }, [progress?.completedLessonIds, progress?.completedLessons, topic.lessons]);
 
   const handleLessonToggle = async (lesson) => {
     const isCurrentlyCompleted = completedLessons.has(lesson.id);
@@ -235,7 +238,7 @@ const TopicPage = ({
                         </div>
                         
                         <div className="lesson-actions d-flex align-items-center">
-                          {!isCompleted && (
+                          {!isCompleted ? (
                             <Button
                               size="sm"
                               variant="outline-primary"
@@ -247,6 +250,11 @@ const TopicPage = ({
                             >
                               Mark Complete
                             </Button>
+                          ) : (
+                            <Badge bg="success" className="me-2 px-2 py-1">
+                              <CheckCircle className="me-1" size={14} />
+                              Completed
+                            </Badge>
                           )}
                           <Button
                             size="sm"

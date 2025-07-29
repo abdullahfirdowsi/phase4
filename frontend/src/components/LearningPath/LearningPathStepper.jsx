@@ -112,6 +112,7 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
             initialProgress[index] = {
               totalLessons: topic.lessons.length,
               completedLessons: topicProgressData.completedLessons || 0,
+              completedLessonIds: topicProgressData.completedLessonIds || [],
               quizPassed: isCompleted,
               quizScore: topicProgressData.quizScore || 0
             };
@@ -147,9 +148,16 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
         
         processedTopics.forEach((topic, index) => {
           const isCompleted = topic.quiz_passed && topic.quiz_score >= 80;
+          // Generate completed lesson IDs based on count (fallback)
+          const completedLessonIds = [];
+          for (let i = 0; i < (topic.completed_lessons || 0) && i < topic.lessons.length; i++) {
+            completedLessonIds.push(topic.lessons[i].id);
+          }
+          
           initialProgress[index] = {
             totalLessons: topic.lessons.length,
             completedLessons: topic.completed_lessons || 0,
+            completedLessonIds: completedLessonIds,
             quizPassed: isCompleted,
             quizScore: topic.quiz_score || 0
           };
@@ -199,16 +207,18 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
     setTopicProgress(prev => {
       const updated = { ...prev };
       const currentProgress = updated[currentTopicIndex] || {};
+      const currentCompletedIds = currentProgress.completedLessonIds || [];
       
-      // Mark lesson as completed and increment counter
-      const newCompletedCount = Math.min(
-        (currentProgress.completedLessons || 0) + 1,
-        currentTopic?.lessons.length || 0
-      );
+      // Add lesson ID to completed list if not already there
+      const newCompletedIds = currentCompletedIds.includes(lessonId) 
+        ? currentCompletedIds 
+        : [...currentCompletedIds, lessonId];
       
+      // Update both count and IDs
       updated[currentTopicIndex] = {
         ...currentProgress,
-        completedLessons: newCompletedCount
+        completedLessons: newCompletedIds.length,
+        completedLessonIds: newCompletedIds
       };
       
       return updated;
