@@ -26,40 +26,78 @@ const TopicPage = ({
   const [currentLesson, setCurrentLesson] = useState(null);
 
   useEffect(() => {
+    // Reset completed lessons state whenever topic or progress changes
+    const newCompletedLessons = new Set();
+    
     if (progress?.completedLessonIds && Array.isArray(progress.completedLessonIds)) {
       // Use completedLessonIds array if available
-      setCompletedLessons(new Set(progress.completedLessonIds));
-    } else if (progress?.completedLessons > 0) {
+      progress.completedLessonIds.forEach(lessonId => {
+        newCompletedLessons.add(lessonId);
+      });
+    } else if (progress?.completedLessons > 0 && topic?.lessons) {
       // Fallback to legacy completedLessons count if no IDs available
-      const newCompleted = new Set();
       for (let i = 0; i < progress.completedLessons && i < topic.lessons.length; i++) {
-        newCompleted.add(topic.lessons[i].id);
+        if (topic.lessons[i]?.id) {
+          newCompletedLessons.add(topic.lessons[i].id);
+        }
       }
-      setCompletedLessons(newCompleted);
     }
-  }, [progress?.completedLessonIds, progress?.completedLessons, topic.lessons]);
+    
+    // Always update the state, even if empty, to ensure UI consistency
+    setCompletedLessons(newCompletedLessons);
+    
+    console.log('🔄 TopicPage: Updated lesson completion state:', {
+      topicName: topic?.name,
+      progressData: progress,
+      completedLessonIds: Array.from(newCompletedLessons),
+      totalLessons: topic?.lessons?.length || 0
+    });
+  }, [progress, topic, progress?.completedLessonIds, progress?.completedLessons]);
 
   const handleLessonToggle = async (lesson) => {
     const isCurrentlyCompleted = completedLessons.has(lesson.id);
     
+    console.log('🎯 TopicPage: Lesson toggle attempt:', {
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      isCurrentlyCompleted,
+      learningPathId: topic.learningPathId,
+      topicIndex: topic.topicIndex,
+      currentCompletedLessons: Array.from(completedLessons)
+    });
+    
     if (!isCurrentlyCompleted) {
       try {
         // Mark as completed in backend
-        await markLessonComplete(
+        const result = await markLessonComplete(
           topic.learningPathId || 'unknown',
           topic.topicIndex || 0,
           lesson.id
         );
         
+        console.log('✅ TopicPage: Lesson marked complete in backend:', result);
+        
         // Update local state
-        setCompletedLessons(prev => new Set([...prev, lesson.id]));
+        setCompletedLessons(prev => {
+          const newSet = new Set([...prev, lesson.id]);
+          console.log('📝 TopicPage: Updated local completed lessons:', Array.from(newSet));
+          return newSet;
+        });
+        
+        // Notify parent component
         onLessonComplete(lesson.id);
       } catch (error) {
-        console.error('Failed to mark lesson as complete:', error);
+        console.error('❌ TopicPage: Failed to mark lesson as complete:', error);
         // Still update UI even if backend fails
-        setCompletedLessons(prev => new Set([...prev, lesson.id]));
+        setCompletedLessons(prev => {
+          const newSet = new Set([...prev, lesson.id]);
+          console.log('📝 TopicPage: Updated local completed lessons (fallback):', Array.from(newSet));
+          return newSet;
+        });
         onLessonComplete(lesson.id);
       }
+    } else {
+      console.log('⚠️ TopicPage: Lesson already completed, ignoring click');
     }
   };
 
@@ -173,7 +211,7 @@ const TopicPage = ({
                   <>
                     <CheckCircle className="me-2" />
                     <span>
-                      Great job! You've completed all lessons and passed the quiz with {quizResult?.score ?? 'Unknown'}%.
+                      Great job! You've completed all lessons and passed the quiz with {quizResult?.score || 0}%.
                     </span>
                   </>
                 ) : (

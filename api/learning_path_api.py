@@ -190,6 +190,10 @@ async def get_learning_path_progress(
             if user_progress:
                 completed_lesson_count = user_progress.get("completed_lessons", {}).get(topic_key, 0)
                 completed_lesson_ids = user_progress.get("completed_lesson_ids", {}).get(topic_key, [])
+                
+                logger.info(f"📋 Topic {index} ({topic.get('name', 'Unknown')}) lesson progress: count={completed_lesson_count}, ids={completed_lesson_ids}")
+            else:
+                logger.info(f"📋 Topic {index} ({topic.get('name', 'Unknown')}): No user progress found")
             
             # If topic is completed but no lesson progress, assume all lessons are complete
             if topic.get("completed", False) and completed_lesson_count == 0:
@@ -593,10 +597,13 @@ async def mark_lesson_complete(
     """Mark a lesson as complete"""
     try:
         logger.info(f"📚 Marking lesson {lesson_id} complete")
+        logger.info(f"📝 Completion data received: {completion_data}")
         
         username = completion_data.get("username")
         learning_path_id = completion_data.get("learningPathId", "unknown")
         topic_index = completion_data.get("topicIndex", 0)
+        
+        logger.info(f"🔍 Looking for progress: username={username}, learning_path_id={learning_path_id}, topic_index={topic_index}")
         
         # Update or create user progress record
         progress_filter = {
@@ -606,6 +613,7 @@ async def mark_lesson_complete(
         
         # Get existing progress or create new
         existing_progress = user_topic_progress_collection.find_one(progress_filter)
+        logger.info(f"📊 Existing progress found: {existing_progress is not None}")
         
         if existing_progress:
             # Update lesson completion tracking with both count and IDs

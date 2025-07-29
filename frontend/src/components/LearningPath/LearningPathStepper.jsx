@@ -26,6 +26,10 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
 
   const username = localStorage.getItem('username');
   
+  // Debug: Log the learningPath.id to see what we're getting
+  console.log('🔍 LearningPathStepper received learningPath ID:', learningPath?.id);
+  console.log('🔍 LearningPathStepper received learningPath name:', learningPath?.name);
+  
   // Memoized topics array with subtopics flattened into lessons
   const processedTopics = useMemo(() => {
     if (!learningPath?.topics) return [];
@@ -81,6 +85,7 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
       return {
         ...topic,
         topicIndex: index,
+        learningPathId: learningPath.id,
         lessons,
         // Standardize completion tracking
         quiz_passed: topic.quiz_passed || false,
@@ -144,7 +149,20 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
             resumeFrom: resumeTopicIndex,
             totalTopics: processedTopics.length,
             quizResults: initialQuizResults,
-            progressData: progressData
+            progressData: progressData,
+            initialProgress: initialProgress
+          });
+          
+          // Debug each topic's progress in detail
+          processedTopics.forEach((topic, index) => {
+            const progress = initialProgress[index];
+            console.log(`🔍 Topic ${index} (${topic.name}) progress:`, {
+              totalLessons: progress.totalLessons,
+              completedLessons: progress.completedLessons,
+              completedLessonIds: progress.completedLessonIds,
+              quizPassed: progress.quizPassed,
+              quizScore: progress.quizScore
+            });
           });
         }
       } catch (error) {
@@ -229,37 +247,6 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
     return progress && progress.quizPassed;
   }, [topicProgress, currentTopicIndex]);
 
-  // Handle lesson completion
-  const handleLessonComplete = useCallback((lessonId) => {
-    setTopicProgress(prev => {
-      const updated = { ...prev };
-      const currentProgress = updated[currentTopicIndex] || {};
-      const currentCompletedIds = currentProgress.completedLessonIds || [];
-      
-      // Add lesson ID to completed list if not already there
-      const newCompletedIds = currentCompletedIds.includes(lessonId) 
-        ? currentCompletedIds 
-        : [...currentCompletedIds, lessonId];
-      
-      // Update both count and IDs
-      updated[currentTopicIndex] = {
-        ...currentProgress,
-        completedLessons: newCompletedIds.length,
-        completedLessonIds: newCompletedIds
-      };
-      
-      return updated;
-    });
-
-    // If all lessons are completed, trigger quiz
-    const progress = topicProgress[currentTopicIndex];
-    if (progress && (progress.completedLessons + 1) >= (currentTopic?.lessons.length || 0)) {
-      setTimeout(() => {
-        handleTopicComplete();
-      }, 500);
-    }
-  }, [currentTopicIndex, currentTopic, topicProgress]);
-
   // Handle topic completion - trigger quiz
   const handleTopicComplete = useCallback(() => {
     if (!currentTopic) return;
@@ -274,6 +261,51 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
     setCurrentQuizTopic(topicWithContext);
     setShowQuizModal(true);
   }, [currentTopic, learningPath, currentTopicIndex]);
+
+  // Handle lesson completion
+  const handleLessonComplete = useCallback((lessonId) => {
+    console.log('📝 LearningPathStepper: Handling lesson completion', {
+      lessonId,
+      currentTopicIndex,
+      topicName: currentTopic?.name
+    });
+    
+    setTopicProgress(prev => {
+      const updated = { ...prev };
+      const currentProgress = updated[currentTopicIndex] || {
+        totalLessons: currentTopic?.lessons?.length || 0,
+        completedLessons: 0,
+        completedLessonIds: [],
+        quizPassed: false,
+        quizScore: 0
+      };
+      const currentCompletedIds = currentProgress.completedLessonIds || [];
+      
+      // Add lesson ID to completed list if not already there
+      const newCompletedIds = currentCompletedIds.includes(lessonId) 
+        ? currentCompletedIds 
+        : [...currentCompletedIds, lessonId];
+      
+      // Update both count and IDs
+      updated[currentTopicIndex] = {
+        ...currentProgress,
+        completedLessons: newCompletedIds.length,
+        completedLessonIds: newCompletedIds,
+        totalLessons: currentTopic?.lessons?.length || 0
+      };
+      
+      console.log('📊 Updated topic progress:', {
+        topicIndex: currentTopicIndex,
+        newProgress: updated[currentTopicIndex],
+        allProgress: updated
+      });
+      
+      return updated;
+    });
+
+    // No longer auto-trigger quiz - user must manually take the quiz
+    // Quiz will be available via the "Take Quiz" button when all lessons are complete
+  }, [currentTopicIndex, currentTopic, topicProgress, handleTopicComplete]);
 
   // Handle quiz completion
   const handleQuizComplete = useCallback(async (quizResult) => {
@@ -484,17 +516,20 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
           </Alert>
         )}
         
-        {/* Quiz Retry Opportunity - Only show when no error but quiz can be retried */}
-        {!error && (isCurrentTopicComplete() || topicProgress[currentTopicIndex]?.quizAttempted) && !canProceedToNext() && (
+        {/* Quiz Available - Show when all lessons are completed */}
+        {!error && isCurrentTopicComplete() && !canProceedToNext() && (
           <Alert variant="info" className="mb-4">
             <div className="d-flex justify-content-between align-items-center">
               <div>
-                <strong>Quiz Available</strong>
+                <strong>Ready for Quiz!</strong>
                 <div className="small text-muted">
-                  Score: {topicProgress[currentTopicIndex]?.quizScore || 0}% • Need 80% to proceed
+                  {topicProgress[currentTopicIndex]?.quizAttempted 
+                    ? `Previous score: ${topicProgress[currentTopicIndex]?.quizScore || 0}% • Need 80% to proceed`
+                    : 'Complete the quiz to proceed to the next topic • Need 80% to pass'
+                  }
                 </div>
               </div>
-              <Button variant="primary" size="sm" onClick={handleRetryQuiz}>
+              <Button variant="primary" size="sm" onClick={handleTopicComplete}>
                 {topicProgress[currentTopicIndex]?.quizAttempted ? 'Retry Quiz' : 'Take Quiz'}
               </Button>
             </div>
