@@ -380,7 +380,9 @@ const handleViewContent = async (contentId, contentType) => {
 
   const handleStepperComplete = (completionData) => {
     console.log('🎉 Learning path completed!', completionData);
-    setSuccess(`Congratulations! You've completed the learning path with ${Math.round(completionData.finalScore || 0)}% average score.`);
+    const averageScore = completionData.finalScore ?? 0;
+    const scoreText = averageScore > 0 ? `${Math.round(averageScore)}% average score` : 'great success';
+    setSuccess(`Congratulations! You've completed the learning path with ${scoreText}!`);
     handleExitStepperMode();
   };
 

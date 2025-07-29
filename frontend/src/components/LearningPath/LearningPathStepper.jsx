@@ -352,8 +352,10 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
 
   // Calculate final score
   const calculateFinalScore = useCallback(() => {
-    const scores = Object.values(quizResults).map(result => result.score || 0);
-    return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    const validScores = Object.values(quizResults)
+      .filter(result => result && typeof result.score === 'number' && result.score > 0)
+      .map(result => result.score);
+    return validScores.length > 0 ? validScores.reduce((a, b) => a + b, 0) / validScores.length : 0;
   }, [quizResults]);
 
   // Navigation handlers
@@ -403,14 +405,9 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
         {/* Header with progress */}
         <Card className="stepper-header mb-4">
           <Card.Body>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div>
-                <h4 className="mb-1">{learningPath.name}</h4>
-                <p className="text-muted mb-0">{learningPath.description}</p>
-              </div>
-              <Button variant="outline-secondary" size="sm" onClick={onExit}>
-                Exit Learning Path
-              </Button>
+            <div className="mb-3">
+              <h4 className="mb-1">{learningPath.name}</h4>
+              <p className="text-muted mb-0">{learningPath.description}</p>
             </div>
             
             {/* Overall Progress */}

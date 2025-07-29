@@ -173,7 +173,7 @@ const TopicPage = ({
                   <>
                     <CheckCircle className="me-2" />
                     <span>
-                      Great job! You've completed all lessons and passed the quiz with {quizResult?.score || 0}%.
+                      Great job! You've completed all lessons and passed the quiz with {quizResult?.score ?? 'Unknown'}%.
                     </span>
                   </>
                 ) : (
