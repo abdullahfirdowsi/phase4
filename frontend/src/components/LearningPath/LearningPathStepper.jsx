@@ -304,8 +304,8 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
         // Mark topic as completed
         setCompletedTopics(prev => new Set([...prev, currentTopicIndex]));
         
-        // Send completion to backend
-        await markTopicComplete(currentTopic.topicIndex);
+        // Send completion to backend with the actual quiz score
+        await markTopicComplete(currentTopic.topicIndex, score);
         
         setShowQuizModal(false);
         
@@ -335,12 +335,12 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
   }, [currentTopicIndex, currentTopic, totalTopics, completedTopics.size, onComplete]);
 
   // Mark topic as complete in backend
-  const markTopicComplete = async (topicIndex) => {
+  const markTopicComplete = async (topicIndex, quizScore = 0) => {
     try {
       const result = await markTopicCompleteAPI(
         learningPath.id || learningPath.name,
         topicIndex,
-        quizResults[topicIndex]?.score || 0
+        quizScore
       );
       
       console.log('✅ Topic marked as complete in backend:', result);

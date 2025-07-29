@@ -127,18 +127,7 @@ const QuizModal = ({
       if (result) {
         const passed = result.score_percentage >= 80;
         
-        // If quiz passed, mark topic as complete in backend
-        if (passed && topic.topicIndex !== undefined) {
-          try {
-            await markTopicComplete(
-              topic.learningPathId || 'unknown',
-              topic.topicIndex,
-              result.score_percentage
-            );
-          } catch (backendError) {
-            console.warn('Failed to save topic completion to backend:', backendError);
-          }
-        }
+        // Note: Topic completion is now handled by LearningPathStepper to avoid duplicate API calls
         
         // Always call onComplete regardless of pass/fail status
         onComplete?.({
