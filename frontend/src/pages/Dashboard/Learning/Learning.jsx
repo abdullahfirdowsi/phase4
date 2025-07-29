@@ -456,17 +456,6 @@ const handleViewContent = async (contentId, contentType) => {
                           </div>
                         </div>
 
-                        <div className="progress-section">
-                          <div className="progress-header">
-                            <span>Progress</span>
-                            <span>{Math.round(path.progress || 0)}%</span>
-                          </div>
-                          <ProgressBar 
-                            now={path.progress || 0} 
-                            variant="primary"
-                            className="content-progress"
-                          />
-                        </div>
 
                         <div className="content-actions">
                           <Button 
@@ -603,24 +592,6 @@ const handleViewContent = async (contentId, contentType) => {
                   
                   {selectedContent.type === "learning_path" && (
                     <div className="learning-path-content">
-                      <div className="path-stats">
-                        <div className="stat-item">
-                          <GraphUp className="stat-icon" />
-                          <div>
-                            <div className="stat-value">{Math.round(selectedContent.progress || 0)}%</div>
-                            <div className="stat-label">Progress</div>
-                          </div>
-                        </div>
-                        {selectedContent.content && selectedContent.content[0]?.duration && (
-                          <div className="stat-item">
-                            <Clock className="stat-icon" />
-                            <div>
-                              <div className="stat-value">{selectedContent.content[0].duration}</div>
-                              <div className="stat-label">Duration</div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
                       
                       <h5 className="section-title">Learning Modules</h5>
                       {selectedContent.topics && selectedContent.topics.length > 0 ? (
@@ -632,24 +603,6 @@ const handleViewContent = async (contentId, contentType) => {
                                   <div className="topic-title-wrapper">
                                     <span className="topic-number">{topicIndex + 1}</span>
                                     <h6 className="topic-title">{topic.name}</h6>
-                                  </div>
-                                  <div className="topic-status">
-                                    {topic.quiz_passed ? (
-                                      <div className="status-badge completed">
-                                        <CheckCircle size={16} className="me-1" />
-                                        Completed ({topic.quiz_score}%)
-                                      </div>
-                                    ) : topic.completed_lessons > 0 ? (
-                                      <div className="status-badge in-progress">
-                                        <Clock size={16} className="me-1" />
-                                        In Progress ({topic.completed_lessons || 0} of {topic.lessons?.length || 0} lessons)
-                                      </div>
-                                    ) : (
-                                      <div className="status-badge not-started">
-                                        <Circle size={16} className="me-1" />
-                                        Not Started
-                                      </div>
-                                    )}
                                   </div>
                                 </div>
                                 
