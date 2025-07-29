@@ -41,29 +41,53 @@ const Learning = () => {
 const fetchLearningContent = async () => {
     try {
       setLoading(true);
-      const fetchedProgress = await fetchUserProgress(username);
       
-      // Fetch user's learning paths
-      const learningPaths = await getAllLearningPaths();
+      // Fetch both learning paths and user progress data
+      const [learningPaths, fetchedProgress] = await Promise.all([
+        getAllLearningPaths(),
+        fetchUserProgress(username)
+      ]);
       
-      // Sort and map learning paths to include topics properly
+      console.log('📊 Fetched progress data:', fetchedProgress);
+      console.log('📚 Fetched learning paths:', learningPaths);
+      
+      // Sort and map learning paths to include backend progress data
       const sortedLearningPaths = (learningPaths || []).sort((a, b) => {
         const dateA = new Date(a.created_at || 0);
         const dateB = new Date(b.created_at || 0);
         return dateB.getTime() - dateA.getTime(); // newest first
       }).map(path => {
+          // Find progress data for this specific learning path
           const progressData = fetchedProgress.find(p => p.learningPathId === path.id) || {};
+          
+          // Merge backend progress data with topics
+          const enrichedTopics = (path.topics || []).map((topic, index) => {
+            // Look for progress data for this topic
+            const topicProgress = progressData.topicProgress?.[index] || {};
+            const isCompleted = progressData.completedTopics?.includes(index) || false;
+            
+            return {
+              ...topic,
+              completed: isCompleted || topic.completed || false,
+              quiz_passed: topicProgress.quiz_passed || topic.quiz_passed || false,
+              quiz_score: topicProgress.quiz_score || topic.quiz_score || 0,
+              completed_lessons: topicProgress.completed_lessons || topic.completed_lessons || 0,
+              started: topicProgress.started || topic.started || false
+            };
+          });
+          
           return {
             ...path,
-            progress: calculateProgress(path.topics),
-            topics: path.topics || [],
-            lastTopicIndex: progressData.lastTopicIndex || 0
+            topics: enrichedTopics,
+            progress: calculateProgressWithBackendData(enrichedTopics, progressData),
+            lastTopicIndex: progressData.lastTopicIndex || 0,
+            backendProgress: progressData // Keep reference to original backend data
           };
       });
 
-      console.log('📋 Learning paths in Learning component (sorted newest first):');
+      console.log('📋 Learning paths with enriched progress data:');
       sortedLearningPaths.forEach((p, i) => {
-        console.log(`  ${i + 1}. "${p.name}" - ${p.created_at}`);
+        console.log(`  ${i + 1}. "${p.name}" - Progress: ${Math.round(p.progress)}% - Backend data:`, p.backendProgress);
       });
       
       setMyLearningPaths(sortedLearningPaths);
@@ -117,6 +141,21 @@ const fetchLearningContent = async () => {
     }).length;
     
     return totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
+  };
+
+  const calculateProgressWithBackendData = (enrichedTopics, progressData) => {
+    // If backend provides an overall progress percentage, use it
+    if (progressData.overallProgress !== undefined) {
+      return progressData.overallProgress;
+    }
+    
+    // If backend provides a completion percentage, use it
+    if (progressData.completionPercentage !== undefined) {
+      return progressData.completionPercentage;
+    }
+    
+    // Otherwise, calculate from enriched topics (which now include backend data)
+    return calculateProgress(enrichedTopics);
   };
 
   const calculateTopicProgress = (topic) => {
@@ -456,6 +495,17 @@ const handleViewContent = async (contentId, contentType) => {
                           </div>
                         </div>
 
+                        <div className="progress-section">
+                          <div className="progress-header">
+                            <span>Progress</span>
+                            <span className="progress-percentage">{Math.round(path.progress || 0)}%</span>
+                          </div>
+                          <ProgressBar 
+                            now={path.progress || 0} 
+                            variant={path.progress >= 100 ? "success" : "primary"}
+                            className="content-progress"
+                          />
+                        </div>
 
                         <div className="content-actions">
                           <Button 
@@ -592,81 +642,142 @@ const handleViewContent = async (contentId, contentType) => {
                   
                   {selectedContent.type === "learning_path" && (
                     <div className="learning-path-content">
+                      <div className="section-header mb-4">
+                        <h4 className="section-title mb-2">
+                          <BookHalf className="me-2 text-primary" size={20} />
+                          Learning Modules
+                        </h4>
+                        <p className="text-muted mb-0">
+                          Complete these modules to master the subject. Each module contains curated resources and subtopics.
+                        </p>
+                      </div>
                       
-                      <h5 className="section-title">Learning Modules</h5>
                       {selectedContent.topics && selectedContent.topics.length > 0 ? (
-                        <div className="topics-list">
+                        <div className="topics-container">
                           {selectedContent.topics.map((topic, topicIndex) => (
-                            <Card key={topicIndex} className="topic-card mb-3">
-                              <Card.Body>
-                                <div className="topic-header">
-                                  <div className="topic-title-wrapper">
-                                    <span className="topic-number">{topicIndex + 1}</span>
-                                    <h6 className="topic-title">{topic.name}</h6>
-                                  </div>
+                            <div key={topicIndex} className="topic-module mb-4">
+                              {/* Module Header */}
+                              <div className="module-header d-flex align-items-center mb-3">
+                                <div className="module-number me-3">
+                                  <span className="badge bg-primary rounded-pill px-3 py-2">
+                                    {topicIndex + 1}
+                                  </span>
                                 </div>
+                                <div className="module-info flex-grow-1">
+                                  <h5 className="module-title mb-1">{topic.name}</h5>
+                                  {topic.time_required && (
+                                    <div className="module-duration text-muted">
+                                      <Clock size={14} className="me-1" />
+                                      <small>{topic.time_required}</small>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Module Content */}
+                              <div className="module-content ps-4 border-start border-2 border-light">
+                                <p className="module-description mb-3 text-secondary">
+                                  {topic.description}
+                                </p>
                                 
-                                <p className="topic-description">{topic.description}</p>
-                                
-                                {topic.time_required && (
-                                  <div className="topic-meta">
-                                    <Clock size={14} className="me-1" />
-                                    <span>{topic.time_required}</span>
+                                {/* Resources Section */}
+                                {(topic.links?.length > 0 || topic.videos?.length > 0) && (
+                                  <div className="resources-section mb-3">
+                                    <div className="row g-3">
+                                      {/* Reading Materials */}
+                                      {topic.links && topic.links.length > 0 && (
+                                        <div className="col-md-6">
+                                          <div className="resource-card h-100">
+                                            <div className="resource-header d-flex align-items-center mb-2">
+                                              <BookHalf size={16} className="text-success me-2" />
+                                              <h6 className="mb-0 text-success">Reading Materials</h6>
+                                            </div>
+                                            <div className="resource-links">
+                                              {topic.links.map((link, i) => (
+                                                <a 
+                                                  key={i}
+                                                  href={link} 
+                                                  target="_blank" 
+                                                  rel="noopener noreferrer"
+                                                  className="d-block text-decoration-none mb-1 p-2 rounded bg-light-hover small"
+                                                >
+                                                  <i className="bi bi-link-45deg me-1"></i>
+                                                  {link.replace(/^https?:\/\//, '').split('/')[0]}
+                                                </a>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Video Resources */}
+                                      {topic.videos && topic.videos.length > 0 && (
+                                        <div className="col-md-6">
+                                          <div className="resource-card h-100">
+                                            <div className="resource-header d-flex align-items-center mb-2">
+                                              <PlayCircleFill size={16} className="text-danger me-2" />
+                                              <h6 className="mb-0 text-danger">Video Resources</h6>
+                                            </div>
+                                            <div className="resource-links">
+                                              {topic.videos.map((video, i) => (
+                                                <a 
+                                                  key={i}
+                                                  href={video} 
+                                                  target="_blank" 
+                                                  rel="noopener noreferrer"
+                                                  className="d-block text-decoration-none mb-1 p-2 rounded bg-light-hover small"
+                                                >
+                                                  <PlayCircleFill size={12} className="me-1" />
+                                                  {video.includes('youtube') ? 'YouTube Video' : 'Video Resource'}
+                                                </a>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                                 
-                                <div className="topic-resources">
-                                  {topic.links && topic.links.length > 0 && (
-                                    <div className="resource-section">
-                                      <h6 className="resource-title">Reading Materials</h6>
-                                      <ul className="resource-list">
-                                        {topic.links.map((link, i) => (
-                                          <li key={i}>
-                                            <a href={link} target="_blank" rel="noopener noreferrer">
-                                              {link.replace(/^https?:\/\//, '').split('/')[0]}
-                                            </a>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                  
-                                  {topic.videos && topic.videos.length > 0 && (
-                                    <div className="resource-section">
-                                      <h6 className="resource-title">Video Resources</h6>
-                                      <ul className="resource-list">
-                                        {topic.videos.map((video, i) => (
-                                          <li key={i}>
-                                            <a href={video} target="_blank" rel="noopener noreferrer">
-                                              {video.includes('youtube') ? 'YouTube Video' : 'Video Resource'}
-                                            </a>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                </div>
-                                
+                                {/* Subtopics Section */}
                                 {topic.subtopics && topic.subtopics.length > 0 && (
                                   <div className="subtopics-section">
-                                    <h6 className="subtopics-title">Subtopics</h6>
-                                    <ul className="subtopics-list">
+                                    <div className="subtopics-header d-flex align-items-center mb-2">
+                                      <Award size={16} className="text-warning me-2" />
+                                      <h6 className="mb-0 text-warning">Key Topics Covered</h6>
+                                    </div>
+                                    <div className="subtopics-grid">
                                       {topic.subtopics.map((subtopic, i) => (
-                                        <li key={i} className="subtopic-item">
-                                          <strong>{subtopic.name}</strong>
-                                          {subtopic.description && <p>{subtopic.description}</p>}
-                                        </li>
+                                        <div key={i} className="subtopic-card mb-2">
+                                          <div className="card border-0 bg-light">
+                                            <div className="card-body p-3">
+                                              <h6 className="card-title mb-1 text-dark">{subtopic.name}</h6>
+                                              {subtopic.description && (
+                                                <p className="card-text small text-muted mb-0">
+                                                  {subtopic.description}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
                                       ))}
-                                    </ul>
+                                    </div>
                                   </div>
                                 )}
-                              </Card.Body>
-                            </Card>
+                              </div>
+                              
+                              {/* Divider between modules */}
+                              {topicIndex < selectedContent.topics.length - 1 && (
+                                <hr className="my-4 border-2" />
+                              )}
+                            </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="no-topics">
-                          <p>No learning modules found for this path.</p>
+                        <div className="no-topics text-center py-5">
+                          <BookHalf size={48} className="text-muted mb-3" />
+                          <h5 className="text-muted">No Modules Available</h5>
+                          <p className="text-muted">No learning modules found for this path.</p>
                         </div>
                       )}
                     </div>
