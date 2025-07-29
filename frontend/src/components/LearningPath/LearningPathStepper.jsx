@@ -116,12 +116,17 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
             const topicProgressData = progressData.topicProgress?.[index] || {};
             const quizScore = topicProgressData.quiz_score || 0;
             
+            // Use the actual length of completedLessonIds array as the source of truth
+            const completedLessonIds = topicProgressData.completedLessonIds || [];
+            const actualCompletedCount = completedLessonIds.length;
+            
             initialProgress[index] = {
               totalLessons: topic.lessons.length,
-              completedLessons: topicProgressData.completedLessons || 0,
-              completedLessonIds: topicProgressData.completedLessonIds || [],
+              completedLessons: actualCompletedCount, // Use actual count from IDs array
+              completedLessonIds: completedLessonIds,
               quizPassed: isCompleted,
-              quizScore: quizScore
+              quizScore: quizScore,
+              quizAttempted: isCompleted || quizScore > 0 // Mark as attempted if topic completed or has a score
             };
             
             // Populate quiz results if quiz was completed
@@ -303,8 +308,29 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
       return updated;
     });
 
-    // No longer auto-trigger quiz - user must manually take the quiz
-    // Quiz will be available via the "Take Quiz" button when all lessons are complete
+    // Auto-trigger quiz for first-time completion, manual for retries
+    setTimeout(() => {
+      const updatedProgress = topicProgress[currentTopicIndex];
+      const totalLessons = currentTopic?.lessons?.length || 0;
+      const completedCount = (updatedProgress?.completedLessonIds || []).length;
+      const hasAttemptedQuiz = updatedProgress?.quizAttempted;
+      
+      console.log('🔍 Checking if quiz should auto-trigger:', {
+        completedCount,
+        totalLessons,
+        hasAttemptedQuiz,
+        shouldAutoTrigger: completedCount >= totalLessons && totalLessons > 0 && !hasAttemptedQuiz
+      });
+      
+      // Auto-trigger quiz only if:
+      // 1. All lessons are completed
+      // 2. Topic has lessons
+      // 3. Quiz has never been attempted (first time)
+      if (completedCount >= totalLessons && totalLessons > 0 && !hasAttemptedQuiz) {
+        console.log('🚀 Auto-triggering quiz for first-time completion');
+        handleTopicComplete();
+      }
+    }, 100);
   }, [currentTopicIndex, currentTopic, topicProgress, handleTopicComplete]);
 
   // Handle quiz completion
@@ -517,24 +543,42 @@ const LearningPathStepper = ({ learningPath, onComplete, onExit }) => {
         )}
         
         {/* Quiz Available - Show when all lessons are completed */}
-        {!error && isCurrentTopicComplete() && !canProceedToNext() && (
-          <Alert variant="info" className="mb-4">
-            <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <strong>Ready for Quiz!</strong>
-                <div className="small text-muted">
-                  {topicProgress[currentTopicIndex]?.quizAttempted 
-                    ? `Previous score: ${topicProgress[currentTopicIndex]?.quizScore || 0}% • Need 80% to proceed`
-                    : 'Complete the quiz to proceed to the next topic • Need 80% to pass'
-                  }
+        {(() => {
+          const currentProgress = topicProgress[currentTopicIndex];
+          const allLessonsComplete = currentProgress && currentProgress.completedLessons >= currentProgress.totalLessons && currentProgress.totalLessons > 0;
+          const quizNotPassed = !currentProgress?.quizPassed;
+          const shouldShowQuiz = !error && allLessonsComplete && quizNotPassed;
+          
+          // Debug logging
+          console.log('🔍 Quiz availability check:', {
+            currentTopicIndex,
+            topicName: currentTopic?.name,
+            currentProgress,
+            allLessonsComplete,
+            quizNotPassed,
+            shouldShowQuiz,
+            error: !!error
+          });
+          
+          return shouldShowQuiz ? (
+            <Alert variant="info" className="mb-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>Ready for Quiz!</strong>
+                  <div className="small text-muted">
+                    {currentProgress?.quizAttempted 
+                      ? `Previous score: ${currentProgress?.quizScore || 0}% • Need 80% to proceed`
+                      : 'Complete the quiz to proceed to the next topic • Need 80% to pass'
+                    }
+                  </div>
                 </div>
+                <Button variant="primary" size="sm" onClick={handleTopicComplete}>
+                  {currentProgress?.quizAttempted ? 'Retry Quiz' : 'Take Quiz'}
+                </Button>
               </div>
-              <Button variant="primary" size="sm" onClick={handleTopicComplete}>
-                {topicProgress[currentTopicIndex]?.quizAttempted ? 'Retry Quiz' : 'Take Quiz'}
-              </Button>
-            </div>
-          </Alert>
-        )}
+            </Alert>
+          ) : null;
+        })()}
 
         {/* Current Topic Content */}
         <TopicPage
